@@ -20,6 +20,6 @@ export async function buildProject(projectDir: string): Promise<BuildResult> {
   const stylesCss = await readFile(join(projectDir, "styles.css"), "utf8").catch(() => "");
   const bodyHtml = `<div class="page">${await parseProject(md, config)}</div>`;
   const html = composeDocument({ bodyHtml, lang: "en", title: basename(projectDir) });
-  const projectCss = generateProjectCss(config);
+  const projectCss = generateProjectCss(config, { docTitle: basename(projectDir) });
   return { html, projectCss, stylesCss, config, projectDir };
 }

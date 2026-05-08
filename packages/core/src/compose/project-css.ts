@@ -1,20 +1,214 @@
 import type { ProjectConfig } from "../config/schema.js";
 
-export function generateProjectCss(config: ProjectConfig): string {
-  const parts: string[] = [];
-  for (const [name, tpl] of Object.entries(config["page-templates"])) {
-    if (!tpl) continue;
-    parts.push(`@page ${name} {`);
-    parts.push(`  size: ${formatSize(tpl.size)};`);
-    parts.push(`  margin: ${formatMargin(tpl.margin)};`);
-    parts.push(`}`);
+export interface ProjectCssOptions {
+  docTitle?: string;
+}
+
+const TOKEN_MAP: Record<string, string> = {
+  "{page}": "counter(page)",
+  "{pages}": "counter(pages)",
+  "{title}": "string(title)",
+  "{chapter}": "string(chapter)",
+  "{section}": "string(section)"
+};
+
+interface MarginBoxes {
+  left?: string;
+  center?: string;
+  right?: string;
+}
+
+interface VersoRecto {
+  "left-page"?: MarginBoxes;
+  "right-page"?: MarginBoxes;
+}
+
+type HeaderFooter = "none" | MarginBoxes | VersoRecto;
+
+interface PageTemplateLike {
+  size: string | [string, string];
+  margin: unknown;
+  bleed?: string;
+  headers?: HeaderFooter;
+  footers?: HeaderFooter;
+  "headers-rest"?: MarginBoxes | VersoRecto;
+  "footers-rest"?: MarginBoxes | VersoRecto;
+}
+
+function expandToken(value: string): string {
+  const trimmed = value.trim();
+  if (trimmed in TOKEN_MAP) return TOKEN_MAP[trimmed]!;
+  return `"${trimmed.replace(/"/g, '\\"')}"`;
+}
+
+function isVersoRecto(c: unknown): c is VersoRecto {
+  return typeof c === "object" && c !== null && ("left-page" in c || "right-page" in c);
+}
+
+function isMarginBoxes(c: unknown): c is MarginBoxes {
+  if (typeof c !== "object" || c === null) return false;
+  if (isVersoRecto(c)) return false;
+  return true;
+}
+
+function emitMarginBoxes(boxes: MarginBoxes, position: "top" | "bottom"): string[] {
+  const out: string[] = [];
+  if (boxes.left) out.push(`  @${position}-left { content: ${expandToken(boxes.left)}; }`);
+  if (boxes.center) out.push(`  @${position}-center { content: ${expandToken(boxes.center)}; }`);
+  if (boxes.right) out.push(`  @${position}-right { content: ${expandToken(boxes.right)}; }`);
+  return out;
+}
+
+function emitPageRule(
+  name: string,
+  tpl: PageTemplateLike,
+  variant: "" | ":first" | ":left" | ":right",
+  headerBoxes: MarginBoxes | undefined,
+  footerBoxes: MarginBoxes | undefined,
+  includeSizeAndMargin: boolean
+): string {
+  const lines: string[] = [];
+  lines.push(`@page ${name}${variant} {`);
+  if (includeSizeAndMargin) {
+    lines.push(`  size: ${formatSize(tpl.size)};`);
+    lines.push(`  margin: ${formatMargin(tpl.margin)};`);
   }
+  if (headerBoxes) lines.push(...emitMarginBoxes(headerBoxes, "top"));
+  if (footerBoxes) lines.push(...emitMarginBoxes(footerBoxes, "bottom"));
+  lines.push(`}`);
+  return lines.join("\n");
+}
+
+function uniformBoxes(c: HeaderFooter | undefined): MarginBoxes | undefined {
+  if (!c || c === "none") return undefined;
+  if (isVersoRecto(c)) return undefined;
+  return c;
+}
+
+function versoRectoSide(c: HeaderFooter | undefined, side: "left-page" | "right-page"): MarginBoxes | undefined {
+  if (!c || c === "none") return undefined;
+  if (isVersoRecto(c)) return c[side];
+  return c;
+}
+
+function restBoxes(c: MarginBoxes | VersoRecto | undefined): MarginBoxes | undefined {
+  if (!c) return undefined;
+  if (isVersoRecto(c)) return undefined;
+  if (isMarginBoxes(c)) return c;
+  return undefined;
+}
+
+function restVersoRectoSide(
+  c: MarginBoxes | VersoRecto | undefined,
+  side: "left-page" | "right-page"
+): MarginBoxes | undefined {
+  if (!c) return undefined;
+  if (isVersoRecto(c)) return c[side];
+  if (isMarginBoxes(c)) return c;
+  return undefined;
+}
+
+export function generateProjectCss(config: ProjectConfig, opts: ProjectCssOptions = {}): string {
+  const parts: string[] = [];
+
+  for (const [name, tplRaw] of Object.entries(config["page-templates"])) {
+    if (!tplRaw) continue;
+    const t = tplRaw as PageTemplateLike;
+
+    const headersIsVR = isVersoRecto(t.headers);
+    const footersIsVR = isVersoRecto(t.footers);
+    const restHeadersIsVR = isVersoRecto(t["headers-rest"]);
+    const restFootersIsVR = isVersoRecto(t["footers-rest"]);
+    const usesVersoRecto = headersIsVR || footersIsVR || restHeadersIsVR || restFootersIsVR;
+    const hasFirstVariant =
+      (t.headers === "none" && t["headers-rest"] !== undefined) ||
+      (t.footers === "none" && t["footers-rest"] !== undefined);
+
+    if (hasFirstVariant) {
+      // :first suppresses headers/footers (no boxes); ongoing uses *-rest
+      parts.push(emitPageRule(name, t, ":first", undefined, undefined, true));
+
+      const onHeaders: MarginBoxes | VersoRecto | undefined =
+        t.headers === "none" ? t["headers-rest"] : (t["headers-rest"] ?? (t.headers as MarginBoxes | VersoRecto | undefined));
+      const onFooters: MarginBoxes | VersoRecto | undefined =
+        t.footers === "none" ? t["footers-rest"] : (t["footers-rest"] ?? (t.footers as MarginBoxes | VersoRecto | undefined));
+
+      if (usesVersoRecto || isVersoRecto(onHeaders) || isVersoRecto(onFooters)) {
+        // base @page name with size/margin; then :left and :right variants with boxes
+        parts.push(emitPageRule(name, t, "", undefined, undefined, true));
+        parts.push(
+          emitPageRule(
+            name,
+            t,
+            ":left",
+            isVersoRecto(onHeaders) ? onHeaders["left-page"] : (onHeaders as MarginBoxes | undefined),
+            isVersoRecto(onFooters) ? onFooters["left-page"] : (onFooters as MarginBoxes | undefined),
+            false
+          )
+        );
+        parts.push(
+          emitPageRule(
+            name,
+            t,
+            ":right",
+            isVersoRecto(onHeaders) ? onHeaders["right-page"] : (onHeaders as MarginBoxes | undefined),
+            isVersoRecto(onFooters) ? onFooters["right-page"] : (onFooters as MarginBoxes | undefined),
+            false
+          )
+        );
+        // Re-emit a :first to suppress on first page (already done above; ensure ordering keeps non-first rules generic)
+      } else {
+        const onHeaderBoxes = isMarginBoxes(onHeaders) ? onHeaders : undefined;
+        const onFooterBoxes = isMarginBoxes(onFooters) ? onFooters : undefined;
+        parts.push(emitPageRule(name, t, "", onHeaderBoxes, onFooterBoxes, true));
+      }
+    } else if (usesVersoRecto) {
+      parts.push(emitPageRule(name, t, "", undefined, undefined, true));
+      parts.push(
+        emitPageRule(
+          name,
+          t,
+          ":left",
+          versoRectoSide(t.headers, "left-page"),
+          versoRectoSide(t.footers, "left-page"),
+          false
+        )
+      );
+      parts.push(
+        emitPageRule(
+          name,
+          t,
+          ":right",
+          versoRectoSide(t.headers, "right-page"),
+          versoRectoSide(t.footers, "right-page"),
+          false
+        )
+      );
+    } else {
+      parts.push(emitPageRule(name, t, "", uniformBoxes(t.headers), uniformBoxes(t.footers), true));
+    }
+  }
+
+  // string-set rules so {chapter}/{section} tokens populate from headings
+  parts.push(`h1 { string-set: chapter content(text); }`);
+  parts.push(`h2 { string-set: section content(text); }`);
+
+  if (opts.docTitle) {
+    parts.push(`body { string-set: title "${opts.docTitle.replace(/"/g, '\\"')}"; }`);
+  }
+
+  // .page → @page name mapping
   parts.push(`.page { page: default; }`);
   for (const name of Object.keys(config["page-templates"])) {
     if (name !== "default") {
       parts.push(`.page[data-page-template="${name}"] { page: ${name}; }`);
     }
   }
+
+  // Each .page starts on a new physical page (except the first).
+  parts.push(`.page { break-before: page; }`);
+  parts.push(`.page:first-child { break-before: avoid; }`);
+
   return parts.join("\n") + "\n";
 }
 
