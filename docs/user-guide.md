@@ -416,6 +416,17 @@ h1 { font-family: var(--font-display); }
 | `attrs` | Whitelist of attribute names. Each becomes `data-name` on the element. |
 | `inline` | If `true`, only valid as inline directive (`:name[…]`). |
 
+**`palette` block (optional)** — overrides for the Palette tab in `tender preview`.
+
+| Field | Notes |
+|---|---|
+| `attrs` / `params` | Object of attribute/param values for the default render. |
+| `body` | Body content for the default render. |
+| `slots` | Object of slot contents (for templates with named slots). |
+| `variants` | List of variant objects (each can override any of the above), shown as additional renders in the tile. |
+
+The `palette` block never affects PDF/HTML output — it's only used for the Palette tab's example tiles. Templates also support a `palette` block with the same shape.
+
 ### `templates`
 
 | Field | Notes |
@@ -423,6 +434,8 @@ h1 { font-family: var(--font-display); }
 | `params` | Names of accepted attributes; available as `{{name}}` in the template. |
 | `slots` | Names of named content slots; each available as `{{{slotname}}}`. Omit for single-slot templates that just use `{{{body}}}`. |
 | `template` | Mustache (Handlebars) HTML string. Use `{{name}}` for attributes, `{{{slotname}}}` for raw HTML slots, `{{#if name}}…{{/if}}` for conditionals. |
+
+Templates accept the same optional `palette` block described under [`components`](#components) above.
 
 ---
 

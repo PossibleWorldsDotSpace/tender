@@ -33,6 +33,16 @@ open my-doc/out/document.pdf
 
 `tender preview my-doc` runs a live-reloading HTML preview at http://127.0.0.1:3993.
 
+## Preview UI
+
+`tender preview` opens a tabbed UI:
+
+- **Preview** — the live-reloading rendered output (same as before).
+- **Palette** — gallery of components, templates, and typography in this project, each rendered with project styles.
+- **Help** — the user guide.
+
+All three update automatically when you edit project files.
+
 ## Project structure
 
 ```
