@@ -1,0 +1,14 @@
+{
+  "name": "tender",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "build": "pnpm -r build",
+    "test": "pnpm -r test",
+    "lint": "pnpm -r lint",
+    "typecheck": "pnpm -r typecheck"
+  },
+  "engines": { "node": ">=20.0.0" },
+  "packageManager": "pnpm@9.0.0"
+}
