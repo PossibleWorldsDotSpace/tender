@@ -126,6 +126,17 @@ describe("generateProjectCss", () => {
     expect(css).toContain("format('woff2')");
   });
 
+  it("throws on mixed token + literal in header/footer values", () => {
+    expect(() => generateProjectCss({
+      "page-templates": {
+        default: {
+          size: "A5", margin: 0,
+          headers: { center: "Page {page}" }
+        }
+      }
+    })).toThrow(/single token or pure literal/);
+  });
+
   it("emits string-set on body for the document title", () => {
     const css = generateProjectCss(
       {

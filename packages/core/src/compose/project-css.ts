@@ -38,6 +38,10 @@ interface PageTemplateLike {
 function expandToken(value: string): string {
   const trimmed = value.trim();
   if (trimmed in TOKEN_MAP) return TOKEN_MAP[trimmed]!;
+  // If the string contains a token-shaped substring but isn't a pure token, error.
+  if (/\{(page|pages|title|chapter|section)\}/.test(trimmed)) {
+    throw new Error(`Header/footer values must be either a single token or pure literal in v1; got: ${trimmed}`);
+  }
   return `"${trimmed.replace(/"/g, '\\"')}"`;
 }
 
