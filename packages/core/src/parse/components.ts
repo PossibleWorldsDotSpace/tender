@@ -9,6 +9,18 @@ interface DirectiveLike {
   name: string;
   attributes?: Record<string, string | null | undefined>;
   data?: Record<string, unknown>;
+  position?: { start?: { line?: number; column?: number } };
+}
+
+export function positionPrefix(
+  node: { position?: { start?: { line?: number; column?: number } } },
+  file = "content.md"
+): string {
+  const line = node.position?.start?.line;
+  const col = node.position?.start?.column;
+  if (line && col) return `${file}:${line}:${col}: `;
+  if (line) return `${file}:${line}: `;
+  return `${file}: `;
 }
 
 export const resolveComponents: Plugin<[ProjectConfig], Root> = (config) => (tree) => {
@@ -26,10 +38,10 @@ export const resolveComponents: Plugin<[ProjectConfig], Root> = (config) => (tre
     if (dir.name in BUILTIN_TEMPLATES) return;
     const def = components[dir.name];
     if (!def) {
-      throw new Error(`Unknown component "${dir.name}"`);
+      throw new Error(`${positionPrefix(dir)}Unknown component "${dir.name}"`);
     }
     if (def.inline && dir.type === "containerDirective") {
-      throw new Error(`Component "${dir.name}" is inline-only; cannot use as a block`);
+      throw new Error(`${positionPrefix(dir)}Component "${dir.name}" is inline-only; cannot use as a block`);
     }
     const data = (dir.data ??= {});
     data.hName = def.tag;

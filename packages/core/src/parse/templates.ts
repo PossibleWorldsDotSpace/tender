@@ -6,7 +6,7 @@ import type { Plugin } from "unified";
 import type { Root, RootContent } from "mdast";
 import type { ProjectConfig } from "../config/schema.js";
 import { BUILTIN_TEMPLATES } from "../builtins.js";
-import { resolveComponents } from "./components.js";
+import { resolveComponents, positionPrefix } from "./components.js";
 
 interface TemplateDef {
   params?: readonly string[];
@@ -20,6 +20,7 @@ interface DirectiveNode {
   attributes?: Record<string, string | null | undefined>;
   children: RootContent[];
   data?: Record<string, unknown>;
+  position?: { start?: { line?: number; column?: number } };
 }
 
 interface HtmlNode {
@@ -70,7 +71,7 @@ export const resolveTemplates: Plugin<[ProjectConfig], Root> = (config) => {
         for (const slot of def.slots!) {
           const children = split.slots[slot];
           if (!children || children.length === 0) {
-            throw new Error(`Template '${dir.name}' is missing slot '${slot}'`);
+            throw new Error(`${positionPrefix(dir)}Template '${dir.name}' is missing slot '${slot}'`);
           }
           data[slot] = await mdChildrenToHtml(children, config);
         }

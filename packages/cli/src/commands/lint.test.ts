@@ -18,6 +18,11 @@ describe("lint command", () => {
     expect(result.errors[0]).toMatch(/unknown component/i);
   });
 
+  it("includes file:line in error messages", async () => {
+    const result = await lint(join(fixturesDir, "broken"));
+    expect(result.errors[0]).toMatch(/content\.md:\d+/);
+  });
+
   it("reports missing project.yaml as an error", async () => {
     const result = await lint(join(fixturesDir, "does-not-exist"));
     expect(result.errors.length).toBeGreaterThan(0);
