@@ -42,6 +42,13 @@ describe("inlineAssets", () => {
     expect(inlined).not.toContain("data:image");
   });
 
+  it("inlines all occurrences of the same image", async () => {
+    const html = `<img src="assets/images/dot.png"><img src="assets/images/dot.png">`;
+    const inlined = await inlineAssets(html, fixtureDir);
+    const matches = inlined.match(/data:image\/png;base64/g);
+    expect(matches?.length).toBe(2);
+  });
+
   it("does not inline a traversed path even when the extension is allowed", async () => {
     // Path resolves outside the project root by climbing up; even though it
     // points back into another sibling fixture, it must be rejected.

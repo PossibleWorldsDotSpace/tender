@@ -41,7 +41,7 @@ export async function inlineAssets(html: string, projectDir: string): Promise<st
 
   let out = html;
   for (const { original, replaced } of replacements) {
-    out = out.replace(original, replaced);
+    out = out.replaceAll(original, replaced);
   }
   return out;
 }
