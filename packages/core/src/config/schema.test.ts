@@ -19,4 +19,32 @@ describe("ProjectConfig", () => {
       ProjectConfig.parse({ "page-templates": { other: { size: "A5", margin: {} } } })
     ).toThrow(/default/);
   });
+
+  it("parses a component definition", () => {
+    const c = ProjectConfig.parse({
+      "page-templates": { default: { size: "A5", margin: 0 } },
+      components: {
+        callout: { tag: "aside", class: "callout", attrs: ["variant"] }
+      }
+    });
+    expect(c.components?.callout?.tag).toBe("aside");
+  });
+
+  it("parses a template definition with slots and params", () => {
+    const c = ProjectConfig.parse({
+      "page-templates": { default: { size: "A5", margin: 0 } },
+      templates: {
+        row: {
+          params: ["label", "icon"],
+          template: "<div class=\"row\">{{{body}}}</div>"
+        },
+        "ad-lib": {
+          slots: ["suggested"],
+          template: "<div>{{{suggested}}}</div>"
+        }
+      }
+    });
+    expect(c.templates?.row?.params).toEqual(["label", "icon"]);
+    expect(c.templates?.["ad-lib"]?.slots).toEqual(["suggested"]);
+  });
 });

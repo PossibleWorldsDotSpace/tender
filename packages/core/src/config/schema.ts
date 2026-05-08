@@ -20,9 +20,24 @@ export const PageTemplate = z.object({
   bleed: Length.optional()
 });
 
+export const Component = z.object({
+  tag: z.string(),
+  class: z.string().optional(),
+  attrs: z.array(z.string()).optional(),
+  inline: z.boolean().optional()
+});
+
+export const Template = z.object({
+  params: z.array(z.string()).optional(),
+  slots: z.array(z.string()).optional(),
+  template: z.string()
+});
+
 export const ProjectConfig = z.object({
   "page-templates": z.record(z.string(), PageTemplate)
-    .refine(t => "default" in t, { message: "page-templates.default is required" })
+    .refine(t => "default" in t, { message: "page-templates.default is required" }),
+  components: z.record(z.string(), Component).optional(),
+  templates: z.record(z.string(), Template).optional()
 });
 
 export type ProjectConfig = z.infer<typeof ProjectConfig>;
