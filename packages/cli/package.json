@@ -13,6 +13,11 @@
     "test:watch": "vitest",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
+  "dependencies": {
+    "@tender/core": "workspace:*",
+    "@tender/render": "workspace:*",
+    "commander": "^12.0.0"
+  },
   "devDependencies": {
     "typescript": "^5.4.0",
     "vitest": "^1.6.0"

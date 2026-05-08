@@ -13,6 +13,16 @@ importers:
         version: 25.6.2
 
   packages/cli:
+    dependencies:
+      '@tender/core':
+        specifier: workspace:*
+        version: link:../core
+      '@tender/render':
+        specifier: workspace:*
+        version: link:../render
+      commander:
+        specifier: ^12.0.0
+        version: 12.1.0
     devDependencies:
       typescript:
         specifier: ^5.4.0
@@ -557,6 +567,10 @@ packages:
 
   comma-separated-tokens@2.0.3:
     resolution: {integrity: sha512-Fu4hJdvzeylCfQPp9SGWidpzrMs7tTrlu6Vb8XGaRGck8QSNZJJp538Wrb60Lax4fPwR64ViY468OIUTbRlGZg==}
+
+  commander@12.1.0:
+    resolution: {integrity: sha512-Vw8qHK3bZM9y/P10u3Vib8o/DdkvA2OtPtZvD871QKjy74Wj1WSKFILMPRPSdUSx5RFK1arlJzEtA4PkFgnbuA==}
+    engines: {node: '>=18'}
 
   confbox@0.1.8:
     resolution: {integrity: sha512-RMtmw0iFkeR4YV+fUOSucriAQNb9g8zFR52MWCtl+cCZOFRNL6zeB395vPzFhEjjn4fMxXudmELnl/KF/WrK6w==}
@@ -1662,6 +1676,8 @@ snapshots:
   color-name@1.1.4: {}
 
   comma-separated-tokens@2.0.3: {}
+
+  commander@12.1.0: {}
 
   confbox@0.1.8: {}
 
