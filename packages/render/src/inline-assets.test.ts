@@ -27,4 +27,28 @@ describe("inlineAssets", () => {
     const inlined = await inlineAssets(html, fixtureDir);
     expect(typeof inlined).toBe("string");
   });
+
+  it("does not inline files outside the project directory", async () => {
+    const html = `<img src="../../../etc/hostname">`;
+    const inlined = await inlineAssets(html, fixtureDir);
+    expect(inlined).toContain('src="../../../etc/hostname"');
+    expect(inlined).not.toContain("data:");
+  });
+
+  it("does not inline absolute paths to system files", async () => {
+    const html = `<img src="/etc/hostname">`;
+    const inlined = await inlineAssets(html, fixtureDir);
+    expect(inlined).toContain('src="/etc/hostname"');
+    expect(inlined).not.toContain("data:image");
+  });
+
+  it("does not inline a traversed path even when the extension is allowed", async () => {
+    // Path resolves outside the project root by climbing up; even though it
+    // points back into another sibling fixture, it must be rejected.
+    const escape = "../components/some.png";
+    const html = `<img src="${escape}">`;
+    const inlined = await inlineAssets(html, fixtureDir);
+    expect(inlined).toContain(`src="${escape}"`);
+    expect(inlined).not.toContain("data:image");
+  });
 });

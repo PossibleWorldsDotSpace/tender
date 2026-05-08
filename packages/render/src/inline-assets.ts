@@ -1,5 +1,5 @@
 import { readFile } from "node:fs/promises";
-import { join, extname } from "node:path";
+import { extname, resolve, sep } from "node:path";
 
 const MIME_TYPES: Record<string, string> = {
   ".png": "image/png",
@@ -23,8 +23,14 @@ export async function inlineAssets(html: string, projectDir: string): Promise<st
     const ext = extname(src).toLowerCase();
     const mime = MIME_TYPES[ext];
     if (!mime) continue;
+    const projectRoot = resolve(projectDir);
+    const targetPath = resolve(projectRoot, src);
+    if (!targetPath.startsWith(projectRoot + sep) && targetPath !== projectRoot) {
+      // Path escapes projectDir; skip
+      continue;
+    }
     try {
-      const buf = await readFile(join(projectDir, src));
+      const buf = await readFile(targetPath);
       const dataUri = `data:${mime};base64,${buf.toString("base64")}`;
       const replaced = fullTag.replace(src, dataUri);
       replacements.push({ original: fullTag, replaced });
