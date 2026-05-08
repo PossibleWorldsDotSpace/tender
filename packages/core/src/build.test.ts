@@ -15,4 +15,12 @@ describe("buildProject", () => {
     expect(result.stylesCss).toContain("font-family: serif");
     expect(result.config["page-templates"].default!.size).toBe("A5");
   });
+
+  it("builds a project that uses components and templates", async () => {
+    const result = await buildProject(join(fixturesDir, "components"));
+    expect(result.html).toContain('class="callout"');
+    expect(result.html).toContain('data-variant="warning"');
+    expect(result.html).toContain('class="row"');
+    expect(result.html).toContain('class="col-l"');
+  });
 });

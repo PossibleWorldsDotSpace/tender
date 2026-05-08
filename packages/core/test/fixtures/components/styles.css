@@ -1,0 +1,2 @@
+.row { display: grid; grid-template-columns: 1fr 2fr; gap: 8mm; }
+.callout { padding: 1em; border-left: 3px solid #FFE600; }
