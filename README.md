@@ -31,7 +31,7 @@ tender build my-doc
 open my-doc/out/document.pdf
 ```
 
-`tender preview my-doc` runs a live-reloading HTML preview at http://127.0.0.1:3000.
+`tender preview my-doc` runs a live-reloading HTML preview at http://127.0.0.1:3993.
 
 ## Project structure
 
@@ -49,7 +49,7 @@ my-doc/
 
 - `tender init <dir>` — scaffold a new project from the default starter
 - `tender build [dir]` — produce `out/document.pdf` and `out/document.html`
-- `tender preview [dir]` — live-reloading HTML preview server (default port 3000)
+- `tender preview [dir]` — live-reloading HTML preview server (default port 3993)
 - `tender lint [dir]` — validate config and content; exit non-zero on errors
 
 ## Reference

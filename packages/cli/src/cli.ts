@@ -36,12 +36,12 @@ program.command("lint [dir]")
 
 program.command("preview [dir]")
   .description("Live-reloading HTML preview server")
-  .option("--port <n>", "port (default 3000; use 0 for auto)", "3000")
+  .option("--port <n>", "port (default 3993; use 0 for auto)", "3993")
   .action(async (dir: string | undefined, opts: { port: string }) => {
     const port = parseInt(opts.port, 10);
     const server = await startPreviewServer({
       projectDir: resolve(dir ?? "."),
-      port: isNaN(port) ? 3000 : port
+      port: isNaN(port) ? 3993 : port
     });
     console.log(`Preview at http://127.0.0.1:${server.port}/`);
     console.log("Press Ctrl-C to stop.");
