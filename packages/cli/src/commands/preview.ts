@@ -45,9 +45,11 @@ export async function startPreviewServer(opts: PreviewOptions): Promise<RunningS
   async function rebuild(): Promise<void> {
     try {
       cachedHtml = await renderForPreview(opts.projectDir);
+      if (buildError) console.log("preview: build recovered");
       buildError = null;
     } catch (err) {
       buildError = err instanceof Error ? err : new Error(String(err));
+      console.error(`preview: build error: ${buildError.message}`);
       cachedHtml = `<!DOCTYPE html><html><body><pre>Build error: ${escapeHtml(buildError.message)}</pre>${RELOAD_SCRIPT}</body></html>`;
     }
   }
@@ -94,10 +96,15 @@ export async function startPreviewServer(opts: PreviewOptions): Promise<RunningS
     port,
     host,
     close: async () => {
+      // Terminate WS clients first; otherwise wss.close() and server.close()
+      // hang waiting for them to disconnect.
+      for (const client of wss.clients) client.terminate();
       await new Promise<void>(resolve => {
         wss.close(() => resolve());
       });
       await watcher.close();
+      // Drop any remaining HTTP keep-alive sockets; available since Node 18.2.
+      server.closeAllConnections();
       await new Promise<void>(resolve => server.close(() => resolve()));
     }
   };

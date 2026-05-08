@@ -47,7 +47,17 @@ program.command("preview [dir]")
     });
     console.log(`Preview at http://${server.host}:${server.port}/`);
     console.log("Press Ctrl-C to stop.");
+    let shuttingDown = false;
     process.on("SIGINT", async () => {
+      if (shuttingDown) {
+        console.log("\nForce exit.");
+        process.exit(1);
+      }
+      shuttingDown = true;
+      console.log("\nStopping preview...");
+      // Hard fallback in case close() hangs anyway
+      const timer = setTimeout(() => process.exit(1), 3000);
+      timer.unref();
       await server.close();
       process.exit(0);
     });
