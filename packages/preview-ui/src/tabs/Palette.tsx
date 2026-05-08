@@ -35,7 +35,7 @@ export function Palette() {
               </For>
             </Show>
             <Show when={d().palette.templates.length > 0}>
-              <h2 class="palette-section">Templates</h2>
+              <h2 class="palette-section">Layouts</h2>
               <For each={d().palette.templates}>
                 {(t) => <Tile title={t.name} meta={t.meta} renders={t.renders} css={d().css} />}
               </For>
