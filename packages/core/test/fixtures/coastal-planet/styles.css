@@ -219,6 +219,15 @@ span.stage-direction { font-style: italic; }
 }
 
 /* ── Cover layout ── */
+/*
+  Cover page is a flex column filling the printable area, so we can push
+  the spiral to the bottom-left with margin-top: auto.
+*/
+.page[data-page-template="cover"] {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
 .cover-title { margin-bottom: 2em; }
 .cover-tags {
   display: grid;
@@ -226,5 +235,5 @@ span.stage-direction { font-style: italic; }
   column-gap: var(--col-gap);
   margin-bottom: 3em;
 }
-.cover-spiral { margin-top: 3em; }
+.cover-spiral { margin-top: auto; }
 .cover-spiral img { width: 25%; }
