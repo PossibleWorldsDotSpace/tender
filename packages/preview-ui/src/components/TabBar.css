@@ -1,0 +1,18 @@
+.tabbar {
+  display: flex;
+  gap: 0;
+  border-bottom: 1px solid #ccc;
+  background: #f6f6f6;
+  padding: 0 12px;
+}
+.tab {
+  padding: 10px 16px;
+  text-decoration: none;
+  color: #333;
+  border-bottom: 2px solid transparent;
+  font: 14px system-ui, sans-serif;
+}
+.tab[aria-current="page"] {
+  border-bottom-color: #1a1a1a;
+  font-weight: 600;
+}
