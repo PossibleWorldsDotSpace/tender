@@ -1,0 +1,6 @@
+page-templates:
+  default:
+    size: A5
+    margin: { top: 12mm, bottom: 12mm, inner: 12mm, outer: 12mm }
+components:
+  callout: { tag: aside, class: callout }
