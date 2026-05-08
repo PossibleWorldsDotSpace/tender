@@ -14,10 +14,28 @@ const Margin = z.object({
   right: Length.optional()
 }).or(z.literal(0));
 
+const MarginBoxes = z.object({
+  left: z.string().optional(),
+  center: z.string().optional(),
+  right: z.string().optional()
+});
+
+const VersoRecto = z.object({
+  "left-page": MarginBoxes.optional(),
+  "right-page": MarginBoxes.optional()
+});
+
+const HeaderFooterConfig = z.union([z.literal("none"), MarginBoxes, VersoRecto]);
+const HeaderFooterRest = z.union([MarginBoxes, VersoRecto]);
+
 export const PageTemplate = z.object({
   size: PageSize,
   margin: Margin,
-  bleed: Length.optional()
+  bleed: Length.optional(),
+  headers: HeaderFooterConfig.optional(),
+  footers: HeaderFooterConfig.optional(),
+  "headers-rest": HeaderFooterRest.optional(),
+  "footers-rest": HeaderFooterRest.optional()
 });
 
 export const Component = z.object({

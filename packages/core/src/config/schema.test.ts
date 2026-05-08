@@ -30,6 +30,28 @@ describe("ProjectConfig", () => {
     expect(c.components?.callout?.tag).toBe("aside");
   });
 
+  it("parses headers/footers and verso/recto variants", () => {
+    const c = ProjectConfig.parse({
+      "page-templates": {
+        default: {
+          size: "A5", margin: 0,
+          headers: {
+            "left-page":  { left: "{page}", right: "{chapter}" },
+            "right-page": { left: "{title}", right: "{page}" }
+          },
+          footers: { center: "{page}" }
+        },
+        "chapter-opener": {
+          size: "A5", margin: 0,
+          headers: "none",
+          "headers-rest": { left: "{chapter}", right: "{title}" }
+        }
+      }
+    });
+    expect(c["page-templates"].default!.headers).toBeTruthy();
+    expect(c["page-templates"]["chapter-opener"]!.headers).toBe("none");
+  });
+
   it("parses a template definition with slots and params", () => {
     const c = ProjectConfig.parse({
       "page-templates": { default: { size: "A5", margin: 0 } },
