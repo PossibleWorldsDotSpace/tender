@@ -109,6 +109,23 @@ describe("generateProjectCss", () => {
     expect(css).not.toContain("hyphenate-limit-chars");
   });
 
+  it("emits @font-face rules from fonts config", () => {
+    const css = generateProjectCss({
+      "page-templates": { default: { size: "A5", margin: 0 } },
+      fonts: [
+        { family: "Display", file: "MackinacPro-Book.woff2", weight: 400, style: "normal" },
+        { family: "Display", file: "MackinacPro-BookItalic.woff2", weight: 400, style: "italic" }
+      ]
+    });
+    expect(css).toContain("@font-face");
+    expect(css).toContain("font-family: 'Display'");
+    expect(css).toContain("MackinacPro-Book.woff2");
+    expect(css).toContain("MackinacPro-BookItalic.woff2");
+    expect(css).toContain("font-weight: 400");
+    expect(css).toContain("font-style: italic");
+    expect(css).toContain("format('woff2')");
+  });
+
   it("emits string-set on body for the document title", () => {
     const css = generateProjectCss(
       {

@@ -111,6 +111,17 @@ function restVersoRectoSide(
 export function generateProjectCss(config: ProjectConfig, opts: ProjectCssOptions = {}): string {
   const parts: string[] = [];
 
+  const fonts = config.fonts ?? [];
+  for (const font of fonts) {
+    const lines: string[] = [`@font-face {`];
+    lines.push(`  font-family: '${font.family}';`);
+    lines.push(`  src: url('assets/fonts/${font.file}') format('woff2');`);
+    if (font.weight !== undefined) lines.push(`  font-weight: ${font.weight};`);
+    if (font.style) lines.push(`  font-style: ${font.style};`);
+    lines.push(`}`);
+    parts.push(lines.join("\n"));
+  }
+
   for (const [name, tplRaw] of Object.entries(config["page-templates"])) {
     if (!tplRaw) continue;
     const t = tplRaw as PageTemplateLike;
