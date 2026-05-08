@@ -12,18 +12,19 @@ export interface BuildResult {
   stylesCss: string;
   config: ProjectConfig;
   projectDir: string;
+  /** Carried through from project.yaml's `render.timeout-ms`, if set. */
+  timeoutMs?: number;
 }
 
 export async function buildProject(projectDir: string): Promise<BuildResult> {
   const config = await loadProjectConfig(projectDir);
   const md = await readFile(join(projectDir, "content.md"), "utf8");
   const stylesCss = await readFile(join(projectDir, "styles.css"), "utf8").catch(() => "");
-  const parsed = await parseProject(md, config);
-  // If the parsed content already starts with a built-in page wrapper, don't
-  // double-wrap it; otherwise wrap so the default page template applies.
-  const bodyHtml = /^\s*<div class="page"/.test(parsed) ? parsed : `<div class="page">${parsed}</div>`;
+  const { html: parsed, startsWithPage } = await parseProject(md, config);
+  const bodyHtml = startsWithPage ? parsed : `<div class="page">${parsed}</div>`;
   const lang = config.typography?.lang ?? "en";
   const html = composeDocument({ bodyHtml, lang, title: basename(projectDir) });
   const projectCss = generateProjectCss(config, { docTitle: basename(projectDir) });
-  return { html, projectCss, stylesCss, config, projectDir };
+  const timeoutMs = config.render?.["timeout-ms"];
+  return { html, projectCss, stylesCss, config, projectDir, timeoutMs };
 }

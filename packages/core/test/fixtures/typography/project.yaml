@@ -1,0 +1,12 @@
+page-templates:
+  default:
+    size: A6
+    margin: { top: 10mm, bottom: 10mm, inner: 10mm, outer: 10mm }
+
+typography:
+  lang: en
+  hyphenation:
+    enabled: true
+    min-word-length: 4
+    min-chars-before: 2
+    min-chars-after: 2

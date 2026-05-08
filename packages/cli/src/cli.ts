@@ -14,12 +14,19 @@ program.command("build [dir]")
   .option("--out <path>", "output directory", "./out")
   .option("--pdf-only", "produce only PDF")
   .option("--html-only", "produce only HTML")
-  .action(async (dir: string | undefined, opts: { out: string; pdfOnly?: boolean; htmlOnly?: boolean }) => {
+  .option("--timeout <ms>", "max time (ms) for Paged.js pagination (default 60000)")
+  .action(async (dir: string | undefined, opts: { out: string; pdfOnly?: boolean; htmlOnly?: boolean; timeout?: string }) => {
+    const timeoutMs = opts.timeout ? parseInt(opts.timeout, 10) : undefined;
+    if (opts.timeout && (!timeoutMs || timeoutMs <= 0)) {
+      console.error(`error: --timeout must be a positive integer (got ${opts.timeout})`);
+      process.exit(2);
+    }
     await build({
       projectDir: resolve(dir ?? "."),
       outDir: resolve(opts.out),
       pdfOnly: opts.pdfOnly,
-      htmlOnly: opts.htmlOnly
+      htmlOnly: opts.htmlOnly,
+      timeoutMs
     });
     console.log(`Built to ${resolve(opts.out)}`);
   });

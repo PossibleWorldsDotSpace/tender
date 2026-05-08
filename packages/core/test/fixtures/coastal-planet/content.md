@@ -21,7 +21,9 @@ The game is experiential, reflective, and collaborative. Connect across generati
 
 :::
 
-<div class="cover-spiral"><img src="assets/images/spiral.png" alt=""></div>
+:::cover-spiral
+
+:::
 
 ::::
 

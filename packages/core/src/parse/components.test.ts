@@ -12,13 +12,13 @@ const config = {
 
 describe("component resolution", () => {
   it("rewrites a known block component", async () => {
-    const html = await parseProject(":::callout{variant=warning}\nWatch out.\n:::\n", config);
+    const { html } = await parseProject(":::callout{variant=warning}\nWatch out.\n:::\n", config);
     expect(html).toContain('<aside class="callout" data-variant="warning">');
     expect(html).toContain("Watch out.");
   });
 
   it("rewrites an inline component", async () => {
-    const html = await parseProject("Note :stage-direction[whispers] here.", config);
+    const { html } = await parseProject("Note :stage-direction[whispers] here.", config);
     expect(html).toContain('<span class="stage-direction">whispers</span>');
   });
 

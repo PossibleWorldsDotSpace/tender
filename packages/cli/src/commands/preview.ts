@@ -8,7 +8,8 @@ import { readFile } from "node:fs/promises";
 import { createRequire } from "node:module";
 import { buildProject, buildPalette, renderHelp } from "@tender/core";
 import type { BuildResult } from "@tender/core";
-import { renderHtml } from "@tender/render";
+import { createRenderSession } from "@tender/render";
+import type { RenderSession } from "@tender/render";
 
 const previewUiDist = (() => {
   const pkg = createRequire(import.meta.url).resolve("@tender/preview-ui/package.json");
@@ -118,10 +119,14 @@ export async function startPreviewServer(opts: PreviewOptions): Promise<RunningS
   let cachedBuildResult: BuildResult | null = null;
   let buildError: Error | null = null;
 
+  // One Chromium for the lifetime of the server. Each rebuild creates a fresh
+  // page on this browser instead of paying ~1-3s of cold-start every save.
+  const renderSession: RenderSession = await createRenderSession();
+
   async function rebuild(): Promise<void> {
     try {
       cachedBuildResult = await buildProject(opts.projectDir);
-      const html = await renderHtml(cachedBuildResult);
+      const html = await renderSession.renderHtml(cachedBuildResult);
       cachedHtml = injectPreviewExtras(html);
       if (buildError) console.log("preview: build recovered");
       buildError = null;
@@ -261,6 +266,8 @@ export async function startPreviewServer(opts: PreviewOptions): Promise<RunningS
       // Drop any remaining HTTP keep-alive sockets; available since Node 18.2.
       server.closeAllConnections();
       await new Promise<void>(resolve => server.close(() => resolve()));
+      // Tear down Chromium; otherwise it keeps running after the server stops.
+      await renderSession.close();
     }
   };
 }

@@ -1,2 +1,2 @@
-export { renderHtml, renderPdf } from "./render.js";
-export type { RenderInput } from "./render.js";
+export { renderHtml, renderPdf, createRenderSession } from "./render.js";
+export type { RenderInput, RenderSession } from "./render.js";

@@ -1,0 +1,12 @@
+/*
+  Force a narrow column to make hyphenation likely. Long words near line
+  boundaries should be hyphenated when the typography.hyphenation rules
+  in project.yaml are honored.
+*/
+body {
+  font-family: serif;
+  font-size: 11pt;
+}
+p {
+  text-align: justify;
+}

@@ -146,4 +146,31 @@ describe("generateProjectCss", () => {
     );
     expect(css).toContain('string-set: title "My Book"');
   });
+
+  it("combines first-page suppression with verso/recto headers", () => {
+    const css = generateProjectCss({
+      "page-templates": {
+        default: { size: "A5", margin: 0 },
+        "chapter-opener": {
+          size: "A5", margin: 0,
+          headers: "none",
+          "headers-rest": {
+            "left-page": { left: "{page}", right: "{chapter}" },
+            "right-page": { left: "{chapter}", right: "{page}" }
+          }
+        }
+      }
+    });
+    // First page suppresses headers; subsequent pages get verso/recto rules.
+    expect(css).toContain("@page chapter-opener:first");
+    expect(css).toContain("@page chapter-opener:left");
+    expect(css).toContain("@page chapter-opener:right");
+    // The base `@page chapter-opener {` rule should NOT carry header boxes —
+    // those go on :left/:right.
+    expect(css).toMatch(/@page chapter-opener \{[^}]*size: A5[^}]*\}/s);
+    // Verify the :first rule doesn't carry header boxes either (it's a
+    // suppression rule).
+    const firstBlock = css.match(/@page chapter-opener:first \{[^}]*\}/s)?.[0] ?? "";
+    expect(firstBlock).not.toContain("@top-");
+  });
 });

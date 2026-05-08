@@ -158,12 +158,12 @@ async function renderComponent(
   if (inline) {
     const attrPart = Object.entries(attrs).map(([k, v]) => `${k}=${quote(v)}`).join(" ");
     const src = attrPart ? `:${name}[${body}]{${attrPart}}` : `:${name}[${body}]`;
-    return await parseProject(src, config);
+    return (await parseProject(src, config)).html;
   }
   const attrPart = Object.entries(attrs).map(([k, v]) => `${k}=${quote(v)}`).join(" ");
   const head = attrPart ? `:::${name}{${attrPart}}` : `:::${name}`;
   const src = `${head}\n\n${body}\n\n:::\n`;
-  return await parseProject(src, config);
+  return (await parseProject(src, config)).html;
 }
 
 async function renderTemplate(
@@ -179,7 +179,7 @@ async function renderTemplate(
   const slotBlocks = slotEntries.map(([k, v]) => `--- ${k} ---\n\n${v}`).join("\n\n");
   const innerBody = slotEntries.length > 0 ? slotBlocks : body;
   const src = `${head}\n\n${innerBody}\n\n:::\n`;
-  return await parseProject(src, config);
+  return (await parseProject(src, config)).html;
 }
 
 function componentSnippet(

@@ -69,6 +69,12 @@ my-doc/
 - **Implementation plan:** [`docs/plans/2026-05-08-tender-implementation.md`](docs/plans/2026-05-08-tender-implementation.md)
 - **Worked example:** [`packages/core/test/fixtures/coastal-planet/`](packages/core/test/fixtures/coastal-planet/) — a workshop playbook reproducing the original `example.html`.
 
+## Security considerations
+
+Tender renders documents in headless Chromium, launched with `--no-sandbox`. This is required on many Linux hosts (including most CI environments) where unprivileged user namespaces are disabled, but it means the rendering process runs without Chromium's normal sandbox isolation.
+
+In practice the risk is low because Tender renders local fixtures you author yourself. If you ever pipe untrusted Markdown, YAML, or HTML into Tender (e.g. as part of a hosted service), this tradeoff deserves explicit review — a malicious document could include script content that the headless browser would execute without sandboxing.
+
 ## v1 limits
 
 The following are intentionally out of scope for v1 and tracked as roadmap items in the design doc:

@@ -19,7 +19,7 @@ const config = {
 
 describe("template resolution (single-slot)", () => {
   it("expands a template with a parameter and a body", async () => {
-    const html = await parseProject(
+    const { html } = await parseProject(
       `:::row{label="45 min"}\n#### Stage 1\n\nThe welcome.\n:::\n`,
       config
     );
@@ -38,7 +38,7 @@ describe("template resolution (single-slot)", () => {
         }
       }
     } as unknown as ProjectConfig;
-    const html = await parseProject(":::callout\nWatch out.\n:::\n", cfg);
+    const { html } = await parseProject(":::callout\nWatch out.\n:::\n", cfg);
     expect(html).toContain('<aside class="callout">');
     expect(html).toContain("Watch out");
   });
@@ -58,7 +58,7 @@ describe("template resolution (single-slot)", () => {
 "Hello world."
 :::
 `;
-    const html = await parseProject(src, cfg);
+    const { html } = await parseProject(src, cfg);
     expect(html).toContain('class="ad-lib"');
     expect(html).toContain('"Hello world."');
   });
@@ -67,7 +67,7 @@ describe("template resolution (single-slot)", () => {
     const cfg = {
       "page-templates": { default: { size: "A5", margin: 0 as const } }
     } as unknown as ProjectConfig;
-    const html = await parseProject(`:::page\n# Hello\n:::\n`, cfg);
+    const { html } = await parseProject(`:::page\n# Hello\n:::\n`, cfg);
     expect(html).toContain('class="page"');
     expect(html).toContain("Hello");
   });
@@ -79,8 +79,35 @@ describe("template resolution (single-slot)", () => {
         "chapter-opener": { size: "A5", margin: 0 as const }
       }
     } as unknown as ProjectConfig;
-    const html = await parseProject(`:::page{template="chapter-opener"}\n## Stage 1\n:::\n`, cfg);
+    const { html } = await parseProject(`:::page{template="chapter-opener"}\n## Stage 1\n:::\n`, cfg);
     expect(html).toContain('data-page-template="chapter-opener"');
+  });
+
+  it("reports startsWithPage=true when source opens with :::page", async () => {
+    const cfg = {
+      "page-templates": { default: { size: "A5", margin: 0 as const } }
+    } as unknown as ProjectConfig;
+    const result = await parseProject(`:::page\n# Hello\n:::\n`, cfg);
+    expect(result.startsWithPage).toBe(true);
+  });
+
+  it("reports startsWithPage=false when source opens with prose", async () => {
+    const cfg = {
+      "page-templates": { default: { size: "A5", margin: 0 as const } }
+    } as unknown as ProjectConfig;
+    const result = await parseProject(`# A heading\n\nA paragraph.\n`, cfg);
+    expect(result.startsWithPage).toBe(false);
+  });
+
+  it("reports startsWithPage=false when first directive is not page", async () => {
+    const cfg = {
+      "page-templates": { default: { size: "A5", margin: 0 as const } },
+      templates: {
+        callout: { template: `<aside>{{{body}}}</aside>` }
+      }
+    } as unknown as ProjectConfig;
+    const result = await parseProject(`:::callout\nHi\n:::\n`, cfg);
+    expect(result.startsWithPage).toBe(false);
   });
 
   it("errors when a multi-slot template's required slot is missing", async () => {

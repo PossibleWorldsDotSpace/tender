@@ -8,17 +8,21 @@ export interface BuildOptions {
   outDir: string;
   pdfOnly?: boolean;
   htmlOnly?: boolean;
+  /** CLI override for render timeout. Wins over project.yaml's render.timeout-ms. */
+  timeoutMs?: number;
 }
 
 export async function build(opts: BuildOptions): Promise<void> {
   const result = await buildProject(opts.projectDir);
+  // CLI override wins; otherwise inherit whatever buildProject pulled from project.yaml.
+  const renderInput = opts.timeoutMs ? { ...result, timeoutMs: opts.timeoutMs } : result;
   await mkdir(opts.outDir, { recursive: true });
   if (!opts.pdfOnly) {
-    const html = await renderHtml(result);
+    const html = await renderHtml(renderInput);
     await writeFile(join(opts.outDir, "document.html"), html);
   }
   if (!opts.htmlOnly) {
-    const pdf = await renderPdf(result);
+    const pdf = await renderPdf(renderInput);
     await writeFile(join(opts.outDir, "document.pdf"), pdf);
   }
 }

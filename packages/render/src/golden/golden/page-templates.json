@@ -1,0 +1,17 @@
+{
+  "pageCount": 2,
+  "pages": [
+    {
+      "index": 1,
+      "width": 612,
+      "height": 792,
+      "text": "Chapter 1 1 Chapter 1 A chapter opener page."
+    },
+    {
+      "index": 2,
+      "width": 612,
+      "height": 792,
+      "text": "Chapter 2 2 Chapter 2 Regular page."
+    }
+  ]
+}

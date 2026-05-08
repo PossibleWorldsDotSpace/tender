@@ -90,13 +90,20 @@ export const Font = z.object({
   style: z.enum(["normal", "italic", "oblique"]).optional()
 });
 
+export const Render = z.object({
+  // Maximum time (ms) to wait for Paged.js pagination. Defaults to 60000 in
+  // the renderer; long documents on slow hardware may legitimately need more.
+  "timeout-ms": z.number().int().positive().optional()
+});
+
 export const ProjectConfig = z.object({
   "page-templates": z.record(z.string(), PageTemplate)
     .refine(t => "default" in t, { message: "page-templates.default is required" }),
   components: z.record(z.string(), Component).optional(),
   templates: z.record(z.string(), Template).optional(),
   typography: Typography.optional(),
-  fonts: z.array(Font).optional()
+  fonts: z.array(Font).optional(),
+  render: Render.optional()
 });
 
 export type ProjectConfig = z.infer<typeof ProjectConfig>;

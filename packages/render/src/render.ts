@@ -18,9 +18,17 @@ export interface RenderInput {
   projectCss: string;
   stylesCss: string;
   projectDir: string;
+  /**
+   * Maximum time to wait for Paged.js to finish paginating, in ms. Defaults to
+   * 60_000. Long documents on slower hardware may legitimately need more.
+   */
+  timeoutMs?: number;
 }
 
+const DEFAULT_TIMEOUT_MS = 60_000;
+
 async function setupPage(input: RenderInput, browser: Browser): Promise<Page> {
+  const timeoutMs = input.timeoutMs ?? DEFAULT_TIMEOUT_MS;
   const page = await browser.newPage();
   await page.setRequestInterception(true);
   page.on("request", req => {
@@ -50,8 +58,12 @@ async function setupPage(input: RenderInput, browser: Browser): Promise<Page> {
   // returns a promise that resolves to the rendered flow.
   const pagedJsSrc = await readFile(pagedJsPath, "utf8");
   await page.evaluate(
-    (src: string, projectCss: string, stylesCss: string) => new Promise<void>((resolve, reject) => {
-      const timer = setTimeout(() => reject(new Error("paged.js render timeout")), 60_000);
+    (src: string, projectCss: string, stylesCss: string, ms: number) => new Promise<void>((resolve, reject) => {
+      const timer = setTimeout(() => reject(new Error(
+        `Paged.js render exceeded ${ms}ms. ` +
+        `If your document is long, try a higher render.timeout-ms in project.yaml ` +
+        `or pass --timeout to the CLI.`
+      )), ms);
       try {
         // Disable auto-render before injecting the script.
         (window as unknown as { PagedConfig: Record<string, unknown> }).PagedConfig = { auto: false };
@@ -82,22 +94,10 @@ async function setupPage(input: RenderInput, browser: Browser): Promise<Page> {
     }),
     pagedJsSrc,
     input.projectCss,
-    input.stylesCss
+    input.stylesCss,
+    timeoutMs
   );
   return page;
-}
-
-export async function renderHtml(input: RenderInput): Promise<string> {
-  // --no-sandbox: required on Ubuntu hosts that disable unprivileged user
-  // namespaces; acceptable here since we only render fixtures we control.
-  const browser = await puppeteer.launch({ headless: true, args: ["--no-sandbox"] });
-  try {
-    const page = await setupPage(input, browser);
-    const html = await page.content();
-    return await inlineAssets(stripPagedJsScript(html), input.projectDir);
-  } finally {
-    await browser.close();
-  }
 }
 
 // Paged.js was injected and run server-side to paginate the content. The
@@ -112,15 +112,89 @@ function stripPagedJsScript(html: string): string {
   );
 }
 
-export async function renderPdf(input: RenderInput): Promise<Buffer> {
+/**
+ * A persistent render context owning a single Chromium browser instance.
+ * Reuse across many renders saves the 1-3s cold-start the preview server
+ * pays on every save.
+ *
+ * Each render creates a fresh page and closes it on completion, so state
+ * (interception handlers, DOM) is isolated between renders. The browser
+ * itself is reused.
+ */
+export interface RenderSession {
+  renderHtml(input: RenderInput): Promise<string>;
+  renderPdf(input: RenderInput): Promise<Buffer>;
+  close(): Promise<void>;
+}
+
+async function launchBrowser(): Promise<Browser> {
   // --no-sandbox: required on Ubuntu hosts that disable unprivileged user
-  // namespaces; acceptable here since we only render fixtures we control.
-  const browser = await puppeteer.launch({ headless: true, args: ["--no-sandbox"] });
+  // namespaces. See README "Security considerations".
+  return puppeteer.launch({ headless: true, args: ["--no-sandbox"] });
+}
+
+export async function createRenderSession(): Promise<RenderSession> {
+  let browser: Browser = await launchBrowser();
+  let closed = false;
+
+  async function ensureBrowser(): Promise<Browser> {
+    // If the browser crashed (e.g. OOM on a huge doc), `connected` flips
+    // false; relaunch transparently for the next render.
+    if (!browser.connected && !closed) {
+      browser = await launchBrowser();
+    }
+    return browser;
+  }
+
+  return {
+    async renderHtml(input) {
+      if (closed) throw new Error("render session is closed");
+      const b = await ensureBrowser();
+      const page = await setupPage(input, b);
+      try {
+        const html = await page.content();
+        return await inlineAssets(stripPagedJsScript(html), input.projectDir);
+      } finally {
+        await page.close().catch(() => { /* page may already be gone if browser crashed */ });
+      }
+    },
+    async renderPdf(input) {
+      if (closed) throw new Error("render session is closed");
+      const b = await ensureBrowser();
+      const page = await setupPage(input, b);
+      try {
+        const pdf = await page.pdf({ printBackground: true, preferCSSPageSize: true });
+        return Buffer.from(pdf);
+      } finally {
+        await page.close().catch(() => { /* see above */ });
+      }
+    },
+    async close() {
+      closed = true;
+      await browser.close().catch(() => { /* already closed */ });
+    }
+  };
+}
+
+/**
+ * One-shot render: launches a browser, renders, closes the browser. Suitable
+ * for `tender build` where the cost is paid once. For `tender preview` (many
+ * renders in one session) prefer `createRenderSession`.
+ */
+export async function renderHtml(input: RenderInput): Promise<string> {
+  const session = await createRenderSession();
   try {
-    const page = await setupPage(input, browser);
-    const pdf = await page.pdf({ printBackground: true, preferCSSPageSize: true });
-    return Buffer.from(pdf);
+    return await session.renderHtml(input);
   } finally {
-    await browser.close();
+    await session.close();
+  }
+}
+
+export async function renderPdf(input: RenderInput): Promise<Buffer> {
+  const session = await createRenderSession();
+  try {
+    return await session.renderPdf(input);
+  } finally {
+    await session.close();
   }
 }

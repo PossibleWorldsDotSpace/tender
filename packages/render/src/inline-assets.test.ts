@@ -58,4 +58,40 @@ describe("inlineAssets", () => {
     expect(inlined).toContain(`src="${escape}"`);
     expect(inlined).not.toContain("data:image");
   });
+
+  it("inlines an <img> tag whose attributes span multiple lines", async () => {
+    const html = `<img\n  src="assets/images/dot.png"\n  alt=""\n>`;
+    const inlined = await inlineAssets(html, fixtureDir);
+    expect(inlined).toMatch(/src="data:image\/png;base64,/);
+    // The non-src parts of the tag are preserved verbatim.
+    expect(inlined).toContain("alt=\"\"");
+  });
+
+  it("inlines an <img> with single-quoted src", async () => {
+    const html = `<img src='assets/images/dot.png'>`;
+    const inlined = await inlineAssets(html, fixtureDir);
+    expect(inlined).toMatch(/src='data:image\/png;base64,/);
+  });
+
+  it("does not inline <img> tag strings inside HTML comments", async () => {
+    const html = `<!-- <img src="assets/images/dot.png"> --><p>Body</p>`;
+    const inlined = await inlineAssets(html, fixtureDir);
+    expect(inlined).toBe(html);
+    expect(inlined).not.toContain("data:image");
+  });
+
+  it("preserves surrounding HTML byte-for-byte except in modified <img> tags", async () => {
+    const html = `<!doctype html><html><body>\n` +
+      `  <p class="x">Hello &amp; world</p>\n` +
+      `  <img src="assets/images/dot.png" alt="d">\n` +
+      `  <p>End</p>\n` +
+      `</body></html>`;
+    const inlined = await inlineAssets(html, fixtureDir);
+    // Everything outside the <img> tag is unchanged.
+    expect(inlined).toContain(`<p class="x">Hello &amp; world</p>`);
+    expect(inlined).toContain(`<p>End</p>`);
+    expect(inlined).toContain("alt=\"d\"");
+    // The img got its src rewritten.
+    expect(inlined).toMatch(/src="data:image\/png;base64,/);
+  });
 });

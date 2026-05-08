@@ -133,4 +133,21 @@ describe("ProjectConfig", () => {
     expect(c.templates?.row?.params).toEqual(["label", "icon"]);
     expect(c.templates?.["ad-lib"]?.slots).toEqual(["suggested"]);
   });
+
+  it("parses a render.timeout-ms override", () => {
+    const c = ProjectConfig.parse({
+      "page-templates": { default: { size: "A5", margin: 0 } },
+      render: { "timeout-ms": 180000 }
+    });
+    expect(c.render?.["timeout-ms"]).toBe(180000);
+  });
+
+  it("rejects a non-positive render.timeout-ms", () => {
+    expect(() =>
+      ProjectConfig.parse({
+        "page-templates": { default: { size: "A5", margin: 0 } },
+        render: { "timeout-ms": 0 }
+      })
+    ).toThrow();
+  });
 });

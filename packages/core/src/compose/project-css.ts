@@ -35,6 +35,38 @@ interface PageTemplateLike {
   "footers-rest"?: MarginBoxes | VersoRecto;
 }
 
+/**
+ * The normalized shape we emit CSS from. One per page template, regardless of
+ * how its headers/footers were configured. Every branch in the resolver below
+ * collapses into this shape so the CSS-emission stage has no branching.
+ *
+ * Rules to emit per template (only those with at least one populated box are
+ * emitted; the base `@page name { … }` always emits because it carries size
+ * and margin):
+ *
+ *   @page name           — base rule (size + margin)
+ *   @page name:first     — first page only; null when there is no first/rest split
+ *   @page name:left      — verso pages; null when there is no verso/recto split
+ *   @page name:right     — recto pages; null when there is no verso/recto split
+ *
+ * When verso/recto is in play, the base rule has no header/footer boxes —
+ * those go on :left and :right. When first-page suppression is in play, the
+ * :first rule has no header/footer boxes; the rest go on the base rule (or on
+ * :left/:right if combined with verso/recto).
+ */
+interface ResolvedPageTemplate {
+  name: string;
+  raw: PageTemplateLike;
+  baseHeader: MarginBoxes | undefined;
+  baseFooter: MarginBoxes | undefined;
+  hasFirstSuppression: boolean;
+  hasVersoRecto: boolean;
+  leftHeader: MarginBoxes | undefined;
+  leftFooter: MarginBoxes | undefined;
+  rightHeader: MarginBoxes | undefined;
+  rightFooter: MarginBoxes | undefined;
+}
+
 function expandToken(value: string): string {
   const trimmed = value.trim();
   if (trimmed in TOKEN_MAP) return TOKEN_MAP[trimmed]!;
@@ -55,6 +87,86 @@ function isMarginBoxes(c: unknown): c is MarginBoxes {
   return true;
 }
 
+/**
+ * Pull the boxes that apply to a single side (verso or recto). Accepts either
+ * a uniform MarginBoxes (which applies to both sides) or a VersoRecto. Returns
+ * undefined for "none" or absent.
+ */
+function sideBoxes(c: HeaderFooter | MarginBoxes | VersoRecto | undefined, side: "left-page" | "right-page"): MarginBoxes | undefined {
+  if (!c || c === "none") return undefined;
+  if (isVersoRecto(c)) return c[side];
+  if (isMarginBoxes(c)) return c;
+  return undefined;
+}
+
+function uniformBoxes(c: HeaderFooter | undefined): MarginBoxes | undefined {
+  if (!c || c === "none") return undefined;
+  if (isVersoRecto(c)) return undefined;
+  return c;
+}
+
+/**
+ * Collapse a page template's raw config into the normalized shape above.
+ * This is the only place that branches on "is this verso/recto?" / "does
+ * this template suppress headers on the first page?" — once we have a
+ * ResolvedPageTemplate, emitting CSS is mechanical.
+ */
+function resolvePageTemplate(name: string, raw: PageTemplateLike): ResolvedPageTemplate {
+  const hasFirstSuppression =
+    (raw.headers === "none" && raw["headers-rest"] !== undefined) ||
+    (raw.footers === "none" && raw["footers-rest"] !== undefined);
+
+  // Pick whichever values describe the *non-first* pages. When first-page
+  // suppression is on, that's `headers-rest` / `footers-rest`. Otherwise
+  // fall back to the regular `headers` / `footers`.
+  const restHeaders: MarginBoxes | VersoRecto | undefined = hasFirstSuppression
+    ? (raw.headers === "none" ? raw["headers-rest"] : (raw["headers-rest"] ?? (raw.headers as MarginBoxes | VersoRecto | undefined)))
+    : (raw.headers && raw.headers !== "none" ? (raw.headers as MarginBoxes | VersoRecto) : undefined);
+  const restFooters: MarginBoxes | VersoRecto | undefined = hasFirstSuppression
+    ? (raw.footers === "none" ? raw["footers-rest"] : (raw["footers-rest"] ?? (raw.footers as MarginBoxes | VersoRecto | undefined)))
+    : (raw.footers && raw.footers !== "none" ? (raw.footers as MarginBoxes | VersoRecto) : undefined);
+
+  const hasVersoRecto =
+    isVersoRecto(restHeaders) ||
+    isVersoRecto(restFooters) ||
+    isVersoRecto(raw.headers) ||
+    isVersoRecto(raw.footers) ||
+    isVersoRecto(raw["headers-rest"]) ||
+    isVersoRecto(raw["footers-rest"]);
+
+  if (hasVersoRecto) {
+    // Verso/recto: header/footer boxes belong on :left and :right; the base
+    // rule carries only size and margin.
+    return {
+      name,
+      raw,
+      baseHeader: undefined,
+      baseFooter: undefined,
+      hasFirstSuppression,
+      hasVersoRecto: true,
+      leftHeader: sideBoxes(restHeaders, "left-page"),
+      leftFooter: sideBoxes(restFooters, "left-page"),
+      rightHeader: sideBoxes(restHeaders, "right-page"),
+      rightFooter: sideBoxes(restFooters, "right-page")
+    };
+  }
+
+  // Uniform (non-verso/recto). Headers/footers go on the base rule. When
+  // first-page suppression is on, restHeaders/restFooters carry the values.
+  return {
+    name,
+    raw,
+    baseHeader: isMarginBoxes(restHeaders) ? restHeaders : uniformBoxes(raw.headers),
+    baseFooter: isMarginBoxes(restFooters) ? restFooters : uniformBoxes(raw.footers),
+    hasFirstSuppression,
+    hasVersoRecto: false,
+    leftHeader: undefined,
+    leftFooter: undefined,
+    rightHeader: undefined,
+    rightFooter: undefined
+  };
+}
+
 function emitMarginBoxes(boxes: MarginBoxes, position: "top" | "bottom"): string[] {
   const out: string[] = [];
   if (boxes.left) out.push(`  @${position}-left { content: ${expandToken(boxes.left)}; }`);
@@ -65,7 +177,7 @@ function emitMarginBoxes(boxes: MarginBoxes, position: "top" | "bottom"): string
 
 function emitPageRule(
   name: string,
-  tpl: PageTemplateLike,
+  raw: PageTemplateLike,
   variant: "" | ":first" | ":left" | ":right",
   headerBoxes: MarginBoxes | undefined,
   footerBoxes: MarginBoxes | undefined,
@@ -74,8 +186,8 @@ function emitPageRule(
   const lines: string[] = [];
   lines.push(`@page ${name}${variant} {`);
   if (includeSizeAndMargin) {
-    lines.push(`  size: ${formatSize(tpl.size)};`);
-    lines.push(`  margin: ${formatMargin(tpl.margin)};`);
+    lines.push(`  size: ${formatSize(raw.size)};`);
+    lines.push(`  margin: ${formatMargin(raw.margin)};`);
   }
   if (headerBoxes) lines.push(...emitMarginBoxes(headerBoxes, "top"));
   if (footerBoxes) lines.push(...emitMarginBoxes(footerBoxes, "bottom"));
@@ -83,33 +195,29 @@ function emitPageRule(
   return lines.join("\n");
 }
 
-function uniformBoxes(c: HeaderFooter | undefined): MarginBoxes | undefined {
-  if (!c || c === "none") return undefined;
-  if (isVersoRecto(c)) return undefined;
-  return c;
-}
+/**
+ * Emit all CSS rules for a single resolved page template. No branching — we
+ * walk the resolved shape and emit the rules it implies.
+ */
+function emitTemplateRules(t: ResolvedPageTemplate): string[] {
+  const out: string[] = [];
 
-function versoRectoSide(c: HeaderFooter | undefined, side: "left-page" | "right-page"): MarginBoxes | undefined {
-  if (!c || c === "none") return undefined;
-  if (isVersoRecto(c)) return c[side];
-  return c;
-}
+  if (t.hasFirstSuppression) {
+    // First page: no header/footer boxes; size + margin still apply.
+    out.push(emitPageRule(t.name, t.raw, ":first", undefined, undefined, true));
+  }
 
-function restBoxes(c: MarginBoxes | VersoRecto | undefined): MarginBoxes | undefined {
-  if (!c) return undefined;
-  if (isVersoRecto(c)) return undefined;
-  if (isMarginBoxes(c)) return c;
-  return undefined;
-}
+  if (t.hasVersoRecto) {
+    // Base rule carries size + margin only; per-side rules carry the boxes.
+    out.push(emitPageRule(t.name, t.raw, "", undefined, undefined, true));
+    out.push(emitPageRule(t.name, t.raw, ":left", t.leftHeader, t.leftFooter, false));
+    out.push(emitPageRule(t.name, t.raw, ":right", t.rightHeader, t.rightFooter, false));
+  } else {
+    // Single base rule with size, margin, and any uniform boxes.
+    out.push(emitPageRule(t.name, t.raw, "", t.baseHeader, t.baseFooter, true));
+  }
 
-function restVersoRectoSide(
-  c: MarginBoxes | VersoRecto | undefined,
-  side: "left-page" | "right-page"
-): MarginBoxes | undefined {
-  if (!c) return undefined;
-  if (isVersoRecto(c)) return c[side];
-  if (isMarginBoxes(c)) return c;
-  return undefined;
+  return out;
 }
 
 export function generateProjectCss(config: ProjectConfig, opts: ProjectCssOptions = {}): string {
@@ -128,80 +236,8 @@ export function generateProjectCss(config: ProjectConfig, opts: ProjectCssOption
 
   for (const [name, tplRaw] of Object.entries(config["page-templates"])) {
     if (!tplRaw) continue;
-    const t = tplRaw as PageTemplateLike;
-
-    const headersIsVR = isVersoRecto(t.headers);
-    const footersIsVR = isVersoRecto(t.footers);
-    const restHeadersIsVR = isVersoRecto(t["headers-rest"]);
-    const restFootersIsVR = isVersoRecto(t["footers-rest"]);
-    const usesVersoRecto = headersIsVR || footersIsVR || restHeadersIsVR || restFootersIsVR;
-    const hasFirstVariant =
-      (t.headers === "none" && t["headers-rest"] !== undefined) ||
-      (t.footers === "none" && t["footers-rest"] !== undefined);
-
-    if (hasFirstVariant) {
-      // :first suppresses headers/footers (no boxes); ongoing uses *-rest
-      parts.push(emitPageRule(name, t, ":first", undefined, undefined, true));
-
-      const onHeaders: MarginBoxes | VersoRecto | undefined =
-        t.headers === "none" ? t["headers-rest"] : (t["headers-rest"] ?? (t.headers as MarginBoxes | VersoRecto | undefined));
-      const onFooters: MarginBoxes | VersoRecto | undefined =
-        t.footers === "none" ? t["footers-rest"] : (t["footers-rest"] ?? (t.footers as MarginBoxes | VersoRecto | undefined));
-
-      if (usesVersoRecto || isVersoRecto(onHeaders) || isVersoRecto(onFooters)) {
-        // base @page name with size/margin; then :left and :right variants with boxes
-        parts.push(emitPageRule(name, t, "", undefined, undefined, true));
-        parts.push(
-          emitPageRule(
-            name,
-            t,
-            ":left",
-            isVersoRecto(onHeaders) ? onHeaders["left-page"] : (onHeaders as MarginBoxes | undefined),
-            isVersoRecto(onFooters) ? onFooters["left-page"] : (onFooters as MarginBoxes | undefined),
-            false
-          )
-        );
-        parts.push(
-          emitPageRule(
-            name,
-            t,
-            ":right",
-            isVersoRecto(onHeaders) ? onHeaders["right-page"] : (onHeaders as MarginBoxes | undefined),
-            isVersoRecto(onFooters) ? onFooters["right-page"] : (onFooters as MarginBoxes | undefined),
-            false
-          )
-        );
-        // Re-emit a :first to suppress on first page (already done above; ensure ordering keeps non-first rules generic)
-      } else {
-        const onHeaderBoxes = isMarginBoxes(onHeaders) ? onHeaders : undefined;
-        const onFooterBoxes = isMarginBoxes(onFooters) ? onFooters : undefined;
-        parts.push(emitPageRule(name, t, "", onHeaderBoxes, onFooterBoxes, true));
-      }
-    } else if (usesVersoRecto) {
-      parts.push(emitPageRule(name, t, "", undefined, undefined, true));
-      parts.push(
-        emitPageRule(
-          name,
-          t,
-          ":left",
-          versoRectoSide(t.headers, "left-page"),
-          versoRectoSide(t.footers, "left-page"),
-          false
-        )
-      );
-      parts.push(
-        emitPageRule(
-          name,
-          t,
-          ":right",
-          versoRectoSide(t.headers, "right-page"),
-          versoRectoSide(t.footers, "right-page"),
-          false
-        )
-      );
-    } else {
-      parts.push(emitPageRule(name, t, "", uniformBoxes(t.headers), uniformBoxes(t.footers), true));
-    }
+    const resolved = resolvePageTemplate(name, tplRaw as PageTemplateLike);
+    parts.push(...emitTemplateRules(resolved));
   }
 
   // string-set rules so {chapter}/{section} tokens populate from headings

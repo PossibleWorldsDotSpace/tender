@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { renderHtml, renderPdf } from "./render.js";
+import { renderHtml, renderPdf, createRenderSession } from "./render.js";
 
 const FIXTURE = {
   html: `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>T</title>
@@ -28,4 +28,24 @@ describe("renderPdf", () => {
     expect(buf.length).toBeGreaterThan(1000);
     expect(buf.subarray(0, 4).toString()).toBe("%PDF");
   }, 120_000);
+});
+
+describe("createRenderSession", () => {
+  it("can render multiple documents on a single session", async () => {
+    const session = await createRenderSession();
+    try {
+      const a = await session.renderHtml(FIXTURE);
+      const b = await session.renderHtml(FIXTURE);
+      expect(a).toMatch(/<h1[^>]*>Hello<\/h1>/);
+      expect(b).toMatch(/<h1[^>]*>Hello<\/h1>/);
+    } finally {
+      await session.close();
+    }
+  }, 180_000);
+
+  it("rejects renders after close()", async () => {
+    const session = await createRenderSession();
+    await session.close();
+    await expect(session.renderHtml(FIXTURE)).rejects.toThrow(/closed/);
+  }, 60_000);
 });
