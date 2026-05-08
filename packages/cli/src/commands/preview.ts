@@ -77,9 +77,13 @@ export async function startPreviewServer(opts: PreviewOptions): Promise<RunningS
   });
 
   watcher.on("all", async () => {
-    await rebuild();
-    for (const client of wss.clients) {
-      if (client.readyState === 1 /* OPEN */) client.send("reload");
+    try {
+      await rebuild();
+      for (const client of wss.clients) {
+        if (client.readyState === 1 /* OPEN */) client.send("reload");
+      }
+    } catch (err) {
+      console.error("preview rebuild failed:", err instanceof Error ? err.message : err);
     }
   });
 
