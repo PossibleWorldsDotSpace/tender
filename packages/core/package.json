@@ -27,6 +27,7 @@
     "vitest": "^1.6.0"
   },
   "dependencies": {
+    "handlebars": "^4.7.9",
     "js-yaml": "^4.1.1",
     "rehype-stringify": "^10.0.1",
     "remark-directive": "^4.0.0",
