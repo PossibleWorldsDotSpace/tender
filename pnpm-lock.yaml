@@ -51,13 +51,22 @@ importers:
       unified:
         specifier: ^11.0.5
         version: 11.0.5
+      unist-util-visit:
+        specifier: ^5.1.0
+        version: 5.1.0
       zod:
         specifier: ^4.4.3
         version: 4.4.3
     devDependencies:
+      '@types/hast':
+        specifier: ^3.0.4
+        version: 3.0.4
       '@types/js-yaml':
         specifier: ^4.0.9
         version: 4.0.9
+      '@types/mdast':
+        specifier: ^4.0.4
+        version: 4.0.4
       typescript:
         specifier: ^5.4.0
         version: 5.9.3
