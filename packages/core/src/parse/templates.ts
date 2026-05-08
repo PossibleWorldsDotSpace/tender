@@ -5,6 +5,13 @@ import Handlebars from "handlebars";
 import type { Plugin } from "unified";
 import type { Root, RootContent } from "mdast";
 import type { ProjectConfig } from "../config/schema.js";
+import { BUILTIN_TEMPLATES } from "../builtins.js";
+
+interface TemplateDef {
+  params?: readonly string[];
+  slots?: readonly string[];
+  template: string;
+}
 
 interface DirectiveNode {
   type: "containerDirective" | "leafDirective" | "textDirective";
@@ -29,7 +36,12 @@ async function mdChildrenToHtml(children: RootContent[]): Promise<string> {
 }
 
 export const resolveTemplates: Plugin<[ProjectConfig], Root> = (config) => {
-  const templates = config.templates ?? {};
+  const userTemplates = config.templates ?? {};
+  // Built-ins first; user-defined entries override.
+  const templates: Record<string, TemplateDef> = {
+    ...BUILTIN_TEMPLATES,
+    ...userTemplates
+  };
   const compiled = new Map<string, Handlebars.TemplateDelegate>();
   for (const [name, def] of Object.entries(templates)) {
     if (!def) continue;

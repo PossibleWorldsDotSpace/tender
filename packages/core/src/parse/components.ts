@@ -2,6 +2,7 @@ import { visit } from "unist-util-visit";
 import type { Plugin } from "unified";
 import type { Root } from "mdast";
 import type { ProjectConfig } from "../config/schema.js";
+import { BUILTIN_TEMPLATES } from "../builtins.js";
 
 interface DirectiveLike {
   type: string;
@@ -20,8 +21,9 @@ export const resolveComponents: Plugin<[ProjectConfig], Root> = (config) => (tre
       node.type !== "textDirective"
     ) return;
     const dir = node as unknown as DirectiveLike;
-    // Skip directives that match a template — they'll be handled elsewhere later.
+    // Skip directives that match a template (user or built-in) — they're handled by resolveTemplates.
     if (dir.name in templates) return;
+    if (dir.name in BUILTIN_TEMPLATES) return;
     const def = components[dir.name];
     if (!def) {
       throw new Error(`Unknown component "${dir.name}"`);

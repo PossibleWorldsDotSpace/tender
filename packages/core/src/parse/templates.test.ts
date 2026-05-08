@@ -63,6 +63,26 @@ describe("template resolution (single-slot)", () => {
     expect(html).toContain('"Hello world."');
   });
 
+  it("supports the built-in page template without explicit declaration", async () => {
+    const cfg = {
+      "page-templates": { default: { size: "A5", margin: 0 as const } }
+    } as unknown as ProjectConfig;
+    const html = await parseProject(`:::page\n# Hello\n:::\n`, cfg);
+    expect(html).toContain('class="page"');
+    expect(html).toContain("Hello");
+  });
+
+  it("page template applies a named page template via template= attr", async () => {
+    const cfg = {
+      "page-templates": {
+        default: { size: "A5", margin: 0 as const },
+        "chapter-opener": { size: "A5", margin: 0 as const }
+      }
+    } as unknown as ProjectConfig;
+    const html = await parseProject(`:::page{template="chapter-opener"}\n## Stage 1\n:::\n`, cfg);
+    expect(html).toContain('data-page-template="chapter-opener"');
+  });
+
   it("errors when a multi-slot template's required slot is missing", async () => {
     const cfg = {
       "page-templates": { default: { size: "A5", margin: 0 as const } },
