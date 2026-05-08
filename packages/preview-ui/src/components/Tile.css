@@ -1,0 +1,45 @@
+.tile {
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  background: white;
+  margin-bottom: 24px;
+  overflow: hidden;
+}
+.tile-header {
+  padding: 10px 14px;
+  background: #fafafa;
+  border-bottom: 1px solid #eee;
+}
+.tile-name { margin: 0; font: 600 14pt system-ui, sans-serif; }
+.tile-meta {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 2px 12px;
+  margin: 6px 0 0;
+  font: 11pt system-ui, sans-serif;
+  color: #666;
+}
+.tile-meta dt { font-weight: 600; }
+.tile-meta dd { margin: 0; }
+.tile-renders { padding: 14px; }
+.tile-render-row { margin-bottom: 12px; }
+.tile-render-row:last-child { margin-bottom: 0; }
+.tile-render-label {
+  display: block;
+  font: 600 10pt system-ui, sans-serif;
+  color: #888;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 6px;
+}
+.tile-render-host {
+  border: 1px dashed #eee;
+  padding: 12px;
+  background: white;
+}
+.tile-footer { padding: 10px 14px; border-top: 1px solid #eee; background: #fafbfc; }
+.snippet { display: flex; align-items: start; gap: 12px; margin-bottom: 8px; }
+.snippet:last-child { margin-bottom: 0; }
+.snippet-label { font: 600 10pt monospace; color: #888; min-width: 80px; }
+.snippet pre { flex: 1; margin: 0; font: 11pt monospace; white-space: pre-wrap; }
+.snippet button { padding: 4px 10px; }
