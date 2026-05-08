@@ -1,4 +1,4 @@
-import { For, createEffect } from "solid-js";
+import { For, Show, createEffect } from "solid-js";
 import "./Tile.css";
 
 export interface TileProps {
@@ -26,17 +26,21 @@ export function Tile(props: TileProps) {
           {(r) => <RenderRow html={r.html} label={r.label} css={props.css} />}
         </For>
       </div>
-      <footer class="tile-footer">
-        <For each={props.renders}>
-          {(r) => (
-            <div class="snippet">
-              {r.label ? <span class="snippet-label">{r.label}</span> : null}
-              <pre><code>{r.snippet}</code></pre>
-              <button onClick={() => navigator.clipboard.writeText(r.snippet)}>Copy</button>
-            </div>
-          )}
-        </For>
-      </footer>
+      <Show when={props.renders.some(r => r.snippet)}>
+        <footer class="tile-footer">
+          <For each={props.renders}>
+            {(r) => (
+              <Show when={r.snippet}>
+                <div class="snippet">
+                  {r.label ? <span class="snippet-label">{r.label}</span> : null}
+                  <pre><code>{r.snippet}</code></pre>
+                  <button onClick={() => navigator.clipboard.writeText(r.snippet)}>Copy</button>
+                </div>
+              </Show>
+            )}
+          </For>
+        </footer>
+      </Show>
     </article>
   );
 }
