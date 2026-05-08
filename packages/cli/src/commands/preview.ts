@@ -54,10 +54,24 @@ const PREVIEW_CHROME = `<style>
     font: 11px/1 system-ui, sans-serif;
     color: #666;
   }
-  /* Faint dashed outline showing the printable area (inside the margins). */
-  .pagedjs_area {
-    outline: 1px dashed rgba(0,0,0,0.08);
-    outline-offset: -1px;
+  /*
+    Margin guide: faint dashed rectangle showing the printable area on each
+    sheet. Drawn as a ::before pseudo-element on .pagedjs_page itself (not
+    .pagedjs_area, whose bounding box can spill past the sheet because Paged.js
+    sizes it from letter-dimensioned CSS custom properties). Inset by the
+    actual page-margin variables so the guide always lands on the visible
+    sheet and is symmetric on all four sides.
+  */
+  .pagedjs_page::before {
+    content: "";
+    position: absolute;
+    top: var(--pagedjs-margin-top);
+    bottom: var(--pagedjs-margin-bottom);
+    left: var(--pagedjs-margin-left);
+    right: var(--pagedjs-margin-right);
+    border: 1px dashed rgba(0,0,0,0.12);
+    pointer-events: none;
+    z-index: 1;
   }
 </style>`;
 
