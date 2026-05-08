@@ -3,6 +3,7 @@ import { Command } from "commander";
 import { resolve } from "node:path";
 import { build } from "./commands/build.js";
 import { lint } from "./commands/lint.js";
+import { startPreviewServer } from "./commands/preview.js";
 
 const program = new Command();
 program.name("tender").description("Print-layout tool for text documents");
@@ -30,6 +31,23 @@ program.command("lint [dir]")
     for (const e of result.errors) console.error(`error: ${e}`);
     if (result.errors.length > 0) process.exit(1);
     console.log("ok");
+  });
+
+program.command("preview [dir]")
+  .description("Live-reloading HTML preview server")
+  .option("--port <n>", "port (default 3000; use 0 for auto)", "3000")
+  .action(async (dir: string | undefined, opts: { port: string }) => {
+    const port = parseInt(opts.port, 10);
+    const server = await startPreviewServer({
+      projectDir: resolve(dir ?? "."),
+      port: isNaN(port) ? 3000 : port
+    });
+    console.log(`Preview at http://127.0.0.1:${server.port}/`);
+    console.log("Press Ctrl-C to stop.");
+    process.on("SIGINT", async () => {
+      await server.close();
+      process.exit(0);
+    });
   });
 
 program.parseAsync(process.argv);
