@@ -210,7 +210,7 @@ export async function startPreviewServer(opts: PreviewOptions): Promise<RunningS
 
   // File watcher
   const watcher: FSWatcher = chokidar.watch(opts.projectDir, {
-    ignored: /node_modules|\.git|out|\\dist/,
+    ignored: /node_modules|\.git|out|dist/,
     ignoreInitial: true
   });
 
