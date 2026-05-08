@@ -216,8 +216,11 @@ export async function startPreviewServer(opts: PreviewOptions): Promise<RunningS
 
   watcher.on("all", async (_event, path) => {
     try {
-      await rebuild();
       const kind = classifyPath(path, opts.projectDir);
+      // Help-only changes don't affect the rendered preview — skip rebuild.
+      if (kind !== "help") {
+        await rebuild();
+      }
       const msg: WsMessage = buildError
         ? { kind: "error", message: buildError.message }
         : { kind };
