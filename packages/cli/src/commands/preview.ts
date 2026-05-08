@@ -3,7 +3,7 @@ import { WebSocketServer } from "ws";
 import chokidar from "chokidar";
 import type { FSWatcher } from "chokidar";
 import type { Server } from "node:http";
-import { join } from "node:path";
+import { join, sep } from "node:path";
 import { buildProject } from "@tender/core";
 import { renderHtml } from "@tender/render";
 
@@ -19,11 +19,34 @@ export interface RunningServer {
   close: () => Promise<void>;
 }
 
+type WsMessage =
+  | { kind: "content" }
+  | { kind: "project" }
+  | { kind: "styles" }
+  | { kind: "help" }
+  | { kind: "assets" }
+  | { kind: "error"; message: string };
+
+function classifyPath(path: string, projectDir: string): Exclude<WsMessage, { kind: "error" }>["kind"] {
+  const rel = path.startsWith(projectDir) ? path.slice(projectDir.length + 1) : path;
+  if (rel === "content.md") return "content";
+  if (rel === "project.yaml") return "project";
+  if (rel === "styles.css") return "styles";
+  if (rel === "docs/user-guide.md" || rel === "docs" + sep + "user-guide.md") return "help";
+  if (rel.startsWith("assets/") || rel.startsWith("assets" + sep)) return "assets";
+  return "content"; // default fallback
+}
+
 const RELOAD_SCRIPT = `<script>
 (() => {
   const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
   const ws = new WebSocket(proto + '//' + location.host + '/_tender');
-  ws.onmessage = (e) => { if (e.data === 'reload') location.reload(); };
+  ws.onmessage = (e) => {
+    try {
+      const msg = JSON.parse(e.data);
+      if (msg.kind !== 'error') location.reload();
+    } catch { location.reload(); }
+  };
 })();
 </script>`;
 
@@ -131,11 +154,16 @@ export async function startPreviewServer(opts: PreviewOptions): Promise<RunningS
     ignoreInitial: true
   });
 
-  watcher.on("all", async () => {
+  watcher.on("all", async (_event, path) => {
     try {
       await rebuild();
+      const kind = classifyPath(path, opts.projectDir);
+      const msg: WsMessage = buildError
+        ? { kind: "error", message: buildError.message }
+        : { kind };
+      const payload = JSON.stringify(msg);
       for (const client of wss.clients) {
-        if (client.readyState === 1 /* OPEN */) client.send("reload");
+        if (client.readyState === 1 /* OPEN */) client.send(payload);
       }
     } catch (err) {
       console.error("preview rebuild failed:", err instanceof Error ? err.message : err);
