@@ -10,10 +10,12 @@ import { renderHtml } from "@tender/render";
 export interface PreviewOptions {
   projectDir: string;
   port: number;
+  host?: string;
 }
 
 export interface RunningServer {
   port: number;
+  host: string;
   close: () => Promise<void>;
 }
 
@@ -58,8 +60,9 @@ export async function startPreviewServer(opts: PreviewOptions): Promise<RunningS
     res.type("html").send(cachedHtml ?? "");
   });
 
+  const host = opts.host ?? "127.0.0.1";
   const server: Server = await new Promise(resolve => {
-    const s = app.listen(opts.port, "127.0.0.1", () => resolve(s));
+    const s = app.listen(opts.port, host, () => resolve(s));
   });
   const address = server.address();
   if (!address || typeof address === "string") {
@@ -89,6 +92,7 @@ export async function startPreviewServer(opts: PreviewOptions): Promise<RunningS
 
   return {
     port,
+    host,
     close: async () => {
       await new Promise<void>(resolve => {
         wss.close(() => resolve());

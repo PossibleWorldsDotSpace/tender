@@ -37,13 +37,15 @@ program.command("lint [dir]")
 program.command("preview [dir]")
   .description("Live-reloading HTML preview server")
   .option("--port <n>", "port (default 3993; use 0 for auto)", "3993")
-  .action(async (dir: string | undefined, opts: { port: string }) => {
+  .option("--host <addr>", "bind address (default 127.0.0.1; use 0.0.0.0 to expose on LAN/Tailscale)", "127.0.0.1")
+  .action(async (dir: string | undefined, opts: { port: string; host: string }) => {
     const port = parseInt(opts.port, 10);
     const server = await startPreviewServer({
       projectDir: resolve(dir ?? "."),
-      port: isNaN(port) ? 3993 : port
+      port: isNaN(port) ? 3993 : port,
+      host: opts.host
     });
-    console.log(`Preview at http://127.0.0.1:${server.port}/`);
+    console.log(`Preview at http://${server.host}:${server.port}/`);
     console.log("Press Ctrl-C to stop.");
     process.on("SIGINT", async () => {
       await server.close();

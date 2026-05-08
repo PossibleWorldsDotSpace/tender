@@ -49,7 +49,7 @@ my-doc/
 
 - `tender init <dir>` — scaffold a new project from the default starter
 - `tender build [dir]` — produce `out/document.pdf` and `out/document.html`
-- `tender preview [dir]` — live-reloading HTML preview server (default port 3993)
+- `tender preview [dir]` — live-reloading HTML preview server (default `--port 3993 --host 127.0.0.1`; pass `--host 0.0.0.0` to expose on LAN/Tailscale)
 - `tender lint [dir]` — validate config and content; exit non-zero on errors
 
 ## Reference

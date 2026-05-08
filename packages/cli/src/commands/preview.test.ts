@@ -34,4 +34,20 @@ describe("preview server", () => {
       await server.close();
     }
   }, 60_000);
+
+  it("binds to a custom host when --host is supplied", async () => {
+    const server = await startPreviewServer({
+      projectDir: join(fixturesDir, "hello"),
+      port: 0,
+      host: "0.0.0.0"
+    });
+    try {
+      expect(server.host).toBe("0.0.0.0");
+      // 0.0.0.0 means all interfaces; loopback fetch should still succeed.
+      const res = await fetch(`http://127.0.0.1:${server.port}/`);
+      expect(res.status).toBe(200);
+    } finally {
+      await server.close();
+    }
+  }, 60_000);
 });
