@@ -25,6 +25,7 @@
   },
   "dependencies": {
     "@tender/core": "workspace:*",
+    "@tender/preview-ui": "workspace:^",
     "@tender/render": "workspace:*",
     "chokidar": "^5.0.0",
     "commander": "^12.0.0",

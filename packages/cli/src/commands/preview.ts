@@ -3,9 +3,16 @@ import { WebSocketServer } from "ws";
 import chokidar from "chokidar";
 import type { FSWatcher } from "chokidar";
 import type { Server } from "node:http";
-import { join, sep } from "node:path";
+import { dirname, join, sep } from "node:path";
+import { readFile } from "node:fs/promises";
+import { createRequire } from "node:module";
 import { buildProject, buildPalette, loadProjectConfig, renderHelp } from "@tender/core";
 import { renderHtml } from "@tender/render";
+
+const previewUiDist = (() => {
+  const pkg = createRequire(import.meta.url).resolve("@tender/preview-ui/package.json");
+  return join(dirname(pkg), "dist");
+})();
 
 export interface PreviewOptions {
   projectDir: string;
@@ -171,11 +178,17 @@ export async function startPreviewServer(opts: PreviewOptions): Promise<RunningS
     res.type("html").send(cachedHtml ?? "");
   });
 
-  app.get("/", async (_req, res) => {
-    res.type("html").send(`<!DOCTYPE html>
-<html><head><meta charset="UTF-8"><title>Tender Preview</title>
-<style>html,body{margin:0;height:100%}iframe{width:100%;height:100%;border:0}</style>
-</head><body><iframe src="/_preview"></iframe></body></html>`);
+  // Serve preview-ui bundle assets
+  app.use("/_ui/assets", express.static(join(previewUiDist, "assets")));
+
+  // Shell at /
+  app.get("/", async (_req, res, next) => {
+    try {
+      const shell = await readFile(join(previewUiDist, "index.html"), "utf8");
+      res.type("html").send(shell);
+    } catch (err) {
+      next(err);
+    }
   });
 
   const host = opts.host ?? "127.0.0.1";

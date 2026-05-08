@@ -25,7 +25,7 @@ describe("preview server", () => {
     }
   }, 60_000);
 
-  it("serves a placeholder shell at / that embeds /_preview", async () => {
+  it("serves the preview-ui shell HTML at /", async () => {
     const server = await startPreviewServer({
       projectDir: join(fixturesDir, "hello"),
       port: 0
@@ -34,8 +34,25 @@ describe("preview server", () => {
       const res = await fetch(`http://127.0.0.1:${server.port}/`);
       expect(res.status).toBe(200);
       const html = await res.text();
-      // Phase 0 placeholder: a tiny HTML page with an iframe to /_preview
-      expect(html).toContain("/_preview");
+      expect(html).toContain("<div id=\"root\">");
+      expect(html).toMatch(/_ui\/assets\//);
+    } finally {
+      await server.close();
+    }
+  }, 30_000);
+
+  it("serves preview-ui bundle assets under /_ui/", async () => {
+    const server = await startPreviewServer({
+      projectDir: join(fixturesDir, "hello"),
+      port: 0
+    });
+    try {
+      const shellHtml = await (await fetch(`http://127.0.0.1:${server.port}/`)).text();
+      const scriptMatch = shellHtml.match(/src="(\/_ui\/assets\/[^"]+\.js)"/);
+      expect(scriptMatch).not.toBeNull();
+      const scriptRes = await fetch(`http://127.0.0.1:${server.port}${scriptMatch![1]}`);
+      expect(scriptRes.status).toBe(200);
+      expect(scriptRes.headers.get("content-type")).toMatch(/javascript/);
     } finally {
       await server.close();
     }

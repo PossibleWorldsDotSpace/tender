@@ -17,6 +17,9 @@ importers:
       '@tender/core':
         specifier: workspace:*
         version: link:../core
+      '@tender/preview-ui':
+        specifier: workspace:^
+        version: link:../preview-ui
       '@tender/render':
         specifier: workspace:*
         version: link:../render
