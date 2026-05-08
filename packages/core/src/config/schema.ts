@@ -38,17 +38,34 @@ export const PageTemplate = z.object({
   "footers-rest": HeaderFooterRest.optional()
 });
 
+const PaletteVariant = z.object({
+  attrs: z.record(z.string(), z.string()).optional(),
+  params: z.record(z.string(), z.string()).optional(),
+  body: z.string().optional(),
+  slots: z.record(z.string(), z.string()).optional()
+});
+
+const Palette = z.object({
+  attrs: z.record(z.string(), z.string()).optional(),
+  params: z.record(z.string(), z.string()).optional(),
+  body: z.string().optional(),
+  slots: z.record(z.string(), z.string()).optional(),
+  variants: z.array(PaletteVariant).optional()
+});
+
 export const Component = z.object({
   tag: z.string(),
   class: z.string().optional(),
   attrs: z.array(z.string()).optional(),
-  inline: z.boolean().optional()
+  inline: z.boolean().optional(),
+  palette: Palette.optional()
 });
 
 export const Template = z.object({
   params: z.array(z.string()).optional(),
   slots: z.array(z.string()).optional(),
-  template: z.string()
+  template: z.string(),
+  palette: Palette.optional()
 });
 
 const Hyphenation = z.object({

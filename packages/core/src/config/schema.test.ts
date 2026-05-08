@@ -77,6 +77,45 @@ describe("ProjectConfig", () => {
     expect(c.fonts?.[0]?.family).toBe("Display");
   });
 
+  it("accepts a palette block on a component", () => {
+    const c = ProjectConfig.parse({
+      "page-templates": { default: { size: "A5", margin: 0 } },
+      components: {
+        callout: {
+          tag: "aside",
+          class: "callout",
+          attrs: ["variant"],
+          palette: {
+            attrs: { variant: "warning" },
+            body: "Watch your step.",
+            variants: [
+              { attrs: { variant: "info" }, body: "Info." }
+            ]
+          }
+        }
+      }
+    });
+    expect(c.components?.callout?.palette?.attrs?.variant).toBe("warning");
+    expect(c.components?.callout?.palette?.variants?.[0]?.body).toBe("Info.");
+  });
+
+  it("accepts a palette block on a template with params and slots", () => {
+    const c = ProjectConfig.parse({
+      "page-templates": { default: { size: "A5", margin: 0 } },
+      templates: {
+        "ad-lib": {
+          slots: ["suggested"],
+          template: "<div>{{{suggested}}}</div>",
+          palette: {
+            slots: { suggested: "Hello." },
+            variants: [{ slots: { suggested: "Goodbye." } }]
+          }
+        }
+      }
+    });
+    expect(c.templates?.["ad-lib"]?.palette?.slots?.suggested).toBe("Hello.");
+  });
+
   it("parses a template definition with slots and params", () => {
     const c = ProjectConfig.parse({
       "page-templates": { default: { size: "A5", margin: 0 } },
