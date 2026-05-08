@@ -54,9 +54,10 @@ my-doc/
 
 ## Reference
 
+- **User guide:** [`docs/user-guide.md`](docs/user-guide.md) — authoring conventions, `project.yaml` reference, `styles.css` patterns, CLI commands.
 - **Design:** [`docs/plans/2026-05-08-tender-design.md`](docs/plans/2026-05-08-tender-design.md)
 - **Implementation plan:** [`docs/plans/2026-05-08-tender-implementation.md`](docs/plans/2026-05-08-tender-implementation.md)
-- **Worked example:** [`packages/core/test/fixtures/coastal-planet/`](packages/core/test/fixtures/coastal-planet/) — a 4-page workshop playbook reproducing the original `example.html`.
+- **Worked example:** [`packages/core/test/fixtures/coastal-planet/`](packages/core/test/fixtures/coastal-planet/) — a workshop playbook reproducing the original `example.html`.
 
 ## v1 limits
 
