@@ -1,6 +1,7 @@
-import { createResource, For, Show } from "solid-js";
+import { createResource, createEffect, For, Show } from "solid-js";
 import { fetchPalette, fetchStylesCss, fetchProjectCss } from "../api.ts";
 import { Tile } from "../components/Tile.tsx";
+import { hoistFontFaces } from "../util/fonts.ts";
 import "./Palette.css";
 
 async function loadAll() {
@@ -14,6 +15,11 @@ async function loadAll() {
 
 export function Palette() {
   const [data] = createResource(loadAll);
+
+  createEffect(() => {
+    const d = data();
+    if (d) hoistFontFaces(d.css);
+  });
 
   return (
     <div class="palette">

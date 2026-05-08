@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { render } from "@solidjs/testing-library";
+import { render, waitFor } from "@solidjs/testing-library";
 import { Palette } from "./Palette.tsx";
 
 beforeEach(() => {
@@ -40,5 +40,25 @@ describe("Palette", () => {
   it("renders typography specimen", async () => {
     const { findByText } = render(() => <Palette />);
     expect(await findByText("Heading 1")).toBeTruthy();
+  });
+
+  it("hoists @font-face rules to document head", async () => {
+    vi.stubGlobal("fetch", vi.fn((url: string) => {
+      if (url === "/_api/palette") {
+        return Promise.resolve(new Response(JSON.stringify({ components: [], templates: [], typography: [] }), { status: 200 }));
+      }
+      if (url === "/_api/styles.css") {
+        return Promise.resolve(new Response(`@font-face { font-family: 'X'; src: url('x.woff2') format('woff2'); }\nbody { font-family: 'X'; }`, { status: 200 }));
+      }
+      if (url === "/_api/_project.css") {
+        return Promise.resolve(new Response("", { status: 200 }));
+      }
+      return Promise.reject(new Error("unexpected " + url));
+    }));
+    render(() => <Palette />);
+    await waitFor(() => {
+      const styles = Array.from(document.head.querySelectorAll("style[data-tender-fonts]"));
+      expect(styles.some(s => s.textContent?.includes("@font-face"))).toBe(true);
+    });
   });
 });
