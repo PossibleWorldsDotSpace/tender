@@ -10,7 +10,22 @@ const here = dirname(fileURLToPath(import.meta.url));
 const fixturesDir = join(here, "../../../core/test/fixtures");
 
 describe("preview server", () => {
-  it("serves rendered HTML at /", async () => {
+  it("serves rendered HTML at /_preview", async () => {
+    const server = await startPreviewServer({
+      projectDir: join(fixturesDir, "hello"),
+      port: 0
+    });
+    try {
+      const res = await fetch(`http://127.0.0.1:${server.port}/_preview`);
+      expect(res.status).toBe(200);
+      const html = await res.text();
+      expect(html).toContain("Hello, Tender");
+    } finally {
+      await server.close();
+    }
+  }, 60_000);
+
+  it("serves a placeholder shell at / that embeds /_preview", async () => {
     const server = await startPreviewServer({
       projectDir: join(fixturesDir, "hello"),
       port: 0
@@ -19,11 +34,12 @@ describe("preview server", () => {
       const res = await fetch(`http://127.0.0.1:${server.port}/`);
       expect(res.status).toBe(200);
       const html = await res.text();
-      expect(html).toContain("Hello, Tender");
+      // Phase 0 placeholder: a tiny HTML page with an iframe to /_preview
+      expect(html).toContain("/_preview");
     } finally {
       await server.close();
     }
-  }, 60_000);
+  }, 30_000);
 
   it("serves assets/ directory", async () => {
     const server = await startPreviewServer({

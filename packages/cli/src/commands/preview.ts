@@ -167,8 +167,15 @@ export async function startPreviewServer(opts: PreviewOptions): Promise<RunningS
     }
   });
 
-  app.get("/", async (_req, res) => {
+  app.get("/_preview", async (_req, res) => {
     res.type("html").send(cachedHtml ?? "");
+  });
+
+  app.get("/", async (_req, res) => {
+    res.type("html").send(`<!DOCTYPE html>
+<html><head><meta charset="UTF-8"><title>Tender Preview</title>
+<style>html,body{margin:0;height:100%}iframe{width:100%;height:100%;border:0}</style>
+</head><body><iframe src="/_preview"></iframe></body></html>`);
   });
 
   const host = opts.host ?? "127.0.0.1";
