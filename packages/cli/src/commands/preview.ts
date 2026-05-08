@@ -27,14 +27,50 @@ const RELOAD_SCRIPT = `<script>
 })();
 </script>`;
 
+// Visual chrome that makes the rendered Paged.js DOM look like printed sheets:
+// grey workspace, white pages with a soft drop-shadow, page numbers, optional
+// margin guides. Injected only in the preview server — not in PDF/HTML output.
+const PREVIEW_CHROME = `<style>
+  html { background: #d8d8d8; }
+  body { background: #d8d8d8; padding: 16px 0; }
+  .pagedjs_pages {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 16px;
+  }
+  .pagedjs_page {
+    background: white;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.18);
+    counter-increment: page;
+    position: relative;
+  }
+  .pagedjs_page::after {
+    content: counter(page);
+    position: absolute;
+    bottom: -22px;
+    left: 50%;
+    transform: translateX(-50%);
+    font: 11px/1 system-ui, sans-serif;
+    color: #666;
+  }
+  /* Faint dashed outline showing the printable area (inside the margins). */
+  .pagedjs_area {
+    outline: 1px dashed rgba(0,0,0,0.08);
+    outline-offset: -1px;
+  }
+</style>`;
+
+function injectPreviewExtras(html: string): string {
+  const inject = PREVIEW_CHROME + RELOAD_SCRIPT;
+  if (html.includes("</body>")) return html.replace("</body>", inject + "</body>");
+  return html + inject;
+}
+
 async function renderForPreview(projectDir: string): Promise<string> {
   const result = await buildProject(projectDir);
   const html = await renderHtml(result);
-  // Inject reload script before </body>.
-  if (html.includes("</body>")) {
-    return html.replace("</body>", RELOAD_SCRIPT + "</body>");
-  }
-  return html + RELOAD_SCRIPT;
+  return injectPreviewExtras(html);
 }
 
 export async function startPreviewServer(opts: PreviewOptions): Promise<RunningServer> {
