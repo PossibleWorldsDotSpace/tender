@@ -3,6 +3,7 @@ import type { Browser, Page } from "puppeteer";
 import { readFile } from "node:fs/promises";
 import { createRequire } from "node:module";
 import { dirname, join } from "node:path";
+import { inlineAssets } from "./inline-assets.js";
 
 const require = createRequire(import.meta.url);
 // pagedjs's package.json exports field doesn't expose dist/, so we resolve the
@@ -92,7 +93,8 @@ export async function renderHtml(input: RenderInput): Promise<string> {
   const browser = await puppeteer.launch({ headless: true, args: ["--no-sandbox"] });
   try {
     const page = await setupPage(input, browser);
-    return await page.content();
+    const html = await page.content();
+    return await inlineAssets(html, input.projectDir);
   } finally {
     await browser.close();
   }

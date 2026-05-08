@@ -31,4 +31,9 @@ describe("buildProject", () => {
     expect(result.projectCss).toContain("@page chapter-opener:first");
     expect(result.projectCss).toContain("@page default");
   });
+
+  it("with-image fixture: builds without errors and image is referenced in HTML", async () => {
+    const result = await buildProject(join(fixturesDir, "with-image"));
+    expect(result.html).toContain('src="assets/images/dot.png"');
+  });
 });
