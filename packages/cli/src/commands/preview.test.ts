@@ -88,6 +88,41 @@ describe("preview server", () => {
     }
   }, 30_000);
 
+  it("serves /_api/help with HTML and source field", async () => {
+    const server = await startPreviewServer({
+      projectDir: join(fixturesDir, "hello"),
+      port: 0
+    });
+    try {
+      const res = await fetch(`http://127.0.0.1:${server.port}/_api/help`);
+      expect(res.status).toBe(200);
+      const body = await res.json();
+      expect(body.source).toBe("builtin");
+      expect(body.html).toMatch(/<h1[^>]*>/);
+    } finally {
+      await server.close();
+    }
+  }, 30_000);
+
+  it("serves /_api/styles.css and /_api/_project.css", async () => {
+    const server = await startPreviewServer({
+      projectDir: join(fixturesDir, "hello"),
+      port: 0
+    });
+    try {
+      const stylesRes = await fetch(`http://127.0.0.1:${server.port}/_api/styles.css`);
+      expect(stylesRes.status).toBe(200);
+      expect(stylesRes.headers.get("content-type")).toMatch(/text\/css/);
+      expect(await stylesRes.text()).toContain("font-family");
+
+      const projectRes = await fetch(`http://127.0.0.1:${server.port}/_api/_project.css`);
+      expect(projectRes.status).toBe(200);
+      expect(await projectRes.text()).toContain("@page");
+    } finally {
+      await server.close();
+    }
+  }, 30_000);
+
   it("binds to a custom host when --host is supplied", async () => {
     const server = await startPreviewServer({
       projectDir: join(fixturesDir, "hello"),

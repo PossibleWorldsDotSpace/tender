@@ -4,7 +4,7 @@ import chokidar from "chokidar";
 import type { FSWatcher } from "chokidar";
 import type { Server } from "node:http";
 import { join, sep } from "node:path";
-import { buildProject, buildPalette, loadProjectConfig } from "@tender/core";
+import { buildProject, buildPalette, loadProjectConfig, renderHelp } from "@tender/core";
 import { renderHtml } from "@tender/render";
 
 export interface PreviewOptions {
@@ -136,6 +136,32 @@ export async function startPreviewServer(opts: PreviewOptions): Promise<RunningS
       const config = await loadProjectConfig(opts.projectDir);
       const palette = await buildPalette(config);
       res.json(palette);
+    } catch (err) {
+      next(err);
+    }
+  });
+
+  app.get("/_api/help", async (_req, res, next) => {
+    try {
+      res.json(await renderHelp(opts.projectDir));
+    } catch (err) {
+      next(err);
+    }
+  });
+
+  app.get("/_api/styles.css", async (_req, res, next) => {
+    try {
+      const result = await buildProject(opts.projectDir);
+      res.type("text/css").send(result.stylesCss);
+    } catch (err) {
+      next(err);
+    }
+  });
+
+  app.get("/_api/_project.css", async (_req, res, next) => {
+    try {
+      const result = await buildProject(opts.projectDir);
+      res.type("text/css").send(result.projectCss);
     } catch (err) {
       next(err);
     }
