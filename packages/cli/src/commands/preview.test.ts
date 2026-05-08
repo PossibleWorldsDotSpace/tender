@@ -21,4 +21,17 @@ describe("preview server", () => {
       await server.close();
     }
   }, 60_000);
+
+  it("serves assets/ directory", async () => {
+    const server = await startPreviewServer({
+      projectDir: join(fixturesDir, "with-image"),
+      port: 0
+    });
+    try {
+      const res = await fetch(`http://127.0.0.1:${server.port}/assets/images/dot.png`);
+      expect(res.status).toBe(200);
+    } finally {
+      await server.close();
+    }
+  }, 60_000);
 });

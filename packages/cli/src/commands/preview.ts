@@ -3,6 +3,7 @@ import { WebSocketServer } from "ws";
 import chokidar from "chokidar";
 import type { FSWatcher } from "chokidar";
 import type { Server } from "node:http";
+import { join } from "node:path";
 import { buildProject } from "@tender/core";
 import { renderHtml } from "@tender/render";
 
@@ -50,6 +51,8 @@ export async function startPreviewServer(opts: PreviewOptions): Promise<RunningS
   }
 
   await rebuild();
+
+  app.use("/assets", express.static(join(opts.projectDir, "assets")));
 
   app.get("/", async (_req, res) => {
     res.type("html").send(cachedHtml ?? "");
