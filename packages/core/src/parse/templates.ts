@@ -77,14 +77,90 @@ export const resolveTemplates: Plugin<[ProjectConfig], Root> = (config) => {
   };
 };
 
-function isSlotSentinel(node: RootContent): string | null {
-  if (node.type !== "paragraph") return null;
-  const para = node as unknown as { children: { type: string; value?: string }[] };
-  if (para.children.length !== 1) return null;
-  const child = para.children[0];
-  if (!child || child.type !== "text" || typeof child.value !== "string") return null;
-  const m = child.value.match(/^---\s+([\w-]+)\s+---$/);
-  return m ? m[1]! : null;
+const SENTINEL_LINE_RE = /^---\s+([\w-]+)\s+---$/;
+
+interface TextChild {
+  type: string;
+  value?: string;
+}
+
+interface ParagraphLike {
+  type: "paragraph";
+  children: TextChild[];
+}
+
+/**
+ * Splits paragraph nodes where a sentinel line appears inline (as part of a
+ * multi-line text run that the markdown parser merged into a single paragraph)
+ * into a sequence of pseudo-nodes:
+ *   - "paragraph" pieces for non-sentinel text
+ *   - synthetic { type: "_slotSentinel", name } markers
+ *
+ * This lets the slot splitter treat sentinels uniformly whether they appear as
+ * standalone paragraphs or as embedded lines.
+ */
+function explodeSentinels(children: RootContent[]): Array<RootContent | { type: "_slotSentinel"; name: string }> {
+  const out: Array<RootContent | { type: "_slotSentinel"; name: string }> = [];
+  for (const child of children) {
+    if (child.type !== "paragraph") {
+      out.push(child);
+      continue;
+    }
+    const para = child as unknown as ParagraphLike;
+    // Whole-paragraph sentinel (single text child whose value matches).
+    if (para.children.length === 1) {
+      const only = para.children[0];
+      if (only && only.type === "text" && typeof only.value === "string") {
+        const m = only.value.match(SENTINEL_LINE_RE);
+        if (m) {
+          out.push({ type: "_slotSentinel", name: m[1]! });
+          continue;
+        }
+      }
+    }
+    // Otherwise, look for a leading text child whose value contains a sentinel
+    // line. We only handle the common case where the sentinel is the first
+    // line of the text (with the slot body following on subsequent lines).
+    const first = para.children[0];
+    if (first && first.type === "text" && typeof first.value === "string") {
+      const lines = first.value.split("\n");
+      const segments: Array<{ name?: string; lines: string[] }> = [{ lines: [] }];
+      for (const line of lines) {
+        const m = line.match(SENTINEL_LINE_RE);
+        if (m) {
+          segments.push({ name: m[1]!, lines: [] });
+        } else {
+          segments[segments.length - 1]!.lines.push(line);
+        }
+      }
+      if (segments.length > 1) {
+        // First segment retains the rest of the paragraph's children; later
+        // segments get only the post-sentinel text from this text node.
+        const head = segments[0]!;
+        const headText = head.lines.join("\n");
+        const headChildren: TextChild[] = [];
+        if (headText.length > 0) headChildren.push({ type: "text", value: headText });
+        for (let i = 1; i < para.children.length; i++) headChildren.push(para.children[i]!);
+        if (headChildren.length > 0) {
+          out.push({ type: "paragraph", children: headChildren } as unknown as RootContent);
+        }
+        for (let i = 1; i < segments.length; i++) {
+          const seg = segments[i]!;
+          out.push({ type: "_slotSentinel", name: seg.name! });
+          const text = seg.lines.join("\n");
+          if (text.length > 0) {
+            out.push({
+              type: "paragraph",
+              children: [{ type: "text", value: text }]
+            } as unknown as RootContent);
+          }
+        }
+        continue;
+      }
+    }
+    out.push(child);
+  }
+  return out;
 }
 
 function splitSlots(children: RootContent[]): {
@@ -96,12 +172,12 @@ function splitSlots(children: RootContent[]): {
     slots: {} as Record<string, RootContent[]>
   };
   let current: RootContent[] = result.body;
-  for (const child of children) {
-    const sentinelName = isSlotSentinel(child);
-    if (sentinelName) {
-      current = result.slots[sentinelName] = [];
+  for (const item of explodeSentinels(children)) {
+    if ((item as { type: string }).type === "_slotSentinel") {
+      const name = (item as { name: string }).name;
+      current = result.slots[name] = [];
     } else {
-      current.push(child);
+      current.push(item as RootContent);
     }
   }
   return result;

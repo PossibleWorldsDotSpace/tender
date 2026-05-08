@@ -42,4 +42,32 @@ describe("template resolution (single-slot)", () => {
     expect(html).toContain('<aside class="callout">');
     expect(html).toContain("Watch out");
   });
+
+  it("expands a multi-slot template", async () => {
+    const cfg = {
+      "page-templates": { default: { size: "A5", margin: 0 as const } },
+      templates: {
+        "ad-lib": {
+          slots: ["suggested"],
+          template: `<div class="ad-lib"><div class="s">{{{suggested}}}</div><div class="b">your version</div></div>`
+        }
+      }
+    } as unknown as ProjectConfig;
+    const src = `:::ad-lib
+--- suggested ---
+"Hello world."
+:::
+`;
+    const html = await parseProject(src, cfg);
+    expect(html).toContain('class="ad-lib"');
+    expect(html).toContain('"Hello world."');
+  });
+
+  it("errors when a multi-slot template's required slot is missing", async () => {
+    const cfg = {
+      "page-templates": { default: { size: "A5", margin: 0 as const } },
+      templates: { "ad-lib": { slots: ["suggested"], template: "<div></div>" } }
+    } as unknown as ProjectConfig;
+    await expect(parseProject(`:::ad-lib\nno sentinels\n:::\n`, cfg)).rejects.toThrow(/missing slot/i);
+  });
 });
