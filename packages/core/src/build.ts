@@ -18,7 +18,10 @@ export async function buildProject(projectDir: string): Promise<BuildResult> {
   const config = await loadProjectConfig(projectDir);
   const md = await readFile(join(projectDir, "content.md"), "utf8");
   const stylesCss = await readFile(join(projectDir, "styles.css"), "utf8").catch(() => "");
-  const bodyHtml = `<div class="page">${await parseProject(md, config)}</div>`;
+  const parsed = await parseProject(md, config);
+  // If the parsed content already starts with a built-in page wrapper, don't
+  // double-wrap it; otherwise wrap so the default page template applies.
+  const bodyHtml = /^\s*<div class="page"/.test(parsed) ? parsed : `<div class="page">${parsed}</div>`;
   const html = composeDocument({ bodyHtml, lang: "en", title: basename(projectDir) });
   const projectCss = generateProjectCss(config, { docTitle: basename(projectDir) });
   return { html, projectCss, stylesCss, config, projectDir };

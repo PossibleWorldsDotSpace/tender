@@ -23,4 +23,12 @@ describe("buildProject", () => {
     expect(result.html).toContain('class="row"');
     expect(result.html).toContain('class="col-l"');
   });
+
+  it("page-templates fixture: html marks chapter-opener page and CSS has both @page rules", async () => {
+    const result = await buildProject(join(fixturesDir, "page-templates"));
+    expect(result.html).toContain('data-page-template="chapter-opener"');
+    expect(result.projectCss).toContain("@page chapter-opener");
+    expect(result.projectCss).toContain("@page chapter-opener:first");
+    expect(result.projectCss).toContain("@page default");
+  });
 });

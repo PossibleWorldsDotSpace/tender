@@ -49,7 +49,7 @@ async function setupPage(input: RenderInput, browser: Browser): Promise<Page> {
   // returns a promise that resolves to the rendered flow.
   const pagedJsSrc = await readFile(pagedJsPath, "utf8");
   await page.evaluate(
-    (src: string) => new Promise<void>((resolve, reject) => {
+    (src: string, projectCss: string, stylesCss: string) => new Promise<void>((resolve, reject) => {
       const timer = setTimeout(() => reject(new Error("paged.js render timeout")), 60_000);
       try {
         // Disable auto-render before injecting the script.
@@ -57,10 +57,21 @@ async function setupPage(input: RenderInput, browser: Browser): Promise<Page> {
         const script = document.createElement("script");
         script.textContent = src;
         document.head.appendChild(script);
-        const previewer = (window as unknown as { PagedPolyfill: { preview: (c: string, s: string[], r: HTMLElement) => Promise<unknown> } }).PagedPolyfill;
+        const previewer = (window as unknown as {
+          PagedPolyfill: {
+            preview: (c: string, s: Array<Record<string, string>>, r: HTMLElement) => Promise<unknown>;
+          };
+        }).PagedPolyfill;
         const bodyHtml = document.body.innerHTML;
         document.body.innerHTML = "";
-        previewer.preview(bodyHtml, [], document.body)
+        // Pass project CSS (and any user styles.css) directly as
+        // { url: cssText } objects so Paged.js' polisher receives the @page
+        // and break-before rules instead of trying to refetch <link>s that
+        // would have been removed during the preview phase.
+        const sheets: Array<Record<string, string>> = [];
+        if (projectCss) sheets.push({ "_project.css": projectCss });
+        if (stylesCss) sheets.push({ "styles.css": stylesCss });
+        previewer.preview(bodyHtml, sheets, document.body)
           .then(() => { clearTimeout(timer); resolve(); })
           .catch((e: unknown) => { clearTimeout(timer); reject(e as Error); });
       } catch (e) {
@@ -68,7 +79,9 @@ async function setupPage(input: RenderInput, browser: Browser): Promise<Page> {
         reject(e as Error);
       }
     }),
-    pagedJsSrc
+    pagedJsSrc,
+    input.projectCss,
+    input.stylesCss
   );
   return page;
 }
