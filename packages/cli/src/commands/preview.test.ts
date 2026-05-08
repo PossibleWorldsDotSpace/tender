@@ -68,6 +68,26 @@ describe("preview server", () => {
     }
   }, 30_000);
 
+  it("serves /_api/palette as JSON for projects with components", async () => {
+    const server = await startPreviewServer({
+      projectDir: join(fixturesDir, "components"),
+      port: 0
+    });
+    try {
+      const res = await fetch(`http://127.0.0.1:${server.port}/_api/palette`);
+      expect(res.status).toBe(200);
+      expect(res.headers.get("content-type")).toMatch(/application\/json/);
+      const body = await res.json();
+      expect(body.components.length).toBeGreaterThan(0);
+      expect(body.templates.length).toBeGreaterThan(0);
+      expect(body.typography.length).toBeGreaterThan(0);
+      expect(body.components[0].name).toBe("callout");
+      expect(body.components[0].renders[0].html).toContain("<aside");
+    } finally {
+      await server.close();
+    }
+  }, 30_000);
+
   it("binds to a custom host when --host is supplied", async () => {
     const server = await startPreviewServer({
       projectDir: join(fixturesDir, "hello"),

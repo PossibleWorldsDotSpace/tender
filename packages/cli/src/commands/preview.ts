@@ -4,7 +4,7 @@ import chokidar from "chokidar";
 import type { FSWatcher } from "chokidar";
 import type { Server } from "node:http";
 import { join, sep } from "node:path";
-import { buildProject } from "@tender/core";
+import { buildProject, buildPalette, loadProjectConfig } from "@tender/core";
 import { renderHtml } from "@tender/render";
 
 export interface PreviewOptions {
@@ -130,6 +130,16 @@ export async function startPreviewServer(opts: PreviewOptions): Promise<RunningS
   await rebuild();
 
   app.use("/assets", express.static(join(opts.projectDir, "assets")));
+
+  app.get("/_api/palette", async (_req, res, next) => {
+    try {
+      const config = await loadProjectConfig(opts.projectDir);
+      const palette = await buildPalette(config);
+      res.json(palette);
+    } catch (err) {
+      next(err);
+    }
+  });
 
   app.get("/", async (_req, res) => {
     res.type("html").send(cachedHtml ?? "");
