@@ -1,0 +1,99 @@
+import puppeteer from "puppeteer";
+import type { Browser, Page } from "puppeteer";
+import { readFile } from "node:fs/promises";
+import { createRequire } from "node:module";
+import { dirname, join } from "node:path";
+
+const require = createRequire(import.meta.url);
+// pagedjs's package.json exports field doesn't expose dist/, so we resolve the
+// package's main entry then walk up to the package root and join dist/.
+const pagedJsPkgEntry = require.resolve("pagedjs");
+// Entry resolves to .../pagedjs/lib/index.cjs (or src/index.js); package root is two levels up.
+const pagedJsPkgRoot = dirname(dirname(pagedJsPkgEntry));
+const pagedJsPath = join(pagedJsPkgRoot, "dist", "paged.polyfill.js");
+
+export interface RenderInput {
+  html: string;
+  projectCss: string;
+  stylesCss: string;
+  projectDir: string;
+}
+
+async function setupPage(input: RenderInput, browser: Browser): Promise<Page> {
+  const page = await browser.newPage();
+  await page.setRequestInterception(true);
+  page.on("request", req => {
+    const url = req.url();
+    if (url.endsWith("/_project.css")) {
+      req.respond({ status: 200, contentType: "text/css", body: input.projectCss });
+      return;
+    }
+    if (url.endsWith("/styles.css")) {
+      req.respond({ status: 200, contentType: "text/css", body: input.stylesCss });
+      return;
+    }
+    req.continue();
+  });
+  // Set the page to the project dir so relative asset paths resolve.
+  // Use about:blank if projectDir is unusable; setContent will replace anyway.
+  try {
+    await page.goto(`file://${input.projectDir}/`, { waitUntil: "domcontentloaded" });
+  } catch {
+    await page.goto("about:blank");
+  }
+  await page.setContent(input.html, { waitUntil: "domcontentloaded" });
+
+  // Inject Paged.js polyfill with auto:false, then explicitly run preview().
+  // The polyfill's factory() returns a Previewer instance which it assigns to
+  // window.PagedPolyfill. Previewer.preview(content, stylesheets, renderTo)
+  // returns a promise that resolves to the rendered flow.
+  const pagedJsSrc = await readFile(pagedJsPath, "utf8");
+  await page.evaluate(
+    (src: string) => new Promise<void>((resolve, reject) => {
+      const timer = setTimeout(() => reject(new Error("paged.js render timeout")), 60_000);
+      try {
+        // Disable auto-render before injecting the script.
+        (window as unknown as { PagedConfig: Record<string, unknown> }).PagedConfig = { auto: false };
+        const script = document.createElement("script");
+        script.textContent = src;
+        document.head.appendChild(script);
+        const previewer = (window as unknown as { PagedPolyfill: { preview: (c: string, s: string[], r: HTMLElement) => Promise<unknown> } }).PagedPolyfill;
+        const bodyHtml = document.body.innerHTML;
+        document.body.innerHTML = "";
+        previewer.preview(bodyHtml, [], document.body)
+          .then(() => { clearTimeout(timer); resolve(); })
+          .catch((e: unknown) => { clearTimeout(timer); reject(e as Error); });
+      } catch (e) {
+        clearTimeout(timer);
+        reject(e as Error);
+      }
+    }),
+    pagedJsSrc
+  );
+  return page;
+}
+
+export async function renderHtml(input: RenderInput): Promise<string> {
+  // --no-sandbox: required on Ubuntu hosts that disable unprivileged user
+  // namespaces; acceptable here since we only render fixtures we control.
+  const browser = await puppeteer.launch({ headless: true, args: ["--no-sandbox"] });
+  try {
+    const page = await setupPage(input, browser);
+    return await page.content();
+  } finally {
+    await browser.close();
+  }
+}
+
+export async function renderPdf(input: RenderInput): Promise<Buffer> {
+  // --no-sandbox: required on Ubuntu hosts that disable unprivileged user
+  // namespaces; acceptable here since we only render fixtures we control.
+  const browser = await puppeteer.launch({ headless: true, args: ["--no-sandbox"] });
+  try {
+    const page = await setupPage(input, browser);
+    const pdf = await page.pdf({ printBackground: true, preferCSSPageSize: true });
+    return Buffer.from(pdf);
+  } finally {
+    await browser.close();
+  }
+}

@@ -1,1 +1,2 @@
-export const VERSION = "0.0.0";
+export { renderHtml, renderPdf } from "./render.js";
+export type { RenderInput } from "./render.js";
