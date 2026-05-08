@@ -185,8 +185,22 @@ export async function startPreviewServer(opts: PreviewOptions): Promise<RunningS
   // Serve preview-ui bundle assets
   app.use("/_ui/assets", express.static(join(previewUiDist, "assets")));
 
-  // Shell at /
-  app.get("/", async (_req, res, next) => {
+  // SPA shell at / and any non-reserved GET path. Solid Router handles
+  // /palette, /help (and any future client routes) — the server returns the
+  // same shell HTML for all of them so a hard refresh or direct URL works.
+  // Reserved prefixes (handled by the routes above) are skipped here.
+  app.get(/.*/, async (req, res, next) => {
+    if (req.method !== "GET") return next();
+    const p = req.path;
+    if (
+      p.startsWith("/_api/") ||
+      p.startsWith("/_ui/") ||
+      p === "/_preview" ||
+      p === "/_tender" ||
+      p.startsWith("/assets/")
+    ) {
+      return next();
+    }
     try {
       const shell = await readFile(join(previewUiDist, "index.html"), "utf8");
       res.type("html").send(shell);

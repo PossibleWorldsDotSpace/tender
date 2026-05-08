@@ -41,6 +41,23 @@ describe("preview server", () => {
     }
   }, 30_000);
 
+  it("serves the SPA shell for client-side routes (refresh / direct URL)", async () => {
+    const server = await startPreviewServer({
+      projectDir: join(fixturesDir, "hello"),
+      port: 0
+    });
+    try {
+      for (const path of ["/help", "/palette", "/some/deep/route"]) {
+        const res = await fetch(`http://127.0.0.1:${server.port}${path}`);
+        expect(res.status, `expected 200 for ${path}`).toBe(200);
+        const html = await res.text();
+        expect(html).toContain('<div id="root">');
+      }
+    } finally {
+      await server.close();
+    }
+  }, 30_000);
+
   it("serves preview-ui bundle assets under /_ui/", async () => {
     const server = await startPreviewServer({
       projectDir: join(fixturesDir, "hello"),
