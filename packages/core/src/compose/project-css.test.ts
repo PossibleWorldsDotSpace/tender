@@ -70,6 +70,45 @@ describe("generateProjectCss", () => {
     expect(css).toMatch(/@page chapter-opener \{[^}]*@top-left[^}]*\}/s);
   });
 
+  it("emits hyphenation rules from typography config", () => {
+    const css = generateProjectCss({
+      "page-templates": { default: { size: "A5", margin: 0 } },
+      typography: {
+        lang: "en-GB",
+        hyphenation: {
+          enabled: true,
+          "min-word-length": 6,
+          "min-chars-before": 3,
+          "min-chars-after": 3,
+          "max-consecutive-hyphens": 2
+        },
+        orphans: 2,
+        widows: 2
+      }
+    });
+    expect(css).toContain("hyphens: auto");
+    expect(css).toContain("hyphenate-limit-chars: 6 3 3");
+    expect(css).toContain("hyphenate-limit-lines: 2");
+    expect(css).toContain("orphans: 2");
+    expect(css).toContain("widows: 2");
+  });
+
+  it("does not emit hyphens: auto when hyphenation.enabled is false", () => {
+    const css = generateProjectCss({
+      "page-templates": { default: { size: "A5", margin: 0 } },
+      typography: { hyphenation: { enabled: false } }
+    });
+    expect(css).not.toContain("hyphens: auto");
+  });
+
+  it("works without typography config", () => {
+    const css = generateProjectCss({
+      "page-templates": { default: { size: "A5", margin: 0 } }
+    });
+    expect(css).toContain("@page default");
+    expect(css).not.toContain("hyphenate-limit-chars");
+  });
+
   it("emits string-set on body for the document title", () => {
     const css = generateProjectCss(
       {

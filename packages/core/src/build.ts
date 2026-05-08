@@ -22,7 +22,8 @@ export async function buildProject(projectDir: string): Promise<BuildResult> {
   // If the parsed content already starts with a built-in page wrapper, don't
   // double-wrap it; otherwise wrap so the default page template applies.
   const bodyHtml = /^\s*<div class="page"/.test(parsed) ? parsed : `<div class="page">${parsed}</div>`;
-  const html = composeDocument({ bodyHtml, lang: "en", title: basename(projectDir) });
+  const lang = config.typography?.lang ?? "en";
+  const html = composeDocument({ bodyHtml, lang, title: basename(projectDir) });
   const projectCss = generateProjectCss(config, { docTitle: basename(projectDir) });
   return { html, projectCss, stylesCss, config, projectDir };
 }

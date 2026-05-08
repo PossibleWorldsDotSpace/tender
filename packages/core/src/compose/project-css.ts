@@ -197,6 +197,27 @@ export function generateProjectCss(config: ProjectConfig, opts: ProjectCssOption
     parts.push(`body { string-set: title "${opts.docTitle.replace(/"/g, '\\"')}"; }`);
   }
 
+  const typo = config.typography;
+  if (typo) {
+    const bodyRules: string[] = [];
+    const h = typo.hyphenation;
+    if (h && h.enabled !== false) {
+      bodyRules.push("hyphens: auto");
+      const minWord = h["min-word-length"] ?? 5;
+      const before = h["min-chars-before"] ?? 2;
+      const after = h["min-chars-after"] ?? 2;
+      bodyRules.push(`hyphenate-limit-chars: ${minWord} ${before} ${after}`);
+      if (h["max-consecutive-hyphens"]) {
+        bodyRules.push(`hyphenate-limit-lines: ${h["max-consecutive-hyphens"]}`);
+      }
+    }
+    if (typo.orphans) bodyRules.push(`orphans: ${typo.orphans}`);
+    if (typo.widows) bodyRules.push(`widows: ${typo.widows}`);
+    if (bodyRules.length > 0) {
+      parts.push(`body { ${bodyRules.join("; ")}; }`);
+    }
+  }
+
   // .page → @page name mapping
   parts.push(`.page { page: default; }`);
   for (const name of Object.keys(config["page-templates"])) {
