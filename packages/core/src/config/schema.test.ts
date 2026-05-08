@@ -52,6 +52,31 @@ describe("ProjectConfig", () => {
     expect(c["page-templates"]["chapter-opener"]!.headers).toBe("none");
   });
 
+  it("parses typography and fonts sections", () => {
+    const c = ProjectConfig.parse({
+      "page-templates": { default: { size: "A5", margin: 0 } },
+      typography: {
+        lang: "en-GB",
+        hyphenation: {
+          enabled: true,
+          "min-word-length": 6,
+          "min-chars-before": 3,
+          "min-chars-after": 3,
+          "max-consecutive-hyphens": 2
+        },
+        orphans: 2,
+        widows: 2
+      },
+      fonts: [
+        { family: "Display", file: "MackinacPro-Book.woff2", weight: 400, style: "normal" },
+        { family: "Display", file: "MackinacPro-BookItalic.woff2", weight: 400, style: "italic" }
+      ]
+    });
+    expect(c.typography?.lang).toBe("en-GB");
+    expect(c.typography?.hyphenation?.["min-word-length"]).toBe(6);
+    expect(c.fonts?.[0]?.family).toBe("Display");
+  });
+
   it("parses a template definition with slots and params", () => {
     const c = ProjectConfig.parse({
       "page-templates": { default: { size: "A5", margin: 0 } },

@@ -51,11 +51,35 @@ export const Template = z.object({
   template: z.string()
 });
 
+const Hyphenation = z.object({
+  enabled: z.boolean().optional(),
+  "min-word-length": z.number().int().positive().optional(),
+  "min-chars-before": z.number().int().positive().optional(),
+  "min-chars-after": z.number().int().positive().optional(),
+  "max-consecutive-hyphens": z.number().int().positive().optional()
+});
+
+export const Typography = z.object({
+  lang: z.string().optional(),
+  hyphenation: Hyphenation.optional(),
+  orphans: z.number().int().positive().optional(),
+  widows: z.number().int().positive().optional()
+});
+
+export const Font = z.object({
+  family: z.string(),
+  file: z.string(),
+  weight: z.union([z.number(), z.string()]).optional(),
+  style: z.enum(["normal", "italic", "oblique"]).optional()
+});
+
 export const ProjectConfig = z.object({
   "page-templates": z.record(z.string(), PageTemplate)
     .refine(t => "default" in t, { message: "page-templates.default is required" }),
   components: z.record(z.string(), Component).optional(),
-  templates: z.record(z.string(), Template).optional()
+  templates: z.record(z.string(), Template).optional(),
+  typography: Typography.optional(),
+  fonts: z.array(Font).optional()
 });
 
 export type ProjectConfig = z.infer<typeof ProjectConfig>;
