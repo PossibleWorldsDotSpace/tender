@@ -2,6 +2,7 @@ import { createResource, createEffect, For, Show } from "solid-js";
 import { fetchPalette, fetchStylesCss, fetchProjectCss } from "../api.ts";
 import { Tile } from "../components/Tile.tsx";
 import { hoistFontFaces } from "../util/fonts.ts";
+import { useReload } from "../reload-context.ts";
 import "./Palette.css";
 
 async function loadAll() {
@@ -14,7 +15,8 @@ async function loadAll() {
 }
 
 export function Palette() {
-  const [data] = createResource(loadAll);
+  const reload = useReload();
+  const [data] = createResource(reload.paletteVersion, loadAll);
 
   createEffect(() => {
     const d = data();
