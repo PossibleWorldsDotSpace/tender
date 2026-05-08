@@ -245,7 +245,42 @@ export function generateProjectCss(config: ProjectConfig, opts: ProjectCssOption
   parts.push(`.page { break-before: page; }`);
   parts.push(`.page:first-child { break-before: avoid; }`);
 
+  // Paged.js extracts @page size/margin into --pagedjs-pagebox-* and
+  // --pagedjs-margin-* per named page, but NOT into --pagedjs-width /
+  // --pagedjs-height (the visible .pagedjs_page sheet dimensions). Without
+  // this, the white sheet stays at letter defaults while the inner pagebox
+  // is correctly A4-sized — content overhangs the visible sheet.
+  // Override the sheet dimensions explicitly per template.
+  for (const [name, tplRaw] of Object.entries(config["page-templates"])) {
+    if (!tplRaw) continue;
+    const t = tplRaw as PageTemplateLike;
+    const [w, h] = sizeToWidthHeight(t.size);
+    parts.push(
+      `.pagedjs_page.pagedjs_named_page.pagedjs_${name}_page { ` +
+        `--pagedjs-width: ${w}; --pagedjs-height: ${h}; ` +
+        `--pagedjs-width-right: ${w}; --pagedjs-height-right: ${h}; ` +
+        `--pagedjs-width-left: ${w}; --pagedjs-height-left: ${h}; ` +
+      `}`
+    );
+  }
+
   return parts.join("\n") + "\n";
+}
+
+const NAMED_PAGE_SIZES: Record<string, [string, string]> = {
+  A4: ["210mm", "297mm"],
+  A5: ["148mm", "210mm"],
+  A6: ["105mm", "148mm"],
+  Letter: ["8.5in", "11in"],
+  Legal: ["8.5in", "14in"]
+};
+
+function sizeToWidthHeight(size: string | [string, string]): [string, string] {
+  if (Array.isArray(size)) return size;
+  const named = NAMED_PAGE_SIZES[size];
+  if (named) return named;
+  // Unknown name — pass through as both dimensions; Paged.js will fall back.
+  return [size, size];
 }
 
 function formatSize(size: string | [string, string]): string {
