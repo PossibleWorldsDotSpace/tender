@@ -9,6 +9,11 @@
     "lint": "pnpm -r lint",
     "typecheck": "pnpm -r typecheck"
   },
-  "engines": { "node": ">=20.0.0" },
-  "packageManager": "pnpm@9.0.0"
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "packageManager": "pnpm@9.0.0",
+  "devDependencies": {
+    "@types/node": "^25.6.2"
+  }
 }

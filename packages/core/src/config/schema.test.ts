@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { ProjectConfig } from "./schema.ts";
+import { ProjectConfig } from "./schema.js";
 
 describe("ProjectConfig", () => {
   it("parses a minimal valid config", () => {
@@ -11,7 +11,7 @@ describe("ProjectConfig", () => {
         }
       }
     });
-    expect(config["page-templates"].default.size).toBe("A5");
+    expect(config["page-templates"].default!.size).toBe("A5");
   });
 
   it("rejects a config with no default page template", () => {

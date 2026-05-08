@@ -1,7 +1,7 @@
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 import { load as parseYaml } from "js-yaml";
-import { ProjectConfig } from "./schema.ts";
+import { ProjectConfig } from "./schema.js";
 
 export async function loadProjectConfig(projectDir: string): Promise<ProjectConfig> {
   const path = join(projectDir, "project.yaml");
