@@ -1,4 +1,5 @@
 import { For, Show, createEffect } from "solid-js";
+import { rootToHost } from "../util/scope-css.ts";
 import "./Tile.css";
 
 export interface TileProps {
@@ -51,7 +52,8 @@ function RenderRow(props: { html: string; label?: string; css: string }) {
     if (!hostEl) return;
     let root = hostEl.shadowRoot;
     if (!root) root = hostEl.attachShadow({ mode: "open" });
-    root.innerHTML = `<style>${props.css}</style>${props.html}`;
+    const hostBlock = rootToHost(props.css);
+    root.innerHTML = `<style>${hostBlock}\n${props.css}</style>${props.html}`;
   });
   return (
     <div class="tile-render-row">
