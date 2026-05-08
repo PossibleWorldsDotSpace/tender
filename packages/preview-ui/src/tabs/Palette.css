@@ -1,0 +1,9 @@
+.palette { padding: 20px; max-width: 900px; margin: 0 auto; }
+.palette-section {
+  font: 700 18pt system-ui, sans-serif;
+  margin: 28px 0 14px;
+  border-bottom: 1px solid #ddd;
+  padding-bottom: 6px;
+}
+.palette-section:first-child { margin-top: 0; }
+.palette-loading { padding: 40px; text-align: center; color: #888; }
