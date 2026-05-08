@@ -94,10 +94,22 @@ export async function renderHtml(input: RenderInput): Promise<string> {
   try {
     const page = await setupPage(input, browser);
     const html = await page.content();
-    return await inlineAssets(html, input.projectDir);
+    return await inlineAssets(stripPagedJsScript(html), input.projectDir);
   } finally {
     await browser.close();
   }
+}
+
+// Paged.js was injected and run server-side to paginate the content. The
+// resulting HTML contains the (very large) Paged.js source as an inline
+// <script>. Without removal, that script auto-runs again when the HTML is
+// loaded in any browser, re-paginating the already-paginated DOM into a
+// nested mess. We strip it here for both standalone export and preview.
+function stripPagedJsScript(html: string): string {
+  return html.replace(
+    /<script\b[^>]*>[\s\S]*?@license Paged\.js[\s\S]*?<\/script>/g,
+    ""
+  );
 }
 
 export async function renderPdf(input: RenderInput): Promise<Buffer> {
