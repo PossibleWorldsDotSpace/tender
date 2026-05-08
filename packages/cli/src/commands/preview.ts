@@ -6,7 +6,8 @@ import type { Server } from "node:http";
 import { dirname, join, sep } from "node:path";
 import { readFile } from "node:fs/promises";
 import { createRequire } from "node:module";
-import { buildProject, buildPalette, loadProjectConfig, renderHelp } from "@tender/core";
+import { buildProject, buildPalette, renderHelp } from "@tender/core";
+import type { BuildResult } from "@tender/core";
 import { renderHtml } from "@tender/render";
 
 const previewUiDist = (() => {
@@ -111,37 +112,40 @@ function injectPreviewExtras(html: string): string {
   return html + inject;
 }
 
-async function renderForPreview(projectDir: string): Promise<string> {
-  const result = await buildProject(projectDir);
-  const html = await renderHtml(result);
-  return injectPreviewExtras(html);
-}
-
 export async function startPreviewServer(opts: PreviewOptions): Promise<RunningServer> {
   const app = express();
   let cachedHtml: string | null = null;
+  let cachedBuildResult: BuildResult | null = null;
   let buildError: Error | null = null;
 
   async function rebuild(): Promise<void> {
     try {
-      cachedHtml = await renderForPreview(opts.projectDir);
+      cachedBuildResult = await buildProject(opts.projectDir);
+      const html = await renderHtml(cachedBuildResult);
+      cachedHtml = injectPreviewExtras(html);
       if (buildError) console.log("preview: build recovered");
       buildError = null;
     } catch (err) {
       buildError = err instanceof Error ? err : new Error(String(err));
       console.error(`preview: build error: ${buildError.message}`);
       cachedHtml = `<!DOCTYPE html><html><body><pre>Build error: ${escapeHtml(buildError.message)}</pre>${RELOAD_SCRIPT}</body></html>`;
+      // Keep cachedBuildResult on error so endpoints can still serve last-good state.
     }
   }
 
   await rebuild();
 
+  async function ensureBuildResult(): Promise<BuildResult> {
+    if (!cachedBuildResult) cachedBuildResult = await buildProject(opts.projectDir);
+    return cachedBuildResult;
+  }
+
   app.use("/assets", express.static(join(opts.projectDir, "assets")));
 
   app.get("/_api/palette", async (_req, res, next) => {
     try {
-      const config = await loadProjectConfig(opts.projectDir);
-      const palette = await buildPalette(config);
+      const result = await ensureBuildResult();
+      const palette = await buildPalette(result.config);
       res.json(palette);
     } catch (err) {
       next(err);
@@ -158,7 +162,7 @@ export async function startPreviewServer(opts: PreviewOptions): Promise<RunningS
 
   app.get("/_api/styles.css", async (_req, res, next) => {
     try {
-      const result = await buildProject(opts.projectDir);
+      const result = await ensureBuildResult();
       res.type("text/css").send(result.stylesCss);
     } catch (err) {
       next(err);
@@ -167,7 +171,7 @@ export async function startPreviewServer(opts: PreviewOptions): Promise<RunningS
 
   app.get("/_api/_project.css", async (_req, res, next) => {
     try {
-      const result = await buildProject(opts.projectDir);
+      const result = await ensureBuildResult();
       res.type("text/css").send(result.projectCss);
     } catch (err) {
       next(err);
