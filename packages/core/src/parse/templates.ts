@@ -6,6 +6,7 @@ import type { Plugin } from "unified";
 import type { Root, RootContent } from "mdast";
 import type { ProjectConfig } from "../config/schema.js";
 import { BUILTIN_TEMPLATES } from "../builtins.js";
+import { resolveComponents } from "./components.js";
 
 interface TemplateDef {
   params?: readonly string[];
@@ -26,9 +27,10 @@ interface HtmlNode {
   value: string;
 }
 
-async function mdChildrenToHtml(children: RootContent[]): Promise<string> {
+async function mdChildrenToHtml(children: RootContent[], config: ProjectConfig): Promise<string> {
   const root: Root = { type: "root", children };
   const processor = unified()
+    .use(resolveComponents, config)
     .use(remarkRehype, { allowDangerousHtml: true })
     .use(rehypeStringify, { allowDangerousHtml: true });
   const hastTree = await processor.run(root);
@@ -62,7 +64,7 @@ export const resolveTemplates: Plugin<[ProjectConfig], Root> = (config) => {
         : { body: dir.children, slots: {} as Record<string, RootContent[]> };
 
       const data: Record<string, unknown> = {};
-      data.body = await mdChildrenToHtml(split.body);
+      data.body = await mdChildrenToHtml(split.body, config);
 
       if (isMultiSlot) {
         for (const slot of def.slots!) {
@@ -70,7 +72,7 @@ export const resolveTemplates: Plugin<[ProjectConfig], Root> = (config) => {
           if (!children || children.length === 0) {
             throw new Error(`Template '${dir.name}' is missing slot '${slot}'`);
           }
-          data[slot] = await mdChildrenToHtml(children);
+          data[slot] = await mdChildrenToHtml(children, config);
         }
       }
 
@@ -199,17 +201,21 @@ async function walkAndReplace(
   tree: Root,
   replacer: (node: RootContent) => Promise<RootContent | null>
 ): Promise<void> {
+  // Post-order: descend into a node's children before considering the node
+  // itself. This lets a directive's body see already-replaced inner directives
+  // (rendered as raw HTML nodes), which is what makes nesting work — e.g. a
+  // `:::page` containing `:::row` blocks resolves the rows first, then the
+  // page template renders with the row HTML in its body.
   async function recur(parent: { children: RootContent[] }): Promise<void> {
     const children = parent.children;
     for (let i = 0; i < children.length; i++) {
       const child = children[i]!;
+      if ("children" in child && Array.isArray((child as { children?: unknown[] }).children)) {
+        await recur(child as unknown as { children: RootContent[] });
+      }
       const replacement = await replacer(child);
       if (replacement) {
         children[i] = replacement;
-        continue;
-      }
-      if ("children" in child && Array.isArray((child as { children?: unknown[] }).children)) {
-        await recur(child as unknown as { children: RootContent[] });
       }
     }
   }

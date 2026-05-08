@@ -36,4 +36,17 @@ describe("buildProject", () => {
     const result = await buildProject(join(fixturesDir, "with-image"));
     expect(result.html).toContain('src="assets/images/dot.png"');
   });
+
+  it("coastal-planet fixture: HTML output is structurally stable", async () => {
+    const result = await buildProject(join(fixturesDir, "coastal-planet"));
+    expect(result.html).toContain('class="row"');
+    expect(result.html).toContain('class="spanning-row"');
+    expect(result.html).toContain('class="ad-lib');
+    expect(result.html).toContain('class="yellow-tag"');
+    expect(result.html).toContain('class="speaker-name"');
+    expect(result.html).toContain('data-page-template="cover"');
+    // No unrendered directive sentinels should leak through.
+    expect(result.html).not.toContain("<p>:::</p>");
+    expect(result.html).not.toContain("--- suggested ---");
+  });
 });

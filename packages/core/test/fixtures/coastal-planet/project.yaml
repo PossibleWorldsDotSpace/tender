@@ -1,0 +1,69 @@
+page-templates:
+  default:
+    size: A4
+    margin: { top: 12mm, bottom: 12mm, inner: 12mm, outer: 12mm }
+  cover:
+    size: A4
+    margin: { top: 12mm, bottom: 12mm, inner: 12mm, outer: 12mm }
+
+typography:
+  lang: en
+  hyphenation:
+    enabled: true
+    min-word-length: 6
+    min-chars-before: 3
+    min-chars-after: 3
+
+components:
+  stage-direction:
+    tag: span
+    class: stage-direction
+    inline: true
+  participant-name:
+    tag: span
+    class: participant-name
+    inline: true
+  yellow-tag:
+    tag: span
+    class: yellow-tag
+    inline: true
+  speaker-name:
+    tag: span
+    class: speaker-name
+    inline: true
+  margin-label:
+    tag: span
+    class: margin-label
+    inline: true
+
+templates:
+  spanning-row:
+    template: |
+      <div class="spanning-row">{{{body}}}<hr class="spanning-rule"></div>
+  row:
+    params: [label, icon, speaker, no-break]
+    template: |
+      <div class="row{{#if no-break}} no-break{{/if}}">
+        <div class="col-l">
+          {{#if speaker}}<span class="speaker-name">{{speaker}}</span>{{/if}}
+          {{#if label}}<span class="margin-label">{{label}}</span>{{/if}}
+          {{#if icon}}<img src="assets/images/{{icon}}.png" alt="" class="margin-icon">{{/if}}
+        </div>
+        <div class="col-r">{{{body}}}</div>
+      </div>
+  ad-lib:
+    slots: [suggested]
+    template: |
+      <div class="ad-lib no-break">
+        <div class="ad-lib__suggested">{{{suggested}}}</div>
+        <div class="ad-lib__box"><span class="ad-lib__label">your version</span></div>
+      </div>
+  cover-tagline:
+    template: |
+      <div class="cover-tagline">{{{body}}}</div>
+  cover-byline:
+    template: |
+      <div class="cover-byline">{{{body}}}</div>
+  cover-spiral:
+    template: |
+      <div class="cover-spiral"><img src="assets/images/spiral.png" alt=""></div>
