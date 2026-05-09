@@ -1,0 +1,21 @@
+{
+  "tags": [
+    {
+      "name": "row",
+      "kind": "block",
+      "range": [[0, 0], [2, 6]],
+      "openerRange": [[0, 0], [0, 5]],
+      "closerRange": [[2, 0], [2, 6]],
+      "bodyRange": [[0, 5], [2, 0]]
+    },
+    {
+      "name": "callout",
+      "kind": "block",
+      "range": [[1, 0], [1, 24]],
+      "openerRange": [[1, 0], [1, 9]],
+      "closerRange": [[1, 14], [1, 24]],
+      "bodyRange": [[1, 9], [1, 14]]
+    }
+  ],
+  "diagnosticCount": 0
+}

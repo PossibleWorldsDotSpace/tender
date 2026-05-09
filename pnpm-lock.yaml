@@ -103,6 +103,9 @@ importers:
       '@tender/core':
         specifier: workspace:*
         version: link:../core
+      js-yaml:
+        specifier: ^4.1.1
+        version: 4.1.1
       vscode-languageserver:
         specifier: ^9.0.1
         version: 9.0.1
@@ -110,6 +113,9 @@ importers:
         specifier: ^1.0.12
         version: 1.0.12
     devDependencies:
+      '@types/js-yaml':
+        specifier: ^4.0.9
+        version: 4.0.9
       typescript:
         specifier: ^5.4.0
         version: 5.9.3

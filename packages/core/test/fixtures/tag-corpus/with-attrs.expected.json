@@ -1,0 +1,13 @@
+{
+  "tags": [
+    {
+      "name": "row",
+      "kind": "block",
+      "range": [[0, 0], [0, 34]],
+      "openerRange": [[0, 0], [0, 24]],
+      "closerRange": [[0, 28], [0, 34]],
+      "bodyRange": [[0, 24], [0, 28]]
+    }
+  ],
+  "diagnosticCount": 0
+}

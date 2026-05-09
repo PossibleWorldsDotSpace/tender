@@ -1,0 +1,11 @@
+{
+  "tags": [
+    {
+      "name": "cover-spiral",
+      "kind": "self-closing",
+      "range": [[0, 0], [0, 16]],
+      "openerRange": [[0, 0], [0, 16]]
+    }
+  ],
+  "diagnosticCount": 0
+}

@@ -28,10 +28,12 @@
   },
   "dependencies": {
     "@tender/core": "workspace:*",
+    "js-yaml": "^4.1.1",
     "vscode-languageserver": "^9.0.1",
     "vscode-languageserver-textdocument": "^1.0.12"
   },
   "devDependencies": {
+    "@types/js-yaml": "^4.0.9",
     "typescript": "^5.4.0",
     "vitest": "^1.6.0"
   }
