@@ -1,14 +1,16 @@
 /**
  * Lint report types and exit-code policy.
  *
- * v1 ships three structural checks. `tender/declared-slot-never-filled` is
- * descoped because the build-time slot validator already enforces that every
- * declared slot be filled at every invocation — a "declared but never filled"
- * warning therefore only fires on components that are entirely unused, which
- * `tender/unused-component` already catches. Tracked as a deferred GH issue.
+ * v1 ships four structural checks. `tender/declared-slot-never-filled` was
+ * originally scoped but descoped during planning: the build-time slot
+ * validator already enforces every declared slot be filled at every
+ * invocation, so a "declared but never filled" warning only fires on
+ * components that are entirely unused (which `tender/unused-component`
+ * already catches). Tracked as a deferred GH issue.
  */
 export type LintCode =
   | "tender/unused-component"
+  | "tender/unknown-component"
   | "tender/missing-asset"
   | "tender/deprecated-syntax";
 

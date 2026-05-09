@@ -17,3 +17,5 @@ export { preprocessTags } from "./parse/preprocess-tags.js";
 export type { PreprocessOptions, PreprocessResult, SourceMapEntry } from "./parse/preprocess-tags.js";
 export { parseTenderFile } from "./parse/tender-file.js";
 export type { TenderFile, TenderFrontmatter, SectionRange, PaletteBlock } from "./parse/tender-file.js";
+export { runLint, hasFailures } from "./lint/index.js";
+export type { LintReport, LintFinding, LintCode } from "./lint/index.js";

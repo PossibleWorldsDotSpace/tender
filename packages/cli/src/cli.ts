@@ -2,7 +2,7 @@
 import { Command } from "commander";
 import { resolve } from "node:path";
 import { build } from "./commands/build.js";
-import { lint } from "./commands/lint.js";
+import { lint, formatReport } from "./commands/lint.js";
 import { startPreviewServer } from "./commands/preview.js";
 import { init } from "./commands/init.js";
 
@@ -32,13 +32,18 @@ program.command("build [dir]")
   });
 
 program.command("lint [dir]")
-  .description("Validate a project's config and content; exit non-zero on errors")
-  .action(async (dir: string | undefined) => {
-    const result = await lint(resolve(dir ?? "."));
-    for (const w of result.warnings) console.warn(`warning: ${w}`);
-    for (const e of result.errors) console.error(`error: ${e}`);
-    if (result.errors.length > 0) process.exit(1);
-    console.log("ok");
+  .description("Validate a project; surface deprecated syntax, unused components, and missing assets")
+  .option("--strict", "promote warnings to errors for CI gating")
+  .option("--json", "emit findings as JSON")
+  .action(async (dir: string | undefined, opts: { strict?: boolean; json?: boolean }) => {
+    const projectDir = resolve(dir ?? ".");
+    const { report, exitCode } = await lint(projectDir, opts);
+    if (opts.json) {
+      console.log(JSON.stringify(report, null, 2));
+    } else {
+      console.log(formatReport(report, projectDir));
+    }
+    if (exitCode !== 0) process.exit(exitCode);
   });
 
 program.command("preview [dir]")
