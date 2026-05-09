@@ -8,6 +8,7 @@ import type { Root } from "mdast";
 import { resolveComponents } from "./components.js";
 import { preprocessTags } from "./preprocess-tags.js";
 import { preprocessPageBoundaries } from "./preprocess-page-boundaries.js";
+import { preprocessInlineShortcuts } from "./preprocess-inline-shortcuts.js";
 import { BUILTIN_COMPONENTS } from "../builtins.js";
 import type { ProjectConfig } from "../config/schema.js";
 
@@ -50,9 +51,14 @@ export async function parseProject(source: string, config: ProjectConfig): Promi
     ? preprocessPageBoundaries(source).source
     : source;
 
-  const processedSource = tagSyntaxEnabled()
-    ? preprocessTags(afterPages, buildPreprocessOptions(config)).source
+  const shortcuts = config["inline-shortcuts"] ?? {};
+  const afterShortcuts = tagSyntaxEnabled()
+    ? preprocessInlineShortcuts(afterPages, shortcuts).source
     : afterPages;
+
+  const processedSource = tagSyntaxEnabled()
+    ? preprocessTags(afterShortcuts, buildPreprocessOptions(config)).source
+    : afterShortcuts;
 
   const file = await unified()
     .use(remarkParse)
