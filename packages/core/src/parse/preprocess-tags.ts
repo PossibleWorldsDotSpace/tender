@@ -95,7 +95,7 @@ function scan(
     if (pair.closer == null) {
       // Self-close: empty body. Inline-only components self-close to an
       // empty `:name[]{attrs}`; block components self-close to a no-body
-      // `:::name{attrs}\n\n:::`.
+      // `:::name{attrs}\n\n:::` (3 colons — no nested content to outrank).
       if (inlineMode) {
         out += `:${pair.opener.name}[]${attrs}`;
       } else {
@@ -107,19 +107,41 @@ function scan(
     const bodyStart = pair.opener.end;
     const bodyEnd = pair.closer.start;
     const body = source.slice(bodyStart, bodyEnd);
-    const head = inlineMode
-      ? `:${pair.opener.name}[`
-      : `\n\n:::${pair.opener.name}${attrs}\n\n`;
-    const tail = inlineMode
-      ? `]${attrs}`
-      : `\n\n:::\n\n`;
-    const bodyRewrittenOffset = baseRewrittenOffset + out.length + head.length;
-    // Recurse on the body so nested registered tags get rewritten too.
+    if (inlineMode) {
+      const head = `:${pair.opener.name}[`;
+      const tail = `]${attrs}`;
+      const bodyRewrittenOffset = baseRewrittenOffset + out.length + head.length;
+      const subMap: SourceMapEntry[] = [];
+      const innerProcessed = scan(body, opts, subMap, bodyRewrittenOffset);
+      for (const e of subMap) {
+        sourceMap.push({
+          rewrittenStart: e.rewrittenStart,
+          originalStart: e.originalStart + bodyStart,
+          length: e.length
+        });
+      }
+      out += head + innerProcessed + tail;
+      cursor = pair.closer.end;
+      continue;
+    }
+    // Block directive: must use *more* colons than any nested directive in
+    // its body. We compute that by recursing first, scanning the inner
+    // output for the longest run of colons, and then choosing a length one
+    // greater. remark-directive matches openers and closers by colon count,
+    // so an N-colon outer wrapping an N-colon inner is interpreted as the
+    // outer ending where the inner does. Outranking the inner fixes this.
     const subMap: SourceMapEntry[] = [];
-    const innerProcessed = scan(body, opts, subMap, bodyRewrittenOffset);
+    // Tentatively recurse into the body with a baseline offset; we'll fix
+    // up rewrittenStart values once we know head.length below.
+    const innerProcessed = scan(body, opts, subMap, 0);
+    const innerColons = maxLeadingColonRun(innerProcessed);
+    const colons = ":".repeat(Math.max(3, innerColons + 1));
+    const head = `\n\n${colons}${pair.opener.name}${attrs}\n\n`;
+    const tail = `\n\n${colons}\n\n`;
+    const bodyRewrittenOffset = baseRewrittenOffset + out.length + head.length;
     for (const e of subMap) {
       sourceMap.push({
-        rewrittenStart: e.rewrittenStart,
+        rewrittenStart: bodyRewrittenOffset + e.rewrittenStart,
         originalStart: e.originalStart + bodyStart,
         length: e.length
       });
@@ -277,6 +299,28 @@ function countSameChar(source: string, i: number, ch: string): number {
   let n = 0;
   while (i + n < source.length && source[i + n] === ch) n++;
   return n;
+}
+
+/**
+ * Find the longest run of consecutive `:` characters that appears at the
+ * start of a line in `text`. Returns 0 when no colon directive is present.
+ * remark-directive recognizes a directive line as `:::+` at column 0; a
+ * sufficiently long opener will always outrank any nested run.
+ */
+function maxLeadingColonRun(text: string): number {
+  let max = 0;
+  let i = 0;
+  while (i < text.length) {
+    if (text[i] === ":" && (i === 0 || text[i - 1] === "\n")) {
+      let n = 0;
+      while (i + n < text.length && text[i + n] === ":") n++;
+      if (n > max) max = n;
+      i += n;
+    } else {
+      i++;
+    }
+  }
+  return max;
 }
 
 function renderAttrs(attrs: TagAttr[]): string {

@@ -1,0 +1,8 @@
+---
+slots: [suggested]
+---
+
+<div class="ad-lib no-break">
+  <div class="ad-lib__suggested">{{{suggested}}}</div>
+  <div class="ad-lib__box"><span class="ad-lib__label">your version</span></div>
+</div>
