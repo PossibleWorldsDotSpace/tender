@@ -54,6 +54,24 @@ describe("lint command", () => {
     expect(text).toMatch(/warning.*components\/x\.tender.*unused-component/);
   });
 
+  it("coastal-planet-tags fixture: only unused-component warnings, no errors or deprecation", async () => {
+    const { report, exitCode } = await lint(join(fixturesDir, "coastal-planet-tags"));
+    // The fixture's row.tender references inline-component-shaped class
+    // names as raw HTML rather than as tag invocations. Several inline
+    // components (speaker-name, margin-label, participant-name) and a
+    // couple of cover layouts (cover-byline, cover-tagline) are
+    // declared but never used as tags. These are real warnings authors
+    // could clean up; for the test we assert that nothing worse than
+    // those warnings shows up.
+    const errorOrInfo = report.findings.filter(f => f.severity !== "warning");
+    expect(errorOrInfo).toEqual([]);
+    // No deprecated-syntax findings — items 4-6 migrated everything.
+    const deprecated = report.findings.filter(f => f.code === "tender/deprecated-syntax");
+    expect(deprecated).toEqual([]);
+    // Default exit code is 0 (warnings only).
+    expect(exitCode).toBe(0);
+  });
+
   it("formatReport renders suggestions on indented continuation lines", () => {
     const text = formatReport({
       findings: [
