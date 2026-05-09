@@ -2,7 +2,7 @@ import { describe, it, expect } from "vitest";
 import { startPreviewServer } from "./preview.js";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
-import { mkdtemp, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import WebSocket from "ws";
 
@@ -110,6 +110,52 @@ describe("preview server", () => {
         ws.close();
         const parsed = JSON.parse(message);
         expect(parsed.kind).toBe("content");
+      } finally {
+        await server.close();
+      }
+    } finally {
+      await rm(tmp, { recursive: true, force: true });
+    }
+  }, 30_000);
+
+  it("emits a components-kind WS message when a .tender file changes", async () => {
+    const tmp = await mkdtemp(join(tmpdir(), "tender-ws-comp-"));
+    try {
+      await writeFile(join(tmp, "project.yaml"), `page-templates:\n  default: { size: A5, margin: 0 }\n`);
+      await writeFile(join(tmp, "styles.css"), `body{}`);
+      await writeFile(join(tmp, "content.md"), `# Hi`);
+      await mkdir(join(tmp, "components"), { recursive: true });
+      await writeFile(
+        join(tmp, "components", "widget.tender"),
+        "---\ntag: div\n---\n\n<style>\n.widget { color: red; }\n</style>\n"
+      );
+
+      const server = await startPreviewServer({ projectDir: tmp, port: 0 });
+      try {
+        const ws = new WebSocket(`ws://127.0.0.1:${server.port}/_tender`);
+        const message = await new Promise<string>((resolve, reject) => {
+          ws.on("open", async () => {
+            // Give chokidar time to install inotify watches on subdirectories.
+            // Without this delay the rewrite below fires before components/
+            // is being watched, and the test times out.
+            await new Promise(r => setTimeout(r, 500));
+            await writeFile(
+              join(tmp, "components", "widget.tender"),
+              "---\ntag: div\n---\n\n<style>\n.widget { color: blue; }\n</style>\n"
+            );
+          });
+          ws.on("message", (data) => resolve(data.toString()));
+          ws.on("error", reject);
+          setTimeout(() => reject(new Error("timeout")), 15_000);
+        });
+        ws.close();
+        const parsed = JSON.parse(message);
+        expect(parsed.kind).toBe("components");
+
+        // After rebuild, /_api/_components.css reflects the new contents.
+        const cssRes = await fetch(`http://127.0.0.1:${server.port}/_api/_components.css`);
+        expect(cssRes.status).toBe(200);
+        expect(await cssRes.text()).toContain(".widget { color: blue; }");
       } finally {
         await server.close();
       }

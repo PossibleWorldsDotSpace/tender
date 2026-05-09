@@ -31,6 +31,7 @@ export interface RunningServer {
 type WsMessage =
   | { kind: "content" }
   | { kind: "project" }
+  | { kind: "components" }
   | { kind: "styles" }
   | { kind: "help" }
   | { kind: "assets" }
@@ -43,6 +44,7 @@ function classifyPath(path: string, projectDir: string): Exclude<WsMessage, { ki
   if (rel === "styles.css") return "styles";
   if (rel === "docs/user-guide.md" || rel === "docs" + sep + "user-guide.md") return "help";
   if (rel.startsWith("assets/") || rel.startsWith("assets" + sep)) return "assets";
+  if (rel.startsWith("components/") || rel.startsWith("components" + sep)) return "components";
   return "content"; // default fallback
 }
 

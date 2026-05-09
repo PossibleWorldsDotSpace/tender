@@ -50,11 +50,11 @@ export function App() {
     }
     // Recovery: clear any prior error
     if (errorMessage()) setErrorMessage(null);
-    if (msg.kind === "content" || msg.kind === "project" || msg.kind === "styles" || msg.kind === "assets") {
+    if (msg.kind === "content" || msg.kind === "project" || msg.kind === "components" || msg.kind === "styles" || msg.kind === "assets") {
       const iframe = document.getElementById("preview-iframe") as HTMLIFrameElement | null;
       iframe?.contentWindow?.location.reload();
     }
-    if (msg.kind === "project" || msg.kind === "styles") {
+    if (msg.kind === "project" || msg.kind === "components" || msg.kind === "styles") {
       setPaletteVersion(v => v + 1);
     }
     if (msg.kind === "help") {

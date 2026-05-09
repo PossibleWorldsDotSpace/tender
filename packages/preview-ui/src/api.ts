@@ -29,6 +29,7 @@ export interface HelpResponse {
 export type WsMessage =
   | { kind: "content" }
   | { kind: "project" }
+  | { kind: "components" }
   | { kind: "styles" }
   | { kind: "help" }
   | { kind: "assets" }
