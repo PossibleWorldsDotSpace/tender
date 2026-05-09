@@ -13,6 +13,8 @@ import type { ProjectIndex } from "./project-index.js";
 import { provideCompletion, COMPLETION_TRIGGER_CHARACTERS } from "./providers/completion.js";
 import { provideHover } from "./providers/hover.js";
 import { provideDiagnostics } from "./providers/diagnostics.js";
+import { provideDefinition } from "./providers/definition.js";
+import { provideDocumentSymbols } from "./providers/document-symbols.js";
 
 /**
  * Boots a Tender language server on the given JSON-RPC connection. Returns
@@ -20,12 +22,12 @@ import { provideDiagnostics } from "./providers/diagnostics.js";
  * project index) for tests. In production the connection is the stdio
  * transport spun up by `cli.ts`.
  *
- * PR 3.1 is a skeleton: the server initializes, owns a `TextDocuments`
- * registry of open buffers, and loads a `ProjectIndex` per workspace. It
- * does not register any language features yet — completion/hover/diagnostics
- * land in PR 3.3+. The capabilities returned to the client therefore
- * declare only document-sync support so VS Code knows to forward open/close/
- * change events.
+ * Wires:
+ *   - completion (`<` in .md, frontmatter keys, {{params}} in .tender)
+ *   - hover (component docs)
+ *   - diagnostics (registry-aware errors/warnings)
+ *   - definition (tag → component file; {{name}} → frontmatter)
+ *   - document-symbols (.tender section outline)
  */
 export interface ServerHandle {
   /** Currently loaded project index, or null before initialize completes. */
@@ -56,7 +58,9 @@ export function startServer(connection: Connection): ServerHandle {
         completionProvider: {
           triggerCharacters: COMPLETION_TRIGGER_CHARACTERS
         },
-        hoverProvider: true
+        hoverProvider: true,
+        definitionProvider: true,
+        documentSymbolProvider: true
       }
     };
   });
@@ -79,6 +83,22 @@ export function startServer(connection: Connection): ServerHandle {
       document,
       position: params.position
     });
+  });
+
+  connection.onDefinition((params) => {
+    const document = documents.get(params.textDocument.uri);
+    if (!document) return null;
+    return provideDefinition({
+      index: projectIndex,
+      document,
+      position: params.position
+    });
+  });
+
+  connection.onDocumentSymbol((params) => {
+    const document = documents.get(params.textDocument.uri);
+    if (!document) return [];
+    return provideDocumentSymbols({ document });
   });
 
   // Recompute and publish diagnostics on every buffer change. The LSP client
