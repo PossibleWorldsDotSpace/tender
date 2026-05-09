@@ -1,0 +1,60 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "scopeName": "source.tender.markdown.injection",
+  "injectionSelector": "L:text.html.markdown",
+  "patterns": [
+    { "include": "#tender-tag-opener" },
+    { "include": "#tender-tag-closer" }
+  ],
+  "repository": {
+    "tender-tag-opener": {
+      "comment": "Hyphenated tag name like <stage-direction> identifies a Tender component opener (or self-close).",
+      "begin": "(<)([a-zA-Z][a-zA-Z0-9]*-[a-zA-Z0-9-]*)",
+      "end": "(/?>)",
+      "beginCaptures": {
+        "1": { "name": "punctuation.definition.tag.tender" },
+        "2": { "name": "entity.name.tag.tender.component" }
+      },
+      "endCaptures": {
+        "1": { "name": "punctuation.definition.tag.tender" }
+      },
+      "name": "meta.tag.tender.component",
+      "patterns": [
+        {
+          "match": "([a-zA-Z][\\w-]*)\\s*=\\s*\"([^\"]*)\"",
+          "captures": {
+            "1": { "name": "entity.other.attribute-name.tender" },
+            "2": { "name": "string.quoted.double.tender" }
+          }
+        },
+        {
+          "match": "([a-zA-Z][\\w-]*)\\s*=\\s*'([^']*)'",
+          "captures": {
+            "1": { "name": "entity.other.attribute-name.tender" },
+            "2": { "name": "string.quoted.single.tender" }
+          }
+        },
+        {
+          "match": "([a-zA-Z][\\w-]*)\\s*=\\s*([^\\s>]+)",
+          "captures": {
+            "1": { "name": "entity.other.attribute-name.tender" },
+            "2": { "name": "string.unquoted.tender" }
+          }
+        },
+        {
+          "match": "[a-zA-Z][\\w-]*",
+          "name": "entity.other.attribute-name.tender"
+        }
+      ]
+    },
+    "tender-tag-closer": {
+      "comment": "Hyphenated closer like </stage-direction>.",
+      "match": "(</)([a-zA-Z][a-zA-Z0-9]*-[a-zA-Z0-9-]*)(>)",
+      "captures": {
+        "1": { "name": "punctuation.definition.tag.tender" },
+        "2": { "name": "entity.name.tag.tender.component" },
+        "3": { "name": "punctuation.definition.tag.tender" }
+      }
+    }
+  }
+}

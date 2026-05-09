@@ -1,0 +1,125 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "Tender",
+  "scopeName": "source.tender",
+  "patterns": [
+    { "include": "#frontmatter" },
+    { "include": "#style-block" },
+    { "include": "#palette-block" },
+    { "include": "#handlebars" },
+    { "include": "#html-tag" }
+  ],
+  "repository": {
+    "frontmatter": {
+      "comment": "YAML frontmatter delimited by --- at column 0.",
+      "begin": "\\A---\\s*$",
+      "end": "^---\\s*$",
+      "beginCaptures": {
+        "0": { "name": "punctuation.definition.frontmatter.tender" }
+      },
+      "endCaptures": {
+        "0": { "name": "punctuation.definition.frontmatter.tender" }
+      },
+      "name": "meta.embedded.block.frontmatter.tender",
+      "contentName": "source.yaml",
+      "patterns": [
+        { "include": "source.yaml" }
+      ]
+    },
+    "style-block": {
+      "comment": "<style>…</style> block at column 0; CSS inside.",
+      "begin": "^<style>\\s*$",
+      "end": "^</style>\\s*$",
+      "beginCaptures": {
+        "0": { "name": "entity.name.tag.tender" }
+      },
+      "endCaptures": {
+        "0": { "name": "entity.name.tag.tender" }
+      },
+      "name": "meta.embedded.block.css.tender",
+      "contentName": "source.css",
+      "patterns": [
+        { "include": "source.css" }
+      ]
+    },
+    "palette-block": {
+      "comment": "<palette>…</palette> block at column 0; YAML inside.",
+      "begin": "^<palette>\\s*$",
+      "end": "^</palette>\\s*$",
+      "beginCaptures": {
+        "0": { "name": "entity.name.tag.tender" }
+      },
+      "endCaptures": {
+        "0": { "name": "entity.name.tag.tender" }
+      },
+      "name": "meta.embedded.block.palette.tender",
+      "contentName": "source.yaml",
+      "patterns": [
+        { "include": "source.yaml" }
+      ]
+    },
+    "handlebars": {
+      "comment": "Handlebars expressions: {{name}} and {{{name}}}.",
+      "patterns": [
+        {
+          "match": "\\{\\{\\{?\\s*([a-zA-Z][\\w-]*)\\s*\\}?\\}\\}",
+          "captures": {
+            "0": { "name": "meta.embedded.block.handlebars.tender" },
+            "1": { "name": "variable.parameter.handlebars.tender" }
+          }
+        },
+        {
+          "begin": "\\{\\{#",
+          "end": "\\}\\}",
+          "name": "meta.embedded.block.handlebars.tender",
+          "patterns": [
+            { "match": "\\b(if|each|unless|with)\\b", "name": "keyword.control.handlebars.tender" }
+          ]
+        },
+        {
+          "match": "\\{\\{/\\w+\\}\\}",
+          "name": "meta.embedded.block.handlebars.tender"
+        }
+      ]
+    },
+    "html-tag": {
+      "comment": "Generic HTML tag highlighting for the template region.",
+      "begin": "(</?)([a-zA-Z][\\w-]*)",
+      "end": "(/?>)",
+      "beginCaptures": {
+        "1": { "name": "punctuation.definition.tag.tender" },
+        "2": { "name": "entity.name.tag.tender" }
+      },
+      "endCaptures": {
+        "1": { "name": "punctuation.definition.tag.tender" }
+      },
+      "patterns": [
+        {
+          "match": "([a-zA-Z][\\w-]*)\\s*=\\s*\"([^\"]*)\"",
+          "captures": {
+            "1": { "name": "entity.other.attribute-name.tender" },
+            "2": { "name": "string.quoted.double.tender" }
+          }
+        },
+        {
+          "match": "([a-zA-Z][\\w-]*)\\s*=\\s*'([^']*)'",
+          "captures": {
+            "1": { "name": "entity.other.attribute-name.tender" },
+            "2": { "name": "string.quoted.single.tender" }
+          }
+        },
+        {
+          "match": "([a-zA-Z][\\w-]*)\\s*=\\s*([^\\s>]+)",
+          "captures": {
+            "1": { "name": "entity.other.attribute-name.tender" },
+            "2": { "name": "string.unquoted.tender" }
+          }
+        },
+        {
+          "match": "[a-zA-Z][\\w-]*",
+          "name": "entity.other.attribute-name.tender"
+        }
+      ]
+    }
+  }
+}

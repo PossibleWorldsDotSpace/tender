@@ -33,6 +33,23 @@
         "path": "./snippets/tender.code-snippets"
       }
     ],
+    "grammars": [
+      {
+        "language": "tender",
+        "scopeName": "source.tender",
+        "path": "./syntaxes/tender.tmGrammar.json",
+        "embeddedLanguages": {
+          "meta.embedded.block.frontmatter.tender": "yaml",
+          "meta.embedded.block.css.tender": "css",
+          "meta.embedded.block.palette.tender": "yaml"
+        }
+      },
+      {
+        "scopeName": "source.tender.markdown.injection",
+        "path": "./syntaxes/tender-md.tmGrammar.json",
+        "injectTo": ["text.html.markdown"]
+      }
+    ],
     "configuration": {
       "title": "Tender",
       "properties": {
