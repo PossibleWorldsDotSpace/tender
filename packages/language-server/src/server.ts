@@ -12,6 +12,7 @@ import { loadProjectIndex } from "./project-index.js";
 import type { ProjectIndex } from "./project-index.js";
 import { provideCompletion, COMPLETION_TRIGGER_CHARACTERS } from "./providers/completion.js";
 import { provideHover } from "./providers/hover.js";
+import { provideDiagnostics } from "./providers/diagnostics.js";
 
 /**
  * Boots a Tender language server on the given JSON-RPC connection. Returns
@@ -77,6 +78,20 @@ export function startServer(connection: Connection): ServerHandle {
       index: projectIndex,
       document,
       position: params.position
+    });
+  });
+
+  // Recompute and publish diagnostics on every buffer change. The LSP client
+  // is responsible for any debouncing it cares about — most clients already
+  // debounce text-document/didChange notifications at the editor level.
+  documents.onDidChangeContent((event) => {
+    const diagnostics = provideDiagnostics({
+      index: projectIndex,
+      document: event.document
+    });
+    connection.sendDiagnostics({
+      uri: event.document.uri,
+      diagnostics
     });
   });
 
