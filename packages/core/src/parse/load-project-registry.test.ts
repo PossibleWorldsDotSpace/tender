@@ -143,4 +143,60 @@ describe("loadProjectRegistry", () => {
       await rm(dir, { recursive: true, force: true });
     }
   });
+
+  it("flags an inline-shortcut for an unknown component", async () => {
+    const dir = await fixture({
+      "project.yaml": [
+        minimalYaml,
+        "inline-shortcuts: { '@': nonexistent }"
+      ].join("\n")
+    });
+    try {
+      const { registry } = await loadProjectRegistry(dir);
+      expect(registry.diagnostics.some(d =>
+        d.severity === "error" && /unknown component/.test(d.message)
+      )).toBe(true);
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  });
+
+  it("flags an inline-shortcut for a non-inline component", async () => {
+    const dir = await fixture({
+      "project.yaml": [
+        minimalYaml,
+        "components:",
+        "  callout: { tag: aside, class: callout }",
+        "inline-shortcuts: { '@': callout }"
+      ].join("\n")
+    });
+    try {
+      const { registry } = await loadProjectRegistry(dir);
+      expect(registry.diagnostics.some(d =>
+        d.severity === "error" && /non-inline/.test(d.message)
+      )).toBe(true);
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  });
+
+  it("accepts an inline-shortcut for an inline component", async () => {
+    const dir = await fixture({
+      "project.yaml": [
+        minimalYaml,
+        "components:",
+        "  speaker-name: { tag: span, class: speaker-name, inline: true }",
+        "inline-shortcuts: { '@': speaker-name }"
+      ].join("\n")
+    });
+    try {
+      const { registry } = await loadProjectRegistry(dir);
+      // No error-level shortcut diagnostic.
+      expect(registry.diagnostics.filter(d =>
+        d.severity === "error" && /inline-shortcut/.test(d.message)
+      )).toEqual([]);
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  });
 });

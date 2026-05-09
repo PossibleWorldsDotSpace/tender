@@ -50,6 +50,30 @@ export async function loadProjectRegistry(projectDir: string): Promise<ProjectRe
     tender.byName.set(name, { def, source: { path: yamlPath } });
   }
 
+  // Validate inline-shortcuts (item 6): each declared character maps to a
+  // component that exists and is inline:true. Invalid declarations fold into
+  // diagnostics; the build continues and produces output without expanding
+  // the bad shortcut.
+  const shortcuts = config["inline-shortcuts"] ?? {};
+  for (const [char, name] of Object.entries(shortcuts)) {
+    const entry = tender.byName.get(name);
+    if (!entry) {
+      diagnostics.push({
+        severity: "error",
+        message: `inline-shortcut "${char}" maps to unknown component "${name}"`,
+        source: { path: yamlPath }
+      });
+      continue;
+    }
+    if (!entry.def.inline) {
+      diagnostics.push({
+        severity: "error",
+        message: `inline-shortcut "${char}" maps to non-inline component "${name}"; component must declare \`inline: true\``,
+        source: { path: yamlPath }
+      });
+    }
+  }
+
   const registry: ComponentRegistry = {
     byName: tender.byName,
     combinedCss: tender.combinedCss,
