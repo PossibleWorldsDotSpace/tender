@@ -215,12 +215,42 @@ describe("preprocessTags — source map", () => {
   });
 });
 
-describe("preprocessTags — with parseProject (gated by TENDER_TAG_SYNTAX)", () => {
-  // These are integration tests that exercise the wiring in project-parser.
-  // They live here rather than in components.test.ts to keep PR-2.2 churn
-  // localized.
+describe("preprocessTags — parseProject integration", () => {
   it("rewrites tag syntax to directive form before remark sees it", async () => {
-    process.env.TENDER_TAG_SYNTAX = "1";
+    const { parseProject } = await import("./project-parser.js");
+    const config = {
+      "page-templates": { default: { size: "A5", margin: 0 as const } },
+      components: {
+        callout: { tag: "aside", class: "callout", params: ["variant"] }
+      }
+    } as any;
+    const { html } = await parseProject(
+      `<callout variant="warning">Watch.</callout>\n`,
+      config
+    );
+    expect(html).toContain(`<aside class="callout" data-variant="warning">`);
+    expect(html).toContain("Watch.");
+  });
+
+  it("respects the inline flag for inline-only components", async () => {
+    const { parseProject } = await import("./project-parser.js");
+    const config = {
+      "page-templates": { default: { size: "A5", margin: 0 as const } },
+      components: {
+        "stage-direction": { tag: "span", class: "stage-direction", inline: true }
+      }
+    } as any;
+    const { html } = await parseProject(
+      `Hello <stage-direction>he pauses</stage-direction> world.\n`,
+      config
+    );
+    expect(html).toContain(`<span class="stage-direction">he pauses</span>`);
+    // Should still be in a single paragraph (no block split).
+    expect(html).toMatch(/<p>[^<]*Hello.*world\.[^<]*<\/p>/s);
+  });
+
+  it("can be disabled with TENDER_TAG_SYNTAX=0 — escape hatch", async () => {
+    process.env.TENDER_TAG_SYNTAX = "0";
     try {
       const { parseProject } = await import("./project-parser.js");
       const config = {
@@ -229,34 +259,16 @@ describe("preprocessTags — with parseProject (gated by TENDER_TAG_SYNTAX)", ()
           callout: { tag: "aside", class: "callout", params: ["variant"] }
         }
       } as any;
+      // With the preprocessor disabled, <callout> is just raw HTML; remark
+      // forwards it as-is and the component resolver doesn't see a directive
+      // for "callout" — so the output contains the literal tag, not the
+      // resolved <aside>.
       const { html } = await parseProject(
         `<callout variant="warning">Watch.</callout>\n`,
         config
       );
-      expect(html).toContain(`<aside class="callout" data-variant="warning">`);
-      expect(html).toContain("Watch.");
-    } finally {
-      delete process.env.TENDER_TAG_SYNTAX;
-    }
-  });
-
-  it("respects the inline flag for inline-only components", async () => {
-    process.env.TENDER_TAG_SYNTAX = "1";
-    try {
-      const { parseProject } = await import("./project-parser.js");
-      const config = {
-        "page-templates": { default: { size: "A5", margin: 0 as const } },
-        components: {
-          "stage-direction": { tag: "span", class: "stage-direction", inline: true }
-        }
-      } as any;
-      const { html } = await parseProject(
-        `Hello <stage-direction>he pauses</stage-direction> world.\n`,
-        config
-      );
-      expect(html).toContain(`<span class="stage-direction">he pauses</span>`);
-      // Should still be in a single paragraph (no block split).
-      expect(html).toMatch(/<p>[^<]*Hello.*world\.[^<]*<\/p>/s);
+      expect(html).toContain(`<callout variant="warning">`);
+      expect(html).not.toContain(`<aside`);
     } finally {
       delete process.env.TENDER_TAG_SYNTAX;
     }

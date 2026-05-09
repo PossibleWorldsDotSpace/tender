@@ -21,15 +21,19 @@ export interface ParseResult {
 }
 
 /**
- * Tag-syntax preprocessing is gated by `TENDER_TAG_SYNTAX=1` for now. The
- * preprocessor rewrites `<row …>body</row>` into the directive shape the
- * existing pipeline already handles, so when the flag is set the only
- * change is in how authors spell components in `content.md` — every other
- * stage of the parser (component resolution, palette, lint, render) runs
- * unchanged.
+ * Tag-syntax preprocessing is on by default. The preprocessor rewrites
+ * `<row …>body</row>` into the directive shape the existing pipeline already
+ * handles. Source that doesn't use tag syntax (i.e. legacy `:::row…:::`
+ * fixtures) passes through unchanged — the scanner finds no `<` followed by
+ * a registered tag name, so the output equals the input.
+ *
+ * `TENDER_TAG_SYNTAX=0` disables the preprocessor entirely. This is an
+ * emergency escape hatch for bisecting regressions; once item 7's
+ * `tender migrate` command lands and projects are migrated, the flag (and
+ * the legacy directive path) can be removed altogether.
  */
 function tagSyntaxEnabled(): boolean {
-  return process.env.TENDER_TAG_SYNTAX === "1";
+  return process.env.TENDER_TAG_SYNTAX !== "0";
 }
 
 export async function parseProject(source: string, config: ProjectConfig): Promise<ParseResult> {
