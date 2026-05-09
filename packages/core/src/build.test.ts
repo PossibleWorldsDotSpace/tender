@@ -81,4 +81,16 @@ describe("buildProject", () => {
     expect(result.html).not.toContain("<p>:::</p>");
     expect(result.html).not.toContain("--- suggested ---");
   });
+
+  it("coastal-planet-tender fixture: same structural markers via the .tender pipeline", async () => {
+    const result = await buildProject(join(fixturesDir, "coastal-planet-tender"));
+    expect(result.html).toContain('class="row"');
+    expect(result.html).toContain('class="spanning-row"');
+    expect(result.html).toContain('class="ad-lib');
+    expect(result.html).toContain('class="yellow-tag"');
+    expect(result.html).toContain('class="speaker-name"');
+    expect(result.html).toContain('data-page-template="cover"');
+    expect(result.html).not.toContain("<p>:::</p>");
+    expect(result.html).not.toContain("--- suggested ---");
+  });
 });

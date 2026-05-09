@@ -12,7 +12,8 @@ const FIXTURES = [
   "components",
   "page-templates",
   "with-image",
-  "coastal-planet"
+  "coastal-planet",
+  "coastal-planet-tender"
 ];
 
 describe("PDF golden tests", () => {
