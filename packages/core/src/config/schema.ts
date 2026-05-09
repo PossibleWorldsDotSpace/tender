@@ -45,7 +45,7 @@ const PaletteVariant = z.object({
   slots: z.record(z.string(), z.string()).optional()
 });
 
-const Palette = z.object({
+export const Palette = z.object({
   attrs: z.record(z.string(), z.string()).optional(),
   params: z.record(z.string(), z.string()).optional(),
   body: z.string().optional(),
