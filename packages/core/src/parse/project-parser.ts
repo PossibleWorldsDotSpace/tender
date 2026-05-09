@@ -9,6 +9,8 @@ import { resolveComponents } from "./components.js";
 import { preprocessTags } from "./preprocess-tags.js";
 import { preprocessPageBoundaries } from "./preprocess-page-boundaries.js";
 import { preprocessInlineShortcuts } from "./preprocess-inline-shortcuts.js";
+import { composeSourceMaps } from "./compose-source-maps.js";
+import type { SourceMapEntry } from "./compose-source-maps.js";
 import { BUILTIN_COMPONENTS } from "../builtins.js";
 import type { ProjectConfig } from "../config/schema.js";
 
@@ -20,6 +22,17 @@ export interface ParseResult {
    * this to avoid double-wrapping in a default page.
    */
   startsWithPage: boolean;
+  /**
+   * Source map relating final-preprocessor-output positions back to the
+   * original content.md offsets. Folded across preprocessPageBoundaries,
+   * preprocessInlineShortcuts, and preprocessTags. Empty when
+   * TENDER_TAG_SYNTAX=0 (no preprocessing was performed; positions
+   * already match the input).
+   *
+   * No consumer reads this yet; it's the foundation for surfacing parser
+   * errors with original-source positions in the LSP and CLI.
+   */
+  sourceMap: SourceMapEntry[];
 }
 
 /**
@@ -47,18 +60,20 @@ export async function parseProject(source: string, config: ProjectConfig): Promi
     }
   };
 
-  const afterPages = tagSyntaxEnabled()
-    ? preprocessPageBoundaries(source).source
-    : source;
+  let processedSource: string;
+  let sourceMap: SourceMapEntry[];
 
-  const shortcuts = config["inline-shortcuts"] ?? {};
-  const afterShortcuts = tagSyntaxEnabled()
-    ? preprocessInlineShortcuts(afterPages, shortcuts).source
-    : afterPages;
-
-  const processedSource = tagSyntaxEnabled()
-    ? preprocessTags(afterShortcuts, buildPreprocessOptions(config)).source
-    : afterShortcuts;
+  if (tagSyntaxEnabled()) {
+    const r1 = preprocessPageBoundaries(source);
+    const shortcuts = config["inline-shortcuts"] ?? {};
+    const r2 = preprocessInlineShortcuts(r1.source, shortcuts);
+    const r3 = preprocessTags(r2.source, buildPreprocessOptions(config));
+    processedSource = r3.source;
+    sourceMap = composeSourceMaps([r1.sourceMap, r2.sourceMap, r3.sourceMap]);
+  } else {
+    processedSource = source;
+    sourceMap = [];
+  }
 
   const file = await unified()
     .use(remarkParse)
@@ -68,7 +83,7 @@ export async function parseProject(source: string, config: ProjectConfig): Promi
     .use(remarkRehype, { allowDangerousHtml: true })
     .use(rehypeStringify, { allowDangerousHtml: true })
     .process(processedSource);
-  return { html: String(file), startsWithPage };
+  return { html: String(file), startsWithPage, sourceMap };
 }
 
 function buildPreprocessOptions(config: ProjectConfig): {
