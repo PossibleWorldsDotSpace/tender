@@ -105,4 +105,17 @@ describe("buildProject", () => {
     expect(result.html).not.toContain("<p>:::</p>");
     expect(result.html).not.toContain("--- suggested ---");
   });
+
+  it("coastal-planet-shortcuts fixture: inline shortcuts expand into component tags", async () => {
+    const result = await buildProject(join(fixturesDir, "coastal-planet-shortcuts"));
+    // The | shortcut should expand into <span class="stage-direction">…</span>.
+    expect(result.html).toContain('class="stage-direction"');
+    // The literal | character should not appear adjacent to its content
+    // (i.e. the shortcut got fully expanded).
+    expect(result.html).not.toContain("|Facilitator A stands");
+    expect(result.html).not.toContain("|Holds up the snack");
+    // Sanity: structural markers still present.
+    expect(result.html).toContain('class="row"');
+    expect(result.html).toContain('data-page-template="cover"');
+  });
 });

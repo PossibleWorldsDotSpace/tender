@@ -17,7 +17,10 @@ const FIXTURES = [
   // Authored with <row>…</row> tag syntax (the new default). Its golden is
   // byte-identical to coastal-planet-tender.json — proof that the
   // preprocessor produces the same output as the legacy `:::row` path.
-  "coastal-planet-tags"
+  "coastal-planet-tags",
+  // Mirrors coastal-planet-tags but exercises item 6's inline-shortcuts:
+  // declares `|`: stage-direction and rewrites a few inline span uses.
+  "coastal-planet-shortcuts"
 ];
 
 describe("PDF golden tests", () => {
