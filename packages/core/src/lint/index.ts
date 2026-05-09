@@ -1,6 +1,7 @@
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 import { loadProjectRegistry } from "../parse/load-project-registry.js";
+import { checkUnusedComponent } from "./checks/unused-component.js";
 import type { LintFinding, LintReport } from "./report.js";
 
 /**
@@ -30,7 +31,7 @@ export async function runLint(projectDir: string): Promise<LintReport> {
     });
   }
 
-  // Per-check calls land here in subsequent tasks.
+  findings.push(...checkUnusedComponent({ registry, contentMd }));
 
   return { findings };
 }

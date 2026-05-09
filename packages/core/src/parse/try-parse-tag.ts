@@ -172,3 +172,24 @@ function parseAttr(source: string, offset: number): TagAttr | null {
 function isWs(ch: string): boolean {
   return ch === " " || ch === "\t" || ch === "\n" || ch === "\r" || ch === "\f";
 }
+
+/**
+ * Walk a source string and return every tag name it identifies (openers,
+ * closers, and self-closers). Used by lint checks that only need names.
+ *
+ * Like the LSP's recovery parser, never throws — malformed `<` characters
+ * are skipped as literal. Unlike the recovery parser, doesn't track
+ * positions or attempt opener/closer matching: just a flat list of names.
+ */
+export function parseTagNames(source: string): string[] {
+  const names: string[] = [];
+  let i = 0;
+  while (i < source.length) {
+    if (source[i] !== "<") { i++; continue; }
+    const tag = tryParseTag(source, i);
+    if (!tag) { i++; continue; }
+    names.push(tag.name);
+    i = tag.end;
+  }
+  return names;
+}
