@@ -1,0 +1,2 @@
+page-templates:
+  default: { size: A5, margin: 0 }

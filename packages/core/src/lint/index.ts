@@ -2,6 +2,7 @@ import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 import { loadProjectRegistry } from "../parse/load-project-registry.js";
 import { checkUnusedComponent } from "./checks/unused-component.js";
+import { checkMissingAsset } from "./checks/missing-asset.js";
 import type { LintFinding, LintReport } from "./report.js";
 
 /**
@@ -32,6 +33,7 @@ export async function runLint(projectDir: string): Promise<LintReport> {
   }
 
   findings.push(...checkUnusedComponent({ registry, contentMd }));
+  findings.push(...await checkMissingAsset({ projectDir, registry, contentMd }));
 
   return { findings };
 }
