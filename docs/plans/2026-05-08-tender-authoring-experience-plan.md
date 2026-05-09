@@ -1,237 +1,505 @@
 # Tender Authoring Experience — Plan
 
-> Scope: improve the dev-designer's authoring experience for Tender source. Treats the editor (VS Code), the source language itself, scaffolding commands, and feedback loops as one connected surface. Existing build pipeline, render path, and preview UI unchanged unless explicitly noted.
+> Scope: turn Tender authoring into something that feels like writing Astro/React-style components for print. Treats the source language, the project layout, the editor (VS Code), scaffolding commands, and feedback loops as one connected surface. Existing build pipeline, render path, and preview UI unchanged unless explicitly noted.
 
-The work is grouped into nine items in priority order. The first (E) is the highest-leverage and should be built first. The next four (A, B, C, D) refine the source language. The last four (F, G, H, I) extend the surrounding ergonomics.
+This plan replaces the original `:::name` directive-based authoring surface with a `<component>` tag syntax that mirrors web-component conventions. The full vision:
 
-| Item | What | Why first/last |
+- **Components live in `components/*.tender` files.** Each is a single-file unit declaring params/slots, the Handlebars HTML template, the matching CSS, and an optional palette example. Like an Astro `.astro` component or a Vue SFC.
+- **Components are invoked as tags** in `content.md`: `<row label="45 min">…</row>`, `<callout variant=warning>…</callout>`, `<cover-spiral />`. Self-naming closes; familiar HTML attribute syntax.
+- **Pages are stream markers**, not nested fences: `=== page` separates pages instead of `::::page … ::::`.
+- **Named slots use `@@ slotname`** inside multi-slot components.
+- **Inline shortcuts** are project-defined single-character pairs (`*she pauses*`) that map to inline components.
+- **`project.yaml` is for project globals only** — page templates, typography, fonts. Components no longer live there.
+- **A real LSP** drives the editor experience: autocomplete, hover, diagnostics, go-to-definition.
+
+The work is grouped into ten items in priority order.
+
+| Item | What | Why this priority |
 |---|---|---|
-| E | LSP + VS Code extension | Most "is this enjoyable?" judgments are made at the keyboard. Build first. |
-| A | Named closing fences | Removes the biggest navigational friction in nested docs. Backwards compatible. |
-| B | Implicit page boundaries | Collapses the nested-fence noise in linear documents. |
-| C | Inline shorthand registration | Makes Tender's project-vocabulary feel like Markdown's built-in vocabulary. |
-| D | Slot syntax that looks like syntax | Removes a silent-failure footgun. |
-| F | `tender new` scaffolding family | Solves the blank-page problem for templates, components, layouts. |
-| G | Directive-call inspector in preview | Read-only counterpart to the LSP's authoring-time hover. |
-| H | Real `tender lint` warnings | Converts lint from "did I break the build?" to "what's the next refinement?" |
-| I | Template composition (`extends`) | Lets authors factor shared structure between templates instead of duplicating it. |
+| 1 | Single-file `.tender` components | Foundational — restructures where components live; everything else assumes this layout. |
+| 2 | Tag-syntax invocation (`<row>…</row>`) | The biggest authoring-ergonomics win. Replaces `:::row`. |
+| 3 | LSP + VS Code extension | Most "is this enjoyable?" judgments are made at the keyboard. Build alongside (2). |
+| 4 | Implicit page boundaries (`=== page`) | Removes the fence-counting noise pages currently impose. |
+| 5 | Slot syntax (`@@ slotname`) | Replaces `--- slotname ---`; less footgun-prone. |
+| 6 | Inline-shortcut registration | Single-character marks for common inline components. |
+| 7 | `tender new` scaffolding | Solves the blank-page problem for components, layouts, projects. |
+| 8 | Real `tender lint` warnings | Converts lint from "did I break the build?" to "what's the next refinement?" |
+| 9 | `tender clean` content normalizer | Fixes the "I just pasted from Word/Docs" pain point. |
+| 10 | Directive-call inspector + template composition | Polish: source-mapping in preview; `extends` between components. |
+
+The plan is **not backwards-compatible** with existing `:::name` syntax. A migration command (`tender migrate`) handles the one-shot rewrite of existing projects. Rationale: teach one syntax, don't make people choose. The cost of a clean break is one-time; the cost of two coexisting syntaxes is permanent.
 
 ---
 
-## E. LSP + VS Code extension
+## 1. Single-file `.tender` components
 
 ### Goal
 
-When a dev-designer opens `content.md` in VS Code, the editor knows about Tender. Autocomplete, hover, diagnostics, and go-to-definition work against the project's actual vocabulary. The LSP runs alongside `tender preview`; the two are independent and complementary.
+Every component lives in one file, alongside other components, structured like Astro/Vue/Svelte SFCs. No more juggling `project.yaml`'s `templates:` block and `styles.css` to add or change a single component.
 
-### Live-editing model (answer to "will they see changes live?")
+### File format
 
-**Yes — on two timescales:**
+```
+my-doc/
+  project.yaml          # globals only: page templates, typography, fonts, inline-shortcuts
+  styles.css            # design tokens, base typography, anything not component-specific
+  content.md            # prose
+  components/
+    row.tender
+    callout.tender
+    spanning-row.tender
+    ad-lib.tender
+    stage-direction.tender
+    cover-spiral.tender
+  assets/
+    images/
+    fonts/
+```
 
-- **In-editor (sub-keystroke):** the LSP gives immediate feedback as the user types. Red squiggles for unknown components, autocomplete for directive names and params, hover tooltips. None of this requires saving the file or running the preview.
+A `.tender` file has up to four sections:
+
+1. **Frontmatter** (`---…---`, YAML) — declares `params`, `slots`, `inline: true`. Optional sections like `extends` (for composition) live here too.
+2. **Template** — Handlebars-shaped HTML. The component's structural skeleton.
+3. **`<style>`** — CSS that gets concatenated into the project's styles at build time. Not actually scoped (selectors still need to be specific) — *colocated* with the component for editing convenience.
+4. **`<palette>`** (optional) — example values for the Palette tab in `tender preview`. Replaces today's `palette:` YAML block.
+
+### Worked example: `components/row.tender`
+
+```tender
+---
+params: [label, icon, speaker, no-break]
+---
+
+<div class="row{{#if no-break}} no-break{{/if}}">
+  <div class="col-l">
+    {{#if speaker}}<span class="speaker-name">{{speaker}}</span>{{/if}}
+    {{#if label}}<span class="margin-label">{{label}}</span>{{/if}}
+    {{#if icon}}<img src="assets/images/{{icon}}.png" alt="" class="margin-icon">{{/if}}
+  </div>
+  <div class="col-r">{{{body}}}</div>
+</div>
+
+<style>
+.row {
+  display: grid;
+  grid-template-columns: 3fr 5fr;
+  column-gap: var(--col-gap);
+  align-items: first baseline;
+  margin-bottom: 1.5em;
+}
+.row.no-break { break-inside: avoid; }
+.col-l {
+  display: flex;
+  justify-content: space-between;
+  align-items: first baseline;
+  margin-top: var(--baseline-offset);
+}
+.margin-label {
+  font-family: var(--font-mono);
+  font-size: var(--size-mono);
+  letter-spacing: 0.02em;
+}
+.margin-icon {
+  width: 1em;
+  height: 1em;
+  margin-left: 0.5em;
+  position: relative;
+  top: 0.15em;
+}
+</style>
+
+<palette>
+params: { label: "45 min", icon: "clock" }
+body: |
+  #### Welcome and introductions
+
+  The opening sets a friendly tone.
+</palette>
+```
+
+### Worked example: inline component (`components/stage-direction.tender`)
+
+```tender
+---
+inline: true
+---
+
+<span class="stage-direction">{{{body}}}</span>
+
+<style>
+.stage-direction { font-style: italic; color: #555; }
+</style>
+```
+
+### Implementation
+
+- **New parser** (`packages/core/src/parse/tender-file.ts`): given a `.tender` file, split into frontmatter / template / style / palette sections. Validate frontmatter against the existing Zod schemas (Component / Template).
+- **Discovery**: at build time, glob `components/**/*.tender` from the project root, parse each, and merge into the in-memory component/template registry that today comes from `project.yaml`.
+- **Style concatenation**: each component's `<style>` content is concatenated (in deterministic order — alphabetical by component name) into a generated `_components.css` that loads after `_project.css` and before `styles.css`. The existing render-side request interception extends to serve `_components.css` from memory.
+- **Schema simplification**: `project.yaml`'s `components:` and `templates:` blocks become deprecated (still parsed, with a deprecation warning suggesting migration). New projects don't write them.
+
+### Tests
+
+- A `.tender` file with all four sections parses correctly.
+- A `.tender` file with frontmatter only (no template) errors clearly.
+- A directory of `.tender` files merged with a `project.yaml` `templates:` block: the YAML version still works (deprecation warning), `.tender` wins on name collision.
+- The `coastal-planet` fixture, ported to `.tender` files, produces byte-identical PDF golden output to the YAML version.
+
+### Migration
+
+`tender migrate` (see item 7) extracts every entry from `project.yaml`'s `templates:` and `components:` blocks into individual `components/*.tender` files, lifts the matching CSS rules from `styles.css` (best-effort — heuristic class-match), and removes the entries from `project.yaml`. Author reviews the diff and commits.
+
+### Why this lands first
+
+Every other item in the plan assumes components live in `components/*.tender`. Tag-syntax invocation (item 2) needs the LSP to know which tags resolve to components — that registry is built from the file scan. The `tender new` scaffolding generates `.tender` files. Implementing the file format unblocks everything else.
+
+---
+
+## 2. Tag-syntax invocation
+
+### Goal
+
+Replace `:::name{attrs}…:::` with `<name attrs>…</name>`. Components are invoked the way web components are invoked. Closing tags are self-naming. Attributes are HTML-style.
+
+### Syntax
+
+**Block form:**
+```markdown
+<row label="45 min" icon=clock>
+The welcome sets a friendly tone.
+</row>
+```
+
+**Self-closing for empty-body components:**
+```markdown
+<cover-spiral />
+```
+
+**Inline form:**
+```markdown
+Welcome. <stage-direction>She gestures.</stage-direction> Today we travel.
+```
+
+**Multi-slot form:**
+```markdown
+<ad-lib>
+@@ suggested
+"Before we begin, I want to name a few things…"
+
+@@ response
+"Try this on for size…"
+</ad-lib>
+```
+
+The implicit body slot is everything before the first `@@ slotname`. Slots are separated by `@@ slotname` lines at column 0. (See item 5.)
+
+### Attribute syntax
+
+Permissive HTML-attribute parsing:
+
+- `name="value"` — standard.
+- `name='value'` — single-quoted, equivalent.
+- `name=value` — unquoted, value matches `[^\s>]+`.
+- `name` — boolean (presence-only, equivalent to `name=true`).
+- Attribute names are kebab-case (`no-break`, not `noBreak`).
+- Values are passed to Handlebars as strings; type coercion (bool, number) happens in CSS via `data-*` selectors, not in the template.
+
+### Disambiguation: tag vs raw HTML
+
+Tender's parser pre-scans for tags whose name matches a registered component. Anything else passes through as raw HTML (so `<a>`, `<span>`, `<br>` still work as HTML). This is the **disambiguator**: registration determines whether a tag is a Tender component or raw HTML.
+
+The LSP warns when a tag's name matches an HTML built-in (`<p>`, `<div>`, etc.) so authors don't accidentally shadow them.
+
+### Markdown inside components
+
+The parser **does not** delegate to CommonMark's HTML-block rule. Instead, when a registered component tag is detected, the parser:
+
+1. Captures the content between opener and closer.
+2. Parses that content as Markdown (recursively allowing nested components).
+3. Substitutes the parsed HTML into the `{{{body}}}` slot.
+
+This means Markdown inside `<row>…</row>` Just Works without blank-line gymnastics. This is the single most important parser-level decision and the reason the syntax can feel native instead of fragile.
+
+### Implementation
+
+- **Pre-remark plugin** (`packages/core/src/parse/component-tags.ts`): walks the source string, finds opener/closer pairs for registered component names, replaces each region with a synthetic AST node carrying the component name + attrs + (still-unparsed) body.
+- **Body parsing**: the body string is run through `parseProject` recursively, with the same component registry. Nested components and inline components both work via this recursion.
+- **Self-closing detection**: `<name />`, `<name/>`, `<name></name>` all produce empty body.
+- **Inline detection**: a tag declared `inline: true` cannot appear at block level; a non-inline tag is allowed in either context. Inline tags within paragraphs are recognized and don't break the paragraph.
+- **Quoted-bracket safety**: attribute values containing `>` must be quoted; the tokenizer respects quotes when scanning for the `>` that closes the opener.
+- **Case handling**: tag names are case-sensitive. Component file names lowercase by convention. The LSP suggests the registered casing.
+
+### Tests
+
+- Block: `<row label="45 min">body</row>` produces the expected HTML.
+- Self-closing: `<cover-spiral />` produces empty body.
+- Inline: `<stage-direction>…</stage-direction>` mid-paragraph keeps the paragraph intact.
+- Nested: `<row><callout>…</callout></row>` produces correctly-nested HTML.
+- Markdown inside: `<row>**bold**</row>` produces a `<strong>` tag.
+- Mixed with raw HTML: `<row><span style="color:red">x</span></row>` passes the `<span>` through.
+- Unknown tag: `<not-a-component>…</not-a-component>` → diagnostic suggesting either creating the component or correcting the name.
+- HTML-shadow warning: a `components/p.tender` triggers an LSP warning at registration time.
+
+### Why this is item 2
+
+It's the most-visible authoring change. The whole "Astro for print" feel hinges on it. Building it second (after `.tender` files exist as a registry source) means the parser has a definitive list of component names to recognize.
+
+---
+
+## 3. LSP + VS Code extension
+
+### Goal
+
+When a dev-designer opens `content.md` or any `.tender` file in VS Code, the editor knows about Tender. Autocomplete, hover, diagnostics, and go-to-definition work against the project's actual component vocabulary. The LSP runs alongside `tender preview`; the two are independent and complementary.
+
+### Live-editing model
+
+**Two timescales:**
+
+- **In-editor (sub-keystroke):** the LSP gives immediate feedback as the user types. Red squiggles for unknown components, autocomplete for tag names and params, hover tooltips. None of this requires saving the file or running the preview.
 - **In-browser (sub-second):** `tender preview` keeps doing what it does today — chokidar watches the filesystem, rebuilds on save, pushes a WebSocket reload to the browser. The preview shows the *last saved* state.
 
-The LSP and preview server are independent processes. Typical setup: VS Code on the left half of the screen with the LSP active, browser on the right half pointing at `localhost:3000`. As the user types, squiggles appear in the editor. When they save, the preview rebuilds.
+The LSP and preview server are independent processes. Typical setup: VS Code on the left half of the screen, browser on the right pointing at `localhost:3993`. Type → squiggles in editor. Save → preview rebuilds.
 
-One subtlety: the LSP needs to know what's in `project.yaml` to provide autocomplete in `content.md`. It must re-parse `project.yaml` when that file changes (on save, and ideally debounced on buffer change), so newly-declared components autocomplete immediately in other open files.
+### File-watching detail
+
+The LSP watches:
+- `project.yaml` — for page templates, inline-shortcuts, typography.
+- `components/**/*.tender` — for the component registry (added/removed/changed).
+- `styles.css` — for design tokens used in hover docs.
+
+On any change: re-parse, rebuild the symbol table, push fresh diagnostics to all open buffers. `.tender` files are cheap to parse; full re-scan on each save is fine.
 
 ### Architecture
-
-New package: `@tender/language-server`. Implements the Language Server Protocol; transport-agnostic (stdio for VS Code, can be embedded elsewhere later).
 
 ```
 packages/
   language-server/        (NEW)
     src/
-      server.ts           (LSP entry, connection setup)
-      project-index.ts    (loads + watches project.yaml, builds symbol table)
+      server.ts                 (LSP entry, connection setup)
+      project-index.ts          (watches project.yaml + components/, builds registry)
       providers/
-        completion.ts     (autocomplete)
-        hover.ts          (hover tooltips)
-        diagnostics.ts    (real-time validation)
-        definition.ts     (go-to-definition)
-      directive-parser.ts (light parser — NOT the full remark pipeline)
+        completion.ts           (autocomplete)
+        hover.ts                (hover tooltips)
+        diagnostics.ts          (real-time validation)
+        definition.ts           (go-to-definition)
+        document-symbols.ts     (outline view for .tender files)
+      tag-parser.ts             (light, recovery-oriented parser for editor feedback)
       protocol-types.ts
     test/
-```
-
-A separate package: `@tender/vscode-extension`. Thin wrapper that activates the LSP for `*.md` files in workspaces containing a `project.yaml`.
-
-```
-packages/
   vscode-extension/       (NEW)
     src/
-      extension.ts        (activate, spawn LSP, register file associations)
-    package.json          (extension manifest, snippets, commands)
+      extension.ts              (activate, spawn LSP, register associations)
+    package.json                (extension manifest, snippets, syntaxes)
     snippets/
       tender.code-snippets
-    syntaxes/             (optional: TextMate grammar for directive highlighting)
+    syntaxes/
+      tender.tmGrammar.json     (TextMate grammar for .tender files)
 ```
 
-### `@tender/language-server` — concrete behavior
+### Provider behavior
 
-**Project index.** On startup and on `project.yaml` change:
+**Completion provider:**
+- After `<` in `content.md` → suggest registered component names (block + inline).
+- Inside a tag's attributes → suggest valid `params` for that component.
+- After `:` in YAML frontmatter of a `.tender` file → suggest schema keys (`params`, `slots`, `inline`, `extends`, etc.).
+- Inside the template section of a `.tender` file → suggest `{{paramName}}` for declared params, `{{{slotname}}}` for slots.
 
-- Parse `project.yaml` with the same Zod schema used by core.
-- Build an in-memory symbol table: `{components, templates, pageTemplates, params, slots}`.
-- Track each symbol's source location (line/column in `project.yaml`) for go-to-definition.
-- Cache parse errors to surface as diagnostics on `project.yaml` itself.
+**Hover provider:**
+- On a tag name → show the template's HTML (truncated/syntax-highlighted), declared params/slots, source location of the component file.
+- On an attribute → show the param's documentation (if a JSDoc-style comment is in the frontmatter).
+- On `=== page{template=cover}` → show the resolved page geometry from `project.yaml`.
 
-**Light directive parser.** A purpose-built parser for *just* the directive surface — no remark, no Handlebars expansion, no HTML output. Input: a buffer's text. Output: a list of directive nodes with `{name, kind: 'block'|'inline', attrs: {key, value, range}, range, fenceRange, closingFenceRange}`. This needs to be fast (sub-50ms on a 60-page doc) and tolerant of broken input — it has to give partial results while the user is mid-keystroke.
+**Diagnostics provider** (debounced ~150ms on buffer change):
+- Unknown component name (range covers the tag).
+- Attribute given but not declared in `params:` whitelist.
+- Unmatched tags (opener with no closer, or vice versa).
+- Required slot missing in a multi-slot component invocation.
+- Slot name `@@ wrong` doesn't match any declared slot.
+- `=== page` inside a component body (page boundaries are top-level only).
+- Component name shadows a built-in HTML element.
 
-This is deliberately *not* the production parser. It's a recovery-oriented parser for editor feedback. Production parsing stays in `@tender/core`.
+Each diagnostic has a code (`tender/unknown-component`, `tender/missing-slot`, etc.) and where applicable a Code Action ("Did you mean `<row>`?", "Generate `components/foo.tender`?").
 
-**Completion provider.** Triggers:
+**Definition provider:**
+Cmd/Ctrl-click on `<row>` jumps to `components/row.tender`.
 
-- After `:::` or `::::` at column 0 → suggest block component/template names.
-- After `:` followed by a letter → suggest inline component names.
-- Inside a directive's `{…}` → suggest valid `params` for this directive.
-- Inside `template=` value → suggest registered page-template names.
+**Document symbols** (for `.tender` files):
+Outline showing the four sections (frontmatter, template, style, palette).
 
-Each completion item carries documentation (the template body or component definition) and an insertion snippet (so accepting `:::row` autoinserts `\n\n$0\n\n:::`).
+### VS Code extension
 
-**Hover provider.** Hovering over a directive name shows: the template's HTML (truncated/syntax-highlighted), declared `params`, declared `slots`, source location in `project.yaml`. For inline components, the rendered HTML wrapper. For page templates, the resolved page geometry.
+Minimal: extension manifest, activation conditions, snippets, TextMate grammar.
 
-**Diagnostics provider.** Runs on every buffer change (debounced ~150ms). Reports:
+Activation: workspace contains a `project.yaml` at any depth, OR any `.tender` file. Avoid auto-activating in unrelated Markdown projects.
 
-- Unknown component/template name (range covers the directive name).
-- Param given but not declared in `params:` whitelist.
-- Required slot missing in usage of multi-slot template.
-- Slot name in usage doesn't match any declared slot.
-- Mismatched fence depth (more closes than opens, or unclosed at EOF).
-- Mismatched named close (when item A lands).
-
-Each diagnostic has a code (`tender/unknown-component`, `tender/missing-slot`, etc.) and where applicable a Code Action ("Did you mean `:::ad-lib`?").
-
-**Definition provider.** Cmd/Ctrl-click on a directive name jumps to the corresponding entry in `project.yaml`.
-
-### `@tender/vscode-extension`
-
-Minimal — just the extension manifest, activation, and a small snippets file. Snippets included out of the box:
-
+Snippets:
 ```jsonc
-"Page": {
-  "prefix": "page",
-  "body": ["::::page${1: \\{template=$2\\}}", "", "$0", "", "::::"]
-},
-"Row": {
+"Component invocation": {
   "prefix": "row",
-  "body": [":::row{label=\"$1\" icon=$2}", "", "$0", "", ":::"]
+  "body": ["<row label=\"$1\" icon=$2>", "$0", "</row>"]
+},
+"Page break": {
+  "prefix": "page",
+  "body": ["=== page$1", "", "$0"]
+},
+"New .tender component": {
+  "prefix": "tender",
+  "body": [
+    "---",
+    "params: [$1]",
+    "---",
+    "",
+    "<div class=\"$2\">{{{body}}}</div>",
+    "",
+    "<style>",
+    ".$2 {",
+    "  $0",
+    "}",
+    "</style>",
+    ""
+  ]
 }
 ```
 
-Activation conditions: workspace contains a `project.yaml` at any depth; or a `.tender` marker file. Avoid auto-activating in unrelated Markdown projects.
-
-### File-watching detail
-
-The LSP watches `project.yaml` via VS Code's workspace file watcher. On change:
-
-1. Re-parse with Zod schema.
-2. Rebuild symbol table.
-3. Re-run diagnostics on every open `*.md` buffer (cheap — directive parser is fast).
-4. If `project.yaml` itself has parse errors, push diagnostics to it; leave `*.md` diagnostics stale until valid.
+TextMate grammar: highlight `<component>` tags distinctly from raw HTML in `.md` files; highlight `===`, `@@`, frontmatter, and the `<style>` block in `.tender` files.
 
 ### Tests
 
-- Unit tests for the directive parser against the same `coastal-planet` content.
-- LSP integration tests via `vscode-languageserver-testbed` (or similar): synthetic workspace with `project.yaml` + `content.md`, assert completion items at given positions, assert diagnostics for known-bad inputs.
-- Regression suite: every behavior added later (named close fences, slot syntax) gets a test here too.
+- Unit tests for the tag-parser against representative inputs.
+- LSP integration tests: synthetic workspace with `project.yaml` + `components/*.tender` + `content.md`; assert completion items at given positions; assert diagnostics for known-bad inputs.
+- Regression suite per provider.
 
-### Packaging
+### Out of scope
 
-VS Code extension published to the marketplace as `tender-vscode`. Versioning tracks the LSP package. The LSP package is also independently consumable so future editor integrations (Zed, Neovim) reuse it.
-
-### Out of scope for this item
-
-- Formatting / format-on-save (deferrable; the source format is loose enough that a formatter is a separate design).
+- Format-on-save (deferrable; treat as separate design).
 - Visual editing of any kind.
-- Other editors. Build VS Code first; once the LSP is solid, Zed/Neovim are mostly packaging work.
+- Other editors (Zed, Neovim) — once the LSP is solid, those are mostly packaging work.
 
 ---
 
-## A. Named closing fences
+## 4. Implicit page boundaries
 
 ### Goal
 
-`:::row` can be closed with `:::row` (or `::::page` with `::::page`), making nested directives self-documenting and mismatch errors precise.
+Pages become a stream of sections separated by markers, not deeply-nested fences. `=== page` replaces `::::page … ::::`.
 
-### Behavior
+### Syntax
 
-- The closing fence accepts an optional name. The name must match the opener.
-- Bare `:::` and `::::` continue to work (backwards compatible).
-- Mismatch is a hard error reported with both the opener and closer locations.
+A line containing only `=== page` (with optional `{attrs}`) at column 0, surrounded by blank lines, represents a page boundary:
 
-### Source change
+- Closes the current page if one is open.
+- Opens the next page (default template if no attrs; specified template otherwise).
 
-`packages/core/src/parse/` — the directive parser currently treats `:::` as opaque close. Extend it to capture an optional identifier following the colons, then resolve it against the opener-stack at close time.
+```markdown
+=== page{template=cover}
 
-### Tests
+# This Coastal Planet
 
-- Existing fixtures (which use bare closes) still pass.
-- New fixture: `coastal-planet` style doc with named closes, asserts identical compiled output.
-- Negative cases: `:::row … :::ad-lib` produces a single diagnostic pointing at both lines.
+…cover content…
 
-### LSP impact
+=== page
 
-Diagnostics and completion gain "close fence" awareness — typing `:::` at the right indent level autocompletes to `:::row` matching the most recent unclosed opener.
+…body content…
 
-### Documentation
+=== page{template=chapter-opener}
 
-Update `user-guide.md` §"Pages" and §"Templates" to show the named-close form as the recommended style; mention bare closes still work.
+# Chapter 1
 
----
-
-## B. Implicit page boundaries
-
-### Goal
-
-In documents that are mostly one-page-per-section, eliminate the `::::page … ::::` wrapper noise. Pages become a *stream* with markers between them, not deeply nested fences.
-
-### Behavior
-
-A new top-level marker — proposed: a line containing only `===` (three or more equals signs at column 0, surrounded by blank lines) — represents an implicit page break:
-
-- Closes the current page (default template) if one is open.
-- Opens the next default page.
-- Mutually exclusive with explicit `::::page` blocks in the same surrounding scope; the first marker the parser sees in a doc determines the mode.
-
-Explicit `::::page{template=cover}` remains the only way to specify a non-default template. Mixing is fine: `===` opens a default page, `::::page{template=cover}` opens a templated page.
+…chapter content…
+```
 
 The doc's first content (before any marker) is wrapped in an implicit default page automatically.
 
-### Source change
+### Why `=== page` and not `===`
 
-In `parse/project-parser.ts`, before remark runs: detect `===` markers, transform to implicit `::::page` open/close pairs. This keeps the downstream pipeline unchanged.
+Bare `===` collides with CommonMark's setext H1 underline (a heading line followed by `===` becomes an H1). Requiring the trailing `page` keyword sidesteps this and reads as documentation: "start a new page here."
+
+### Implementation
+
+In `parse/project-parser.ts`, before the tag-parser runs: detect `=== page` markers, transform to synthetic page-component invocations. Downstream pipeline unchanged.
+
+```
+=== page{template=cover}
+
+X
+
+=== page
+
+Y
+```
+
+becomes (conceptually):
+
+```
+<page template=cover>X</page>
+<page>Y</page>
+```
+
+The built-in `page` component (declared in core) wraps content in `<div class="page">` with `data-page-template` for non-default templates.
 
 ### Tests
 
-- Fixture: a document using only `===` markers compiles identically to the same doc using explicit `::::page` wrappers.
-- Mixed fixture: `===` for body pages, `::::page{template=cover}` for the cover.
-- Edge: doc with no markers at all and no explicit pages → entire doc becomes one default page.
-
-### LSP impact
-
-The directive parser must recognize `===` as a page break. Diagnostics: `===` inside a `:::row` (or any nested directive) is an error — page breaks live at top level only.
+- A doc using only `=== page` markers compiles identically to the same doc using explicit `<page>` tags.
+- Mixed: `=== page` for body pages, `<page template=cover>…</page>` for cover. Both forms coexist; markers are sugar.
+- Edge: doc with no markers and no explicit pages → entire doc is one default page.
+- LSP diagnostic: `=== page` inside a component body errors clearly.
 
 ### Migration
 
-Optional codemod (`tender migrate --pages-to-markers`) that rewrites explicit `::::page` to `===` where the template is `default`. Not required — the two forms coexist.
-
-### Risk
-
-Choosing `===` may collide with users who write equals-rule horizontal lines. Markdown's CommonMark setext H1 underline is `===` directly under a heading line, which is a different context (no surrounding blanks); the parser must distinguish. Reserve a different marker if collision testing turns up issues — `--- page ---` is a fallback.
+`tender migrate --pages-to-markers` rewrites explicit `<page>` blocks to `=== page` where the template is `default`. Optional.
 
 ---
 
-## C. Inline shorthand registration
+## 5. Slot syntax
 
 ### Goal
 
-Project-specific inline marks become as terse as Markdown's built-in `*emphasis*`. The Tender USP — *project-defined vocabulary* — extends to inline shorthand.
+Replace `--- slotname ---` (visually a horizontal rule, easy to mistype, silent failure on typo) with `@@ slotname` — visually distinct, single-token, hard to confuse with prose punctuation.
 
 ### Behavior
 
-`project.yaml` gains an `inline-shortcuts` block:
+Inside a multi-slot component, content is divided into named slots:
+
+```markdown
+<ad-lib>
+@@ suggested
+
+"Before we begin, I want to name a few things…"
+
+@@ response
+
+"Try this on for size…"
+</ad-lib>
+```
+
+- `@@ slotname` at column 0 marks the start of a slot.
+- Content before the first `@@` belongs to the implicit `body` slot.
+- Each slot's content is parsed as Markdown.
+- Slot name must match one declared in the component's frontmatter `slots:` list.
+
+### Implementation
+
+In `parse/templates.ts` (the slot-explosion logic), extend the slot-sentinel detector to recognize `@@ name` in addition to (or instead of) `--- name ---`. Both feed the same downstream slot logic. Initial release: `@@` is the documented form; `---` is the deprecation form (LSP warns with a Code Action to convert).
+
+### Tests
+
+- Slot in `<ad-lib>` correctly fills `{{{suggested}}}`.
+- Mistyped slot name in usage produces an error pointing at the line, suggesting the declared slot names.
+- Slot at the very start (no implicit body) works.
+- Migration codemod converts `--- name ---` to `@@ name`.
+
+---
+
+## 6. Inline shortcut registration
+
+### Goal
+
+Project-defined single-character marks for the most-used inline components. So `*she pauses*` becomes `<stage-direction>she pauses</stage-direction>`. The same gravity-well as Markdown's built-in `*emphasis*` for project-specific vocabulary.
+
+### Syntax
+
+In `project.yaml`:
 
 ```yaml
 inline-shortcuts:
@@ -240,95 +508,59 @@ inline-shortcuts:
   "%": yellow-tag
 ```
 
-Source: `*she pauses*` becomes `<span class="stage-direction">she pauses</span>`.
+Source:
+```markdown
+@Facilitator A@ Welcome everyone. *She gestures to the room.* We're glad you're here.
+```
 
-Constraints:
+Becomes:
+```html
+<span class="speaker-name">Facilitator A</span> Welcome everyone.
+<span class="stage-direction">She gestures to the room.</span> We're glad you're here.
+```
 
-- The character on each side must be the same.
-- Must not be already meaningful in CommonMark (so `*` is **out** — it collides with emphasis). Realistic candidates: `@`, `%`, `^`, `~` (collides with strikethrough in GFM — also out unless GFM strikethrough is disabled), `|`, `§`.
+### Constraints
+
+- Each character is a same-on-both-sides delimiter (`*x*`, not `*x_`).
+- Must not collide with CommonMark's existing inline syntax (`*emphasis*`, `_emphasis_`, `` `code` ``, `~~strike~~`). Realistic candidates: `@`, `%`, `^`, `|`, `§`. Reserve a small set; reject others at registration time.
 - Escapable with backslash: `\@not a speaker\@`.
-- Only resolve to components declared with `inline: true`.
+- Only resolves to components declared `inline: true`.
 
-A sensible v1: ship with a small set of allowed characters (`@`, `%`, `^`, `|`, `§`) and reject others. The point isn't maximal flexibility; it's making one or two project-specific marks effortless.
+### Why `*` is risky despite being natural
 
-### Source change
+CommonMark already gives `*x*` to emphasis. Re-registering it would either break Markdown emphasis or produce confusing parser behavior. **Don't ship `*` as a shortcut character.** Use `@`, `%`, etc.
 
-In `parse/project-parser.ts`, add a remark plugin that runs before directive parsing. It scans text nodes for registered shorthand pairs and rewrites them to inline directive nodes (`:name[content]`), which downstream code already handles.
+### Implementation
 
-### Tests
-
-- Fixture with shorthand declared and used; output matches the equivalent `<span class="…">` form.
-- Escaped shorthand passes through literally.
-- Shorthand declared for an undeclared component: error.
-- Shorthand declared for a non-inline component: error.
-
-### LSP impact
-
-Hover on a shorthand pair shows the resolved component. Completion offers the registered shorthand characters when in a text context.
-
-### Documentation
-
-New §"Inline shortcuts" in user-guide. Show the worked-example pattern: `*` for stage directions in a script.
-
----
-
-## D. Slot syntax that looks like syntax
-
-### Goal
-
-Replace the `--- slotname ---` slot separator (which looks like a horizontal rule) with something visibly structural. Mistypes are caught instead of producing silent empty slots.
-
-### Behavior
-
-New syntax: a line at column 0 of the form `@@ slotname` (or alternative; `@slotname:` or `--- slot: name ---` are options). Picking `@@ slotname` because it's visually distinct, single-token, and can't collide with anything in CommonMark.
-
-```
-:::ad-lib
-
-@@ suggested
-
-"Before we begin, I want to name a few things…"
-
-@@ response
-
-"Try this on for size…"
-
-:::
-```
-
-Old `--- slotname ---` form still works for one release as a deprecation path; LSP warns on it with a Code Action to convert.
-
-### Source change
-
-In `parse/templates.ts`, extend the slot-sentinel detector. Today it looks for `--- name ---`; add an alternative pattern. Both feed the same downstream slot-explosion logic.
+In `parse/project-parser.ts`, add a remark plugin that runs before the tag parser. Scans text nodes for registered shortcut pairs, rewrites them as inline component invocations.
 
 ### Tests
 
-- Existing fixtures keep working (deprecation, not removal).
-- New fixtures using `@@ name`.
-- Negative: `@@ wrongname` in a template that declares only `[suggested]` produces a clear error pointing at the offending line.
-
-### LSP impact
-
-Diagnostics: slot name in source must match a declared slot of the enclosing template. Completion after `@@ ` suggests declared slot names. Hover on a slot marker shows its template's slot list.
-
-### Documentation
-
-User-guide §"Multi-slot templates" rewritten around the new syntax. Old syntax mentioned only in a "Deprecated" callout.
+- Shortcut declared and used; output matches equivalent `<component>` form.
+- Escaped shortcut passes through literally.
+- Shortcut declared for an undeclared component → registration error.
+- Shortcut declared for a non-inline component → registration error.
+- Shortcut character collides with CommonMark → registration error.
 
 ---
 
-## F. `tender new` scaffolding family
+## 7. `tender new` scaffolding family
 
 ### Goal
 
-Dissolve the blank-page problem. Common authoring tasks become one command that emits a working stub.
+Dissolve the blank-page problem. Common authoring tasks become one command that emits a working stub. With `.tender` files as the unit, scaffolding is much simpler than in the YAML-based world.
 
 ### Subcommands
 
-**`tender new template <name> [options]`**
+**`tender new component <name> [options]`**
 
-Emits a template entry in `project.yaml` *and* a matching CSS stub in `styles.css`.
+Creates `components/<name>.tender` with frontmatter + template + style + palette:
+
+```
+tender new component callout --variants warning,info --tag aside
+```
+
+**`tender new template <name> [options]`** — alias for component but defaults to the multi-attr/slotted shape:
 
 ```
 tender new template row \
@@ -338,198 +570,94 @@ tender new template row \
   --gap 8mm
 ```
 
-Output added to `project.yaml`:
-
-```yaml
-templates:
-  row:
-    params: [label, icon, speaker]
-    template: |
-      <div class="row">
-        <div class="col-l">
-          {{#if speaker}}<span class="speaker-name">{{speaker}}</span>{{/if}}
-          {{#if label}}<span class="margin-label">{{label}}</span>{{/if}}
-          {{#if icon}}<img src="assets/images/{{icon}}.png" alt="" class="margin-icon">{{/if}}
-        </div>
-        <div class="col-r">{{{body}}}</div>
-      </div>
-```
-
-Output added to `styles.css`:
-
-```css
-/* row template (added by `tender new template row`) */
-.row {
-  display: grid;
-  grid-template-columns: 3fr 5fr;
-  column-gap: 8mm;
-  align-items: first baseline;
-  margin-bottom: 1.5em;
-}
-```
-
-**`tender new component <name> [options]`**
-
-```
-tender new component callout --variants warning,info --tag aside
-```
-
-Emits the component entry and a CSS stub with `:` selectors per variant.
+Output: a complete `components/row.tender` matching the worked example above.
 
 **`tender new page-template <name> [options]`**
 
-```
-tender new page-template chapter-opener --size A5 --first-page-bare
-```
-
-Emits a `page-templates` entry with sensible defaults and the verso/recto + first-page boilerplate already filled in.
+Adds a `page-templates` entry to `project.yaml` with sensible defaults and verso/recto + first-page boilerplate already filled in.
 
 **`tender add layout <name>`**
 
-Pulls a curated, working layout from a built-in library into the current project. Each layout is a small bundle that adds yaml + css and (optionally) appends a usage example to a designated location in `content.md`. Initial library:
-
+Pulls a curated layout from the built-in library:
 - `two-col-baseline` — the `coastal-planet` row pattern.
-- `cover-bottom-anchored` — flex column with `margin-top: auto` for a bottom element.
-- `verso-recto-running-heads` — page template with mirror-margin + verso/recto headers.
-- `multicol-with-figures` — three-column body with figure breakouts.
-- `chapter-opener-bare-first-page` — first-page header suppression.
+- `cover-bottom-anchored` — flex column with `margin-top: auto`.
+- `verso-recto-running-heads`
+- `multicol-with-figures`
+- `chapter-opener-bare-first-page`
 
-Layouts are stored as resources in `@tender/cli` (or `@tender/scaffolds` as a separate data package).
+Each layout drops one or more `components/*.tender` files into the project, possibly adding to `project.yaml`. Conflict-detection prompts before overwriting.
+
+**`tender migrate`**
+
+One-shot rewrite of an existing `:::name` + YAML-templates project into the new format:
+
+1. Extract every `templates:` and `components:` entry from `project.yaml` into individual `components/*.tender` files.
+2. Lift matching CSS rules from `styles.css` into each component's `<style>` block (best-effort heuristic — class-match).
+3. Rewrite `content.md`: `:::name{…}…:::` → `<name …>…</name>`, `--- slot ---` → `@@ slot`, `::::page` → `=== page`.
+4. Print a diff summary; require `--commit` flag to actually write changes.
 
 ### Architecture
 
-New module `packages/cli/src/scaffold/`:
+`packages/cli/src/scaffold/`:
 
 ```
 scaffold/
-  index.ts              (dispatch to subcommand)
-  template.ts           (new template logic)
-  component.ts          (new component logic)
+  index.ts                  (dispatch)
+  component.ts              (new component / template)
   page-template.ts
   layouts/
     two-col-baseline/
-      yaml.hbs          (Handlebars template producing yaml stub)
-      css.hbs
-      example.md.hbs
+      row.tender.hbs        (Handlebars-templated component file)
+      ...
     cover-bottom-anchored/
-      …
-  yaml-merge.ts         (insert into existing project.yaml preserving comments)
-  css-append.ts         (append to styles.css with a section comment)
+      ...
+  migrate/
+    extract-components.ts   (yaml templates → .tender files)
+    rewrite-content.ts      (::: → tags; --- → @@; etc.)
+    lift-css.ts             (heuristic class-match from styles.css)
+  yaml-merge.ts             (CST-preserving project.yaml edits)
 ```
 
-The hardest part is `yaml-merge.ts`: editing user-edited YAML without losing comments or reformatting the user's existing content. Use a CST-preserving YAML library (`yaml` package's `Document` API) rather than parse/stringify round-tripping.
+Use a CST-preserving YAML library (`yaml` package's `Document` API) so `tender new page-template` doesn't reformat the user's `project.yaml`.
 
 ### Tests
 
 - Each subcommand against an empty project produces a buildable result.
 - Each subcommand against an existing project preserves user content and comments.
-- `tender add layout two-col-baseline` followed by `tender build` produces non-empty output.
-- Conflict cases: adding a template named `row` when `row` already exists prompts (in interactive mode) or fails (with `--force` to overwrite).
-
-### LSP impact
-
-None directly — but the LSP's completion can mention scaffolds: typing `:::r` in `content.md` when no `row` template exists could offer "Run `tender new template row` to create" as a quick-info entry. Stretch.
-
-### Documentation
-
-User-guide §"Scaffolds" lists each subcommand with a worked example. Each layout in the library gets a one-page doc showing what it does and the resulting source.
+- `tender migrate` against the (pre-migration) `coastal-planet` fixture produces output that builds to byte-identical PDF golden.
+- Conflict cases prompt or fail with `--force` semantics.
 
 ---
 
-## G. Directive-call inspector in preview
+## 8. Real `tender lint` warnings
 
 ### Goal
 
-The preview UI's read-only counterpart to the LSP's hover. Click any rendered element → see which directive produced it, which template/component it resolved to, and which CSS rules apply.
-
-### Behavior
-
-In `tender preview`, an "Inspect" mode (toggle in the SPA chrome — keyboard shortcut `i`). When active, hovering over rendered elements highlights their directive bounds; clicking opens a side panel showing:
-
-- **Source:** `content.md:42:1` — directive name and attrs, with a link that opens VS Code at the right line (via `vscode://` URL handler).
-- **Resolved to:** `project.yaml:N` — the template/component definition, with link.
-- **CSS rules applying:** list of selector/file/line entries, sorted by specificity. Each links to `styles.css:N`.
-- **Computed key properties:** `display`, `font-size`, `line-height`, `column-gap`, `break-inside`, etc. — the print-relevant subset, not the whole computed-style dump.
-
-### Source-mapping
-
-Production parsing already knows directive source positions (the `positionPrefix` in error messages confirms this). Pipeline change: the parser tags each generated DOM node with `data-tender-source="content.md:42:1"` and `data-tender-template="row"` (gated by a `--with-source-map` build flag, on by default in preview, off in `tender build`).
-
-The CSS-rule lookup uses `getMatchedCSSRules`-style introspection in the iframe (Chromium DevTools Protocol, exposed via Puppeteer in preview mode; or a smaller-scope JS inspection in the browser). Source-line mapping for CSS rules requires a parsed `styles.css` with line numbers — straightforward with `postcss`.
-
-### UI
-
-Side panel mounts in the SPA shell (next to the existing iframe). Three sections:
-
-```
-┌─ Inspector ──────────────────┐
-│  :::row {label="45 min"}     │
-│  content.md:42:1     [open]  │
-│                              │
-│  → template `row`            │
-│  project.yaml:43     [open]  │
-│                              │
-│  CSS                         │
-│  .row                        │
-│    styles.css:98     [open]  │
-│  .row.no-break               │
-│    styles.css:88     [open]  │
-│                              │
-│  Computed                    │
-│  display: grid               │
-│  grid-template-columns: 3fr… │
-│  align-items: first baseline │
-└──────────────────────────────┘
-```
-
-### Architecture
-
-- Source-map tagging in `packages/core/src/compose/` and `parse/`.
-- Inspector logic in `packages/preview-ui/src/inspector/`.
-- New API endpoint `/api/inspect?source=content.md:42:1` not strictly needed — the inspector reads everything from DOM data attributes + computed styles.
-- VS Code URL scheme integration is a one-liner per "open" link.
-
-### Tests
-
-- Source-map attributes are present in preview output, absent in build output.
-- Manual test: clicking a `:::row` in `coastal-planet` correctly identifies template + CSS rules.
-- Inspector toggle persists across page navigation in the iframe.
-
-### Out of scope
-
-- Editing from the inspector. This is read-only, deliberately. Editing happens in VS Code, where the LSP is.
-
----
-
-## H. Real `tender lint` warnings
-
-### Goal
-
-Convert lint from a binary "did the build break?" check into a useful refinement tool. Catches the things that *compile fine but indicate drift*.
+Convert `tender lint` from a binary "did the build break?" check into a useful refinement tool. Catches drift between `.tender` files, CSS, and content.md — the kind of thing that compiles fine but indicates rot.
 
 ### New checks
 
 | Code | Severity | Description |
 |---|---|---|
-| `tender/unused-component` | warn | Component declared but never referenced in `content.md`. |
-| `tender/unused-template` | warn | Template declared but never referenced. |
-| `tender/orphan-css-class` | warn | Class in `styles.css` that no template/component emits and no inline HTML uses. |
-| `tender/raw-html-with-known-class` | info | Inline HTML uses a class that matches a registered component — suggests using the directive form. |
-| `tender/declared-slot-never-filled` | warn | Template declares slot `X` but no usage fills it (can be intentional, hence warn not error). |
-| `tender/missing-asset` | error | `<img src="…">` or `assets/images/foo.png` that doesn't exist. |
+| `tender/unused-component` | warn | A `components/foo.tender` exists but no `<foo>` invocation in content. |
+| `tender/orphan-css-class` | warn | A class in `<style>` (or `styles.css`) that no template emits and no inline HTML uses. |
+| `tender/raw-html-with-known-class` | info | Inline HTML uses a class that matches a registered component — suggest the tag form. |
+| `tender/declared-slot-never-filled` | warn | Component declares slot `X` but no usage fills it. |
+| `tender/missing-asset` | error | `<img src="…">` or `assets/...` reference to a file that doesn't exist. |
 | `tender/inconsistent-units` | info | Mixing `px` with `pt`/`mm` in print-critical properties. |
-| `tender/duplicated-page-template-name` | error | Already caught by schema; surfaced explicitly. |
+| `tender/component-shadows-html` | warn | Component name matches a built-in HTML tag. |
+| `tender/deprecated-syntax` | info | Found `:::name`, `--- slot ---`, or `templates:` block — suggest migration. |
 
-Each warning includes a Code Action where automatic — the orphan-CSS one suggests removal, the raw-HTML-with-known-class one suggests the directive form.
+Each warning includes a Code Action where automatic.
 
 ### Output format
 
 ```
 $ tender lint my-doc
-warning: project.yaml:34: component "yellow-tag" declared but never used [tender/unused-component]
-warning: styles.css:208: class ".yellow-tag" defined but no element emits it [tender/orphan-css-class]
-info:    content.md:24:1: raw HTML uses class "cover-spiral" — declared as template "cover-spiral" [tender/raw-html-with-known-class]
-        suggestion: replace with `:::cover-spiral`
+warning: components/yellow-tag.tender:1: declared but never used [tender/unused-component]
+warning: components/row.tender:42: class ".margin-spiral" defined but no element emits it [tender/orphan-css-class]
+info:    content.md:24:1: raw HTML uses class "cover-spiral" — declared as component <cover-spiral> [tender/raw-html-with-known-class]
+        suggestion: replace with `<cover-spiral />`
 
 3 warnings, 1 info, 0 errors.
 ```
@@ -538,153 +666,195 @@ Exit code: non-zero only on errors. Warnings/info are informational. `--strict` 
 
 ### Architecture
 
-`packages/core/src/lint/` (new submodule):
+`packages/core/src/lint/`:
 
 ```
 lint/
   index.ts          (run all checks, return Report)
-  report.ts         (Report type with location, code, severity, message, suggestion)
+  report.ts         (Report type)
   checks/
     unused.ts
     orphan-css.ts
     raw-html.ts
     missing-assets.ts
     units.ts
-  css-analyze.ts    (postcss-based class extraction)
-  html-analyze.ts   (cheerio-based class/asset extraction)
+    deprecated.ts
+  css-analyze.ts    (postcss-based class extraction from <style> blocks + styles.css)
+  html-analyze.ts   (cheerio-based class/asset extraction from content + components)
 ```
 
-CLI command `tender lint` orchestrates: build the project up to but not including PDF render, collect all artifacts (parsed AST, generated HTML, project YAML, parsed CSS), run each check, format output.
+CLI `tender lint` orchestrates: build the project up to but not including PDF render, collect artifacts (component registry, generated HTML, parsed CSS, content AST), run each check, format output.
 
 ### LSP impact
 
-The LSP can run a subset of these checks (the cheap ones — unused, orphan, raw-html-with-known-class) on every buffer change, surfacing as VS Code diagnostics. The expensive ones (missing-assets requires filesystem access; full CSS analysis) stay in `tender lint` and run on demand or in CI.
+The LSP runs the cheap checks (unused, orphan, raw-html-with-known-class, deprecated-syntax) on every buffer change. The expensive ones (missing-assets, full CSS analysis) stay in `tender lint`.
 
 ### Tests
 
-Each check has a positive fixture (rule fires) and a negative fixture (rule does not fire on legitimate cases). The `coastal-planet` fixture should produce zero warnings — it's the gold standard for "well-formed Tender project."
-
-### Documentation
-
-User-guide §"Validation" expanded to list every check with an example.
+Each check has a positive fixture (rule fires) and a negative fixture (rule does not fire on legitimate cases). The migrated `coastal-planet` fixture should produce zero warnings.
 
 ---
 
-## I. Template composition (`extends`)
+## 9. `tender clean` content normalizer
 
 ### Goal
 
-Templates can extend other templates, factoring shared structure into a base. Removes the duplication between e.g. `row` and `ad-lib` (both currently re-declare the 3fr/5fr two-column grid in HTML *and* CSS).
+Make pasted-from-Word/Docs content land in a parseable state without manual cleanup. The "I copy-pasted three pages of prose and now `content.md` is a war zone" pain point.
 
 ### Behavior
 
-A template can declare `extends: <name>`. The extending template inherits the parent's HTML scaffold and either fills the parent's slots or replaces them.
+`tender clean content.md` normalizes a Markdown file in-place (or `--check` for non-destructive dry-run). Default operations:
 
-```yaml
-templates:
-  two-col:
-    slots: [left, right]
-    params: [no-break]
-    template: |
-      <div class="grid-2col{{#if no-break}} no-break{{/if}}">
-        <div class="col-l">{{{left}}}</div>
-        <div class="col-r">{{{right}}}</div>
-      </div>
+| Operation | What it does | Configurable |
+|---|---|---|
+| Smart-quote normalization | Convert `"`/`'` ↔ `“`/`”`/`‘`/`’` per project preference | Yes — `clean.quotes: smart \| dumb` in project.yaml |
+| Whitespace normalization | Replace ` `, zero-width chars, mixed line endings | Off-by-default for NBSP if `lang` indicates a language that uses them |
+| Em-dash / en-dash unification | `--` → `—`, ` - ` → ` – `, configurable | Yes |
+| Paragraph-break detection | Long unbroken paragraphs (Word/Docs paste artifact): suggest blank-line splits | Suggestion only by default; `--auto-split` to apply |
+| Trailing-whitespace strip | Trim trailing whitespace from every line | Yes (default on) |
+| Soft-hyphen removal | Strip `­` from source (Tender uses CSS hyphenation, not source markup) | Yes (default on) |
+| Smart-quote escaping in components | Inside `<component attr="…">`, leave attribute values alone | Always |
+| Fence balance check | Warn on unmatched component tags, slot markers, page markers | Always |
 
-  row:
-    extends: two-col
-    params: [label, icon, speaker, no-break]
-    slots:
-      left: |
-        {{#if speaker}}<span class="speaker-name">{{speaker}}</span>{{/if}}
-        {{#if label}}<span class="margin-label">{{label}}</span>{{/if}}
-        {{#if icon}}<img src="assets/images/{{icon}}.png" alt="" class="margin-icon">{{/if}}
-      right: "{{{body}}}"
+The "fence balance check" is the same logic as `tender lint` but scoped to one file and presented as cleanup output.
+
+### Mode
+
+```
+$ tender clean content.md
+content.md:
+  3 smart quote replacements
+  1 em-dash conversion (-- → —)
+  2 trailing-whitespace lines trimmed
+  suggestion: long paragraph at line 47 (412 chars) — consider splitting
+
+Apply? [y/N]
 ```
 
-In `row`'s usage, the implicit `body` slot is mapped to the parent's `right`. `params` are merged (child wins on conflict).
+`--check` for dry-run; `--yes` to skip the prompt; `--auto-split` to apply the heuristic paragraph split.
 
-### Source change
+### Implementation
 
-In `parse/templates.ts`, resolve `extends` chains at template-registration time (before any usage is parsed). Detect cycles. Cache the resolved template so each is composed once.
+`packages/cli/src/commands/clean.ts`:
 
-### CSS implication
+```
+clean.ts                  (CLI entry, prompt logic, file I/O)
+normalizers/
+  quotes.ts
+  whitespace.ts
+  dashes.ts
+  paragraph-split.ts
+  fences.ts
+```
 
-The CSS-generation side benefits too. `compose/project-css.ts` can emit base rules for `two-col` once, and `row`/`ad-lib` only declare deltas. This addresses the density issue in `compose/project-css.ts:138-204` indirectly by giving authors a way to share structure at the source level.
+Each normalizer is a pure `(input: string, opts) => { output: string; changes: Change[] }` function. The CLI runs them in order and reports the aggregate changes.
 
 ### Tests
 
-- Fixture: `row` extending `two-col` produces the same HTML as the current standalone `row` template.
-- Cycle detection: `a extends b`, `b extends a` errors with both locations.
-- Slot override: child fills parent's slot with content; parent's slot template is replaced.
-- Param merge: child + parent params both available in the resolved template.
+- Each normalizer has positive and negative fixtures.
+- Idempotency: running `tender clean` twice on the same file produces no changes the second time.
+- Non-destructive in `--check` mode.
+- Doesn't touch attribute values inside component tags (regression: smart-quoting `<row label="45 min">` would break the parser).
 
-### LSP impact
+### Why this matters
 
-Hover on a `row` shows the resolved template (post-composition) with provenance — "from `two-col`" annotations on inherited slots. Go-to-definition on `row` jumps to `row`'s declaration; with a follow-up "Show base" command jumping to `two-col`.
+For the target audience — print designers willing to write code — the friction isn't only "syntax I don't know." Half of it is "I have a 60-page manuscript in Word and I just need it into Tender." Without a cleanup step, that lands as a single giant paragraph with curly quotes everywhere, and the author has to hand-fix it. With `tender clean`, paste → run → file is sane.
 
-### Documentation
+---
 
-User-guide §"Template composition" with the worked `two-col` / `row` / `ad-lib` example showing how to refactor the current `coastal-planet` patterns.
+## 10. Polish: inspector + template composition
 
-### Why it lands later
+These are real wins but lower-priority than the core authoring restructure. Grouping them as "round 4."
 
-Composition is a substantive language change with subtle semantics (slot mapping, param merge, override rules). Wants to land after the LSP can give good feedback on it. The current code works without it; this is an *enabling* feature, not a blocker.
+### 10a. Directive-call inspector in preview
+
+Read-only counterpart to the LSP's authoring-time hover. In `tender preview`, an "Inspect" mode (toggle via keyboard `i`) lets you click any rendered element and see:
+
+- **Source:** `content.md:42:1` — which `<row>…</row>` produced this, with a link that opens VS Code at the line (via `vscode://` URL handler).
+- **Component:** `components/row.tender:N` — the resolving component.
+- **CSS rules applying:** ranked by specificity, each linked to its source line.
+- **Computed key properties:** `display`, `font-size`, `line-height`, `column-gap`, `break-inside`, etc.
+
+Implementation: source-mapping plumbing through core (each rendered element gets `data-tender-source="content.md:42:1"` and `data-tender-component="row"` in preview-mode-only builds). The inspector panel mounts in the SPA shell next to the iframe.
+
+### 10b. Component composition (`extends`)
+
+Components can extend other components, factoring shared structure. Removes duplication between e.g. `row` and `ad-lib` (both currently re-declare a 2-col grid).
+
+In `components/two-col.tender`:
+```tender
+---
+slots: [left, right]
+params: [no-break]
+---
+
+<div class="grid-2col{{#if no-break}} no-break{{/if}}">
+  <div class="col-l">{{{left}}}</div>
+  <div class="col-r">{{{right}}}</div>
+</div>
+
+<style>
+.grid-2col {
+  display: grid;
+  grid-template-columns: 3fr 5fr;
+  column-gap: var(--col-gap);
+  align-items: first baseline;
+}
+</style>
+```
+
+In `components/row.tender`:
+```tender
+---
+extends: two-col
+params: [label, icon, speaker, no-break]
+slots:
+  left: |
+    {{#if speaker}}<span class="speaker-name">{{speaker}}</span>{{/if}}
+    {{#if label}}<span class="margin-label">{{label}}</span>{{/if}}
+    {{#if icon}}<img src="assets/images/{{icon}}.png" class="margin-icon">{{/if}}
+  right: "{{{body}}}"
+---
+```
+
+Resolution at registration time: detect `extends`, pull base template, merge params (child wins), fill base's slots from child's `slots:` map. Cycles error.
+
+CSS implication: child's `<style>` is appended to parent's; the parent's classes still apply (no class renaming).
+
+LSP impact: hover on `<row>` shows the resolved template post-composition with provenance ("inherited from `two-col`").
 
 ---
 
 ## Implementation order
 
-1. **E (LSP)** first. Everything else benefits from being demonstrable in-editor as it lands.
-2. **A (named closes)** alongside the LSP — natural fit for the diagnostic system, small core change.
-3. **D (slot syntax)** next — small, footgun-removing, gives the LSP another diagnostic to flex.
-4. **C (inline shortcuts)** — somewhat independent, can land in parallel with D.
-5. **B (implicit pages)** — bigger semantic change, deserves its own beat.
-6. **F (`tender new`)** — substantial work but doesn't depend on any of the above.
-7. **H (lint)** — naturally extends from the LSP's diagnostic infrastructure (much of the analysis is shared).
-8. **I (template composition)** — substantive language change; benefits from the LSP being mature enough to surface composition behavior in hover/diagnostics.
-9. **G (inspector)** — last, because it requires source-map plumbing through core and depends on understanding which inspector-target shapes are most useful (which the LSP work reveals).
+1. **Single-file `.tender` components (1)** — restructures where components live; nothing else makes sense without it.
+2. **Tag-syntax invocation (2)** — the headline authoring change.
+3. **LSP (3)** — alongside (2), so the syntax launches with editor support.
+4. **Implicit page boundaries (4)**, **slot syntax (5)**, **inline shortcuts (6)** — three small language refinements that ship as a batch. Each is a small parser change with backwards-compat handling.
+5. **`tender new` scaffolding (7)** — once the file format is stable.
+6. **`tender migrate`** — ships with (7), enabling existing projects to upgrade.
+7. **`tender lint` warnings (8)** — naturally extends from the LSP's diagnostic infrastructure.
+8. **`tender clean` (9)** — independent of everything; can ship anytime in the second half.
+9. **Inspector (10a) + composition (10b)** — last; both are polish on a working system.
 
-A, D, C are deliberately small and backwards-compatible so they can ship as a minor version. B, F, I are bigger but additive. G and H build on infrastructure E established.
-
----
-
-## Cross-reference: code-review issues
-
-The initial code review surfaced issues outside the authoring-experience scope. Tracking them here so they aren't lost:
-
-### Addressed by this plan
-
-| Issue | Where addressed |
-|---|---|
-| `lint` is a stub (declared `result.warnings` never populated) | **H** rebuilds lint as a real check system. |
-| Errors past schema-level degrade (Zod errors reach user verbatim) | **E** diagnostics provider gives precise authoring-time errors; **H** improves CLI error messages. |
-| No template composition (raised in workflow assessment) | **I** introduces `extends`. |
-| Density of `compose/project-css.ts:138-204` verso/recto branching | Indirectly improved by **I** (templates can share base CSS via composition); a fuller refactor stays separate. |
-| The `coastal-planet/content.md:24` raw-HTML fallback to `<div class="cover-spiral">` (suggests directive seam edge case) | **E**'s diagnostics + **H**'s `tender/raw-html-with-known-class` check make this kind of drift visible. The underlying parser edge case wants its own investigation; tracked separately below. |
-
-### Tracked separately (not part of this plan)
-
-These deserve their own work but don't fit the authoring-experience theme. Recommend a small "code-quality and correctness" sweep as a separate beat:
-
-| Issue | Type | Notes |
-|---|---|---|
-| Dead code: `packages/core/src/parse/markdown.ts`'s `parseMarkdown` is unused; only its own test references it. | Cleanup | Trivial. Remove or fold into `parseProject`. |
-| Fragile heuristic in `packages/core/src/build.ts:24`: `/^\s*<div class="page"/` regex sniff to decide whether to wrap. | Refactor | Should be a structured signal from the parser ("doc opened with `:::page`"). |
-| `compose/project-css.ts` density (298 lines; verso/recto + first-page-suppression branching at 138-204). | Refactor | A normalized intermediate `{first, rest, left, right}` per template before emitting CSS. Partly addressed by **I** but not fully. |
-| Regex-based `inlineAssets` in `packages/render/src/inline-assets.ts:14` will mishandle multi-line or oddly-quoted `<img>` tags. | Correctness | Use a real HTML parser (cheerio is already a dep candidate via **H**). |
-| No PDF golden tests; design doc acknowledges PDFs aren't pixel-diffed. | Test infra | A small set of fixture PDFs hashed (or pixel-diffed against reference renders) in CI. Catches regression of the kind that breaks `string-set` or `@page` rules silently. |
-| Hyphenation/orphans/widows are emitted into CSS but no test verifies Chromium honors them. | Test infra | Companion to PDF golden tests — render a known-overflowing paragraph, assert it hyphenates. |
-| Cold-start Chromium per `renderHtml` / `renderPdf` (~1-3s). Preview server pays this on every save. | Performance | Persistent browser instance reused across rebuilds; close on shutdown. Meaningfully speeds up the inner loop, which compounds with everything in this plan. |
-| 60s render timeout is blunt; long docs may legitimately exceed it. | Robustness | Per-page or scaling timeout; configurable. |
-| `--no-sandbox` documented only in code comments, not README. | Docs | One-line README callout under "Security considerations". |
-| `coastal-planet/content.md:24` cover-spiral fallback to raw HTML — investigate why the directive form didn't work. | Investigation | Could be a slot-explosion edge case, a parsing bug, or an authoring choice. Worth reproducing and either fixing or documenting the limit. |
-
-Recommend these be tackled in roughly that order: cleanup → correctness → test infra → performance → docs → investigations. The cleanup and correctness fixes are small and pay off across the rest of the plan. Test infrastructure should land *before* big language changes (B, I) so regressions are caught. Performance work compounds with the LSP-era authoring loop.
+The first three items are the substantive change. Once they ship, the rest are additive refinements.
 
 ## Non-goals
 
 - A WYSIWYG content editor. The editor is text + LSP, not a rich editor.
 - Auto-fence-balancing or other "magic fixes" that hide structural mistakes.
-- A wider directive vocabulary out of the box. The lever is making existing primitives better.
-- Figma export integrations. The translation step is craft work; tokens-as-bridge is the realistic surface and is documentation, not code.
+- Wider directive vocabulary. The lever is making existing primitives better, not adding more.
+- Figma export integrations.
+- JS in components (no reactivity, no client islands, no scoped JS). Templates stay as Handlebars-shaped macros.
+- Multiple invocation syntaxes coexisting long-term. Migrate cleanly to tags; deprecate `:::name`.
+
+## Cross-reference: code-review issues
+
+The original code review surfaced issues outside the authoring-experience scope; most are now landed via the code-quality plan (`2026-05-08-tender-code-quality-plan.md`). Items addressed here:
+
+- **Lint stub** (`result.warnings` declared but unpopulated) → item 8 rebuilds it as a real check system.
+- **Schema-level errors degrade** (Zod errors reach user verbatim) → item 3's diagnostics provider gives precise authoring-time errors.
+- **No template composition** → item 10b introduces `extends`.
+- **Density of `compose/project-css.ts:138-204`** → addressed in the code-quality plan; further indirectly by 10b (shared structure factors out via composition).
+
+The remaining code-review items (dead `parseMarkdown`, build.ts regex heuristic, `inlineAssets` regex, golden tests, persistent Chromium, render timeout, README docs, cover-spiral investigation, project-css refactor) all landed via the code-quality plan in commit `b845330`'s sequel — so they don't need re-tracking here.
