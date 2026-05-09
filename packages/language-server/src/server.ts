@@ -10,6 +10,8 @@ import { TextDocument } from "vscode-languageserver-textdocument";
 import { fileURLToPath } from "node:url";
 import { loadProjectIndex } from "./project-index.js";
 import type { ProjectIndex } from "./project-index.js";
+import { provideCompletion, COMPLETION_TRIGGER_CHARACTERS } from "./providers/completion.js";
+import { provideHover } from "./providers/hover.js";
 
 /**
  * Boots a Tender language server on the given JSON-RPC connection. Returns
@@ -49,9 +51,33 @@ export function startServer(connection: Connection): ServerHandle {
     }
     return {
       capabilities: {
-        textDocumentSync: TextDocumentSyncKind.Incremental
+        textDocumentSync: TextDocumentSyncKind.Incremental,
+        completionProvider: {
+          triggerCharacters: COMPLETION_TRIGGER_CHARACTERS
+        },
+        hoverProvider: true
       }
     };
+  });
+
+  connection.onCompletion((params) => {
+    const document = documents.get(params.textDocument.uri);
+    if (!document) return [];
+    return provideCompletion({
+      index: projectIndex,
+      document,
+      position: params.position
+    });
+  });
+
+  connection.onHover((params) => {
+    const document = documents.get(params.textDocument.uri);
+    if (!document) return null;
+    return provideHover({
+      index: projectIndex,
+      document,
+      position: params.position
+    });
   });
 
   documents.listen(connection);
