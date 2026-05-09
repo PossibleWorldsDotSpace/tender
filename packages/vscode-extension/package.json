@@ -1,0 +1,63 @@
+{
+  "name": "tender-vscode",
+  "displayName": "Tender",
+  "description": "Authoring support for Tender — layout-as-code for print PDFs.",
+  "version": "0.0.0",
+  "private": true,
+  "publisher": "tender",
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": ["Programming Languages", "Snippets"],
+  "main": "./dist/extension.js",
+  "activationEvents": [
+    "workspaceContains:project.yaml",
+    "onLanguage:tender"
+  ],
+  "contributes": {
+    "languages": [
+      {
+        "id": "tender",
+        "aliases": ["Tender", "tender"],
+        "extensions": [".tender"],
+        "configuration": "./language-configuration.json"
+      }
+    ],
+    "snippets": [
+      {
+        "language": "markdown",
+        "path": "./snippets/tender-md.code-snippets"
+      },
+      {
+        "language": "tender",
+        "path": "./snippets/tender.code-snippets"
+      }
+    ],
+    "configuration": {
+      "title": "Tender",
+      "properties": {
+        "tender.lsp.trace": {
+          "type": "string",
+          "enum": ["off", "messages", "verbose"],
+          "default": "off",
+          "description": "Trace LSP messages between VS Code and the Tender language server."
+        }
+      }
+    }
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "test": "vitest run --passWithNoTests",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "package": "vsce package --no-dependencies"
+  },
+  "dependencies": {
+    "@tender/language-server": "workspace:*",
+    "vscode-languageclient": "^9.0.1"
+  },
+  "devDependencies": {
+    "@types/vscode": "^1.85.0",
+    "typescript": "^5.4.0",
+    "vitest": "^1.6.0"
+  }
+}

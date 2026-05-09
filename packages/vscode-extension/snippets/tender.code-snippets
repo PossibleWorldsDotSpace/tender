@@ -1,0 +1,72 @@
+{
+  "Wrapper component scaffold": {
+    "prefix": "wrapper",
+    "body": [
+      "---",
+      "tag: ${1:span}",
+      "class: ${2:my-class}",
+      "${3|inline: true,params: [${4:variant}]|}",
+      "---",
+      "",
+      "<style>",
+      ".${2:my-class} {",
+      "  $0",
+      "}",
+      "</style>"
+    ],
+    "description": "Scaffold a wrapper-style Tender component."
+  },
+  "Block-template component scaffold": {
+    "prefix": "template",
+    "body": [
+      "---",
+      "params: [${1:label}]",
+      "---",
+      "",
+      "<div class=\"${2:my-block}\">",
+      "  ${3:{{#if ${1:label}}}<span>{{${1:label}}}</span>{{/if}}}",
+      "  <div class=\"body\">{{{body}}}</div>",
+      "</div>",
+      "",
+      "<style>",
+      ".${2:my-block} {",
+      "  $0",
+      "}",
+      "</style>"
+    ],
+    "description": "Scaffold a block-template Tender component."
+  },
+  "Multi-slot component scaffold": {
+    "prefix": "slots",
+    "body": [
+      "---",
+      "slots: [${1:left}, ${2:right}]",
+      "---",
+      "",
+      "<div class=\"${3:two-pane}\">",
+      "  <div class=\"left\">{{{${1:left}}}}</div>",
+      "  <div class=\"right\">{{{${2:right}}}}</div>",
+      "</div>",
+      "",
+      "<style>",
+      ".${3:two-pane} {",
+      "  display: grid;",
+      "  grid-template-columns: 1fr 1fr;",
+      "  $0",
+      "}",
+      "</style>"
+    ],
+    "description": "Scaffold a multi-slot Tender component."
+  },
+  "Palette example": {
+    "prefix": "palette",
+    "body": [
+      "<palette>",
+      "params: { ${1:label}: \"${2:Sample}\" }",
+      "body: \"${3:Sample body content.}\"",
+      "$0",
+      "</palette>"
+    ],
+    "description": "Add a palette example block to a .tender file."
+  }
+}

@@ -1,0 +1,42 @@
+{
+  "Page break": {
+    "prefix": "page",
+    "body": [
+      "<page${1: template=\"$2\"}>",
+      "",
+      "$0",
+      "",
+      "</page>"
+    ],
+    "description": "Insert a Tender page block. Optional template= attribute selects a named page template from project.yaml."
+  },
+  "Row": {
+    "prefix": "row",
+    "body": [
+      "<row${1: label=\"$2\"}>",
+      "",
+      "$0",
+      "",
+      "</row>"
+    ],
+    "description": "Insert a Tender row component."
+  },
+  "Callout": {
+    "prefix": "callout",
+    "body": [
+      "<callout${1: variant=\"$2\"}>",
+      "",
+      "$0",
+      "",
+      "</callout>"
+    ],
+    "description": "Insert a Tender callout component."
+  },
+  "Self-closing component": {
+    "prefix": "self",
+    "body": [
+      "<${1:component-name} />"
+    ],
+    "description": "Insert a self-closing Tender component (e.g. <cover-spiral />)."
+  }
+}
