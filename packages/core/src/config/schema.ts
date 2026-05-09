@@ -1,5 +1,21 @@
 import { z } from "zod";
 
+/**
+ * Allowlist of inline-shortcut characters (item 6). Single characters that
+ * don't collide with CommonMark inline syntax (`*`, `_`, `` ` ``, `~`, etc.)
+ * and don't carry strong prose-punctuation expectations:
+ *
+ *   `@`  rare in prose; common as @handle marker but Markdown doesn't claim it.
+ *   `%`  rare in prose.
+ *   `|`  CommonMark only uses `|` inside table extensions.
+ *   `§`  non-ASCII section symbol; unambiguous.
+ *
+ * `^` is excluded because pandoc-style superscript (`^x^`) is widely
+ * supported. Other punctuation (`?`, `!`, `:`, `;`, `/`, `$`) is excluded
+ * because of strong prose or URL-like collision risks.
+ */
+export const SHORTCUT_ALLOWLIST = new Set(["@", "%", "|", "§"]);
+
 const Length = z.string().regex(/^-?\d+(\.\d+)?(mm|cm|in|pt|px)$/);
 const PageSize = z.union([
   z.enum(["A4", "A5", "A6", "Letter", "Legal"]),
@@ -121,6 +137,19 @@ export const ProjectConfig = z.object({
   "page-templates": z.record(z.string(), PageTemplate)
     .refine(t => "default" in t, { message: "page-templates.default is required" }),
   components: z.record(z.string(), Component).optional(),
+  /**
+   * Single-character marks (e.g. `@speaker@`) that expand to inline
+   * components. The character must be in SHORTCUT_ALLOWLIST; the mapped
+   * component name is validated at registry-load time (must exist; must be
+   * inline:true).
+   */
+  "inline-shortcuts": z.record(
+    z.string().refine(
+      c => c.length === 1 && SHORTCUT_ALLOWLIST.has(c),
+      { message: "inline-shortcut character must be one of: @ % | §" }
+    ),
+    z.string()
+  ).optional(),
   typography: Typography.optional(),
   fonts: z.array(Font).optional(),
   render: Render.optional()

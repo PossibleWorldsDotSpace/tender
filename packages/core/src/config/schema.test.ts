@@ -183,4 +183,39 @@ describe("ProjectConfig", () => {
       })
     ).toThrow();
   });
+
+  it("accepts an inline-shortcuts mapping with allowlisted characters", () => {
+    const c = ProjectConfig.parse({
+      "page-templates": { default: { size: "A5", margin: 0 } },
+      "inline-shortcuts": { "@": "speaker-name", "%": "yellow-tag" }
+    });
+    expect(c["inline-shortcuts"]?.["@"]).toBe("speaker-name");
+    expect(c["inline-shortcuts"]?.["%"]).toBe("yellow-tag");
+  });
+
+  it("accepts § as an allowlisted shortcut character", () => {
+    const c = ProjectConfig.parse({
+      "page-templates": { default: { size: "A5", margin: 0 } },
+      "inline-shortcuts": { "§": "section-mark" }
+    });
+    expect(c["inline-shortcuts"]?.["§"]).toBe("section-mark");
+  });
+
+  it("rejects shortcut characters outside the allowlist", () => {
+    expect(() =>
+      ProjectConfig.parse({
+        "page-templates": { default: { size: "A5", margin: 0 } },
+        "inline-shortcuts": { "*": "stage-direction" }
+      })
+    ).toThrow(/@ % \| §/);
+  });
+
+  it("rejects multi-character shortcut keys", () => {
+    expect(() =>
+      ProjectConfig.parse({
+        "page-templates": { default: { size: "A5", margin: 0 } },
+        "inline-shortcuts": { "@@": "x" }
+      })
+    ).toThrow();
+  });
 });
