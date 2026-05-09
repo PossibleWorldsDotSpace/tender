@@ -3,6 +3,7 @@ import { join } from "node:path";
 import { loadProjectRegistry } from "../parse/load-project-registry.js";
 import { checkUnusedComponent } from "./checks/unused-component.js";
 import { checkMissingAsset } from "./checks/missing-asset.js";
+import { checkDeprecatedSyntax } from "./checks/deprecated-syntax.js";
 import type { LintFinding, LintReport } from "./report.js";
 
 /**
@@ -34,6 +35,7 @@ export async function runLint(projectDir: string): Promise<LintReport> {
 
   findings.push(...checkUnusedComponent({ registry, contentMd }));
   findings.push(...await checkMissingAsset({ projectDir, registry, contentMd }));
+  findings.push(...checkDeprecatedSyntax({ projectDir, registry, contentMd }));
 
   return { findings };
 }
