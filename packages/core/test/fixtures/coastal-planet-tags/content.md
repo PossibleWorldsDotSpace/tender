@@ -1,4 +1,4 @@
-<page template="cover">
+=== page{template=cover}
 
 <div class="cover-title">
 
@@ -23,9 +23,7 @@ The game is experiential, reflective, and collaborative. Connect across generati
 
 <cover-spiral />
 
-</page>
-
-<page>
+=== page
 
 <spanning-row>
 
@@ -71,9 +69,7 @@ De-roling gives participants a chance to step out of their characters and reflec
 
 </row>
 
-</page>
-
-<page>
+=== page
 
 <spanning-row>
 
@@ -95,9 +91,7 @@ Welcome everyone. We're so glad you're here. Today we're going to travel through
 
 </row>
 
-</page>
-
-<page>
+=== page
 
 <ad-lib>
 
@@ -119,9 +113,7 @@ The humour here is intentional. It eases tension at the start of the role-playin
 
 </row>
 
-</page>
-
-<page>
+=== page
 
 <spanning-row>
 
@@ -165,5 +157,3 @@ You can either send this digital file to be printed approx. 840mm × 1680mm or c
 - Sea-themed snacks like seaweed popcorn
 
 </row>
-
-</page>

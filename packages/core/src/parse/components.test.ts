@@ -134,22 +134,45 @@ describe("built-in page component", () => {
     expect(result.startsWithPage).toBe(true);
   });
 
-  it("reports startsWithPage=false when source opens with prose", async () => {
+  it("reports startsWithPage=true when prose source is auto-wrapped by the page preprocessor", async () => {
+    // With item 4's preprocessPageBoundaries, prose-opening content gets an
+    // implicit <page> wrap, so the AST always starts with a page directive
+    // under the default tag-syntax pipeline.
     const cfg = {
       "page-templates": { default: { size: "A5", margin: 0 as const } }
     } as unknown as ProjectConfig;
     const result = await parseProject(`# A heading\n\nA paragraph.\n`, cfg);
-    expect(result.startsWithPage).toBe(false);
+    expect(result.startsWithPage).toBe(true);
   });
 
-  it("reports startsWithPage=false when first directive is not page", async () => {
+  it("reports startsWithPage=false when source opens with prose under TENDER_TAG_SYNTAX=0", async () => {
+    // The escape-hatch path skips preprocessPageBoundaries entirely; under
+    // it, startsWithPage retains its original meaning.
+    const cfg = {
+      "page-templates": { default: { size: "A5", margin: 0 as const } }
+    } as unknown as ProjectConfig;
+    process.env.TENDER_TAG_SYNTAX = "0";
+    try {
+      const result = await parseProject(`# A heading\n\nA paragraph.\n`, cfg);
+      expect(result.startsWithPage).toBe(false);
+    } finally {
+      delete process.env.TENDER_TAG_SYNTAX;
+    }
+  });
+
+  it("reports startsWithPage=false when first directive is not page under TENDER_TAG_SYNTAX=0", async () => {
     const cfg = {
       "page-templates": { default: { size: "A5", margin: 0 as const } },
       components: {
         callout: { template: `<aside>{{{body}}}</aside>` }
       }
     } as unknown as ProjectConfig;
-    const result = await parseProject(`:::callout\nHi\n:::\n`, cfg);
-    expect(result.startsWithPage).toBe(false);
+    process.env.TENDER_TAG_SYNTAX = "0";
+    try {
+      const result = await parseProject(`:::callout\nHi\n:::\n`, cfg);
+      expect(result.startsWithPage).toBe(false);
+    } finally {
+      delete process.env.TENDER_TAG_SYNTAX;
+    }
   });
 });

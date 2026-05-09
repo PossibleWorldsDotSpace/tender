@@ -7,6 +7,7 @@ import type { Plugin } from "unified";
 import type { Root } from "mdast";
 import { resolveComponents } from "./components.js";
 import { preprocessTags } from "./preprocess-tags.js";
+import { preprocessPageBoundaries } from "./preprocess-page-boundaries.js";
 import { BUILTIN_COMPONENTS } from "../builtins.js";
 import type { ProjectConfig } from "../config/schema.js";
 
@@ -45,9 +46,13 @@ export async function parseProject(source: string, config: ProjectConfig): Promi
     }
   };
 
-  const processedSource = tagSyntaxEnabled()
-    ? preprocessTags(source, buildPreprocessOptions(config)).source
+  const afterPages = tagSyntaxEnabled()
+    ? preprocessPageBoundaries(source).source
     : source;
+
+  const processedSource = tagSyntaxEnabled()
+    ? preprocessTags(afterPages, buildPreprocessOptions(config)).source
+    : afterPages;
 
   const file = await unified()
     .use(remarkParse)
