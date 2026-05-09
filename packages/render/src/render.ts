@@ -16,6 +16,11 @@ const pagedJsPath = join(pagedJsPkgRoot, "dist", "paged.polyfill.js");
 export interface RenderInput {
   html: string;
   projectCss: string;
+  /**
+   * Concatenated <style> blocks from every .tender component, served in the
+   * cascade between _project.css and styles.css. May be empty.
+   */
+  componentsCss?: string;
   stylesCss: string;
   projectDir: string;
   /**
@@ -29,12 +34,17 @@ const DEFAULT_TIMEOUT_MS = 60_000;
 
 async function setupPage(input: RenderInput, browser: Browser): Promise<Page> {
   const timeoutMs = input.timeoutMs ?? DEFAULT_TIMEOUT_MS;
+  const componentsCss = input.componentsCss ?? "";
   const page = await browser.newPage();
   await page.setRequestInterception(true);
   page.on("request", req => {
     const url = req.url();
     if (url.endsWith("/_project.css")) {
       req.respond({ status: 200, contentType: "text/css", body: input.projectCss });
+      return;
+    }
+    if (url.endsWith("/_components.css")) {
+      req.respond({ status: 200, contentType: "text/css", body: componentsCss });
       return;
     }
     if (url.endsWith("/styles.css")) {
@@ -58,7 +68,7 @@ async function setupPage(input: RenderInput, browser: Browser): Promise<Page> {
   // returns a promise that resolves to the rendered flow.
   const pagedJsSrc = await readFile(pagedJsPath, "utf8");
   await page.evaluate(
-    (src: string, projectCss: string, stylesCss: string, ms: number) => new Promise<void>((resolve, reject) => {
+    (src: string, projectCss: string, componentsCss: string, stylesCss: string, ms: number) => new Promise<void>((resolve, reject) => {
       const timer = setTimeout(() => reject(new Error(
         `Paged.js render exceeded ${ms}ms. ` +
         `If your document is long, try a higher render.timeout-ms in project.yaml ` +
@@ -77,12 +87,13 @@ async function setupPage(input: RenderInput, browser: Browser): Promise<Page> {
         }).PagedPolyfill;
         const bodyHtml = document.body.innerHTML;
         document.body.innerHTML = "";
-        // Pass project CSS (and any user styles.css) directly as
-        // { url: cssText } objects so Paged.js' polisher receives the @page
-        // and break-before rules instead of trying to refetch <link>s that
-        // would have been removed during the preview phase.
+        // Pass each stylesheet to Paged.js' polisher as { url: cssText } so it
+        // receives the @page and break rules directly instead of refetching
+        // <link>s that would have been removed during preview. Order matches
+        // the cascade declared in composeDocument: project → components → user.
         const sheets: Array<Record<string, string>> = [];
         if (projectCss) sheets.push({ "_project.css": projectCss });
+        if (componentsCss) sheets.push({ "_components.css": componentsCss });
         if (stylesCss) sheets.push({ "styles.css": stylesCss });
         previewer.preview(bodyHtml, sheets, document.body)
           .then(() => { clearTimeout(timer); resolve(); })
@@ -94,6 +105,7 @@ async function setupPage(input: RenderInput, browser: Browser): Promise<Page> {
     }),
     pagedJsSrc,
     input.projectCss,
+    componentsCss,
     input.stylesCss,
     timeoutMs
   );

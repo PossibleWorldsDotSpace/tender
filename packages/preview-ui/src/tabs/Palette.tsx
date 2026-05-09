@@ -1,17 +1,19 @@
 import { createResource, createEffect, For, Show } from "solid-js";
-import { fetchPalette, fetchStylesCss, fetchProjectCss } from "../api.ts";
+import { fetchPalette, fetchStylesCss, fetchProjectCss, fetchComponentsCss } from "../api.ts";
 import { Tile } from "../components/Tile.tsx";
 import { hoistFontFaces } from "../util/fonts.ts";
 import { useReload } from "../reload-context.ts";
 import "./Palette.css";
 
 async function loadAll() {
-  const [palette, stylesCss, projectCss] = await Promise.all([
+  const [palette, stylesCss, projectCss, componentsCss] = await Promise.all([
     fetchPalette(),
     fetchStylesCss(),
-    fetchProjectCss()
+    fetchProjectCss(),
+    fetchComponentsCss()
   ]);
-  return { palette, css: projectCss + "\n" + stylesCss };
+  // Cascade order matches composeDocument: project → components → user.
+  return { palette, css: [projectCss, componentsCss, stylesCss].join("\n") };
 }
 
 export function Palette() {

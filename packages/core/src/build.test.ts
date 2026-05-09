@@ -1,4 +1,6 @@
 import { describe, it, expect } from "vitest";
+import { mkdtemp, mkdir, writeFile, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
 import { buildProject } from "./build.js";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
@@ -35,6 +37,36 @@ describe("buildProject", () => {
   it("with-image fixture: builds without errors and image is referenced in HTML", async () => {
     const result = await buildProject(join(fixturesDir, "with-image"));
     expect(result.html).toContain('src="assets/images/dot.png"');
+  });
+
+  it("populates componentsCss from .tender component <style> blocks", async () => {
+    const dir = await mkdtemp(join(tmpdir(), "tender-build-"));
+    try {
+      await writeFile(
+        join(dir, "project.yaml"),
+        "page-templates: { default: { size: A5, margin: 0 } }\n"
+      );
+      await writeFile(join(dir, "content.md"), "# Hello\n");
+      await mkdir(join(dir, "components"), { recursive: true });
+      await writeFile(
+        join(dir, "components", "widget.tender"),
+        [
+          "---", "tag: div", "---", "",
+          "<style>", ".widget { color: red; }", "</style>"
+        ].join("\n")
+      );
+      const result = await buildProject(dir);
+      expect(result.componentsCss).toContain(".widget { color: red; }");
+      // The composed HTML references the new stylesheet.
+      expect(result.html).toContain('href="_components.css"');
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  });
+
+  it("returns empty componentsCss when a project has no .tender files", async () => {
+    const result = await buildProject(join(fixturesDir, "hello"));
+    expect(result.componentsCss).toBe("");
   });
 
   it("coastal-planet fixture: HTML output is structurally stable", async () => {

@@ -58,6 +58,12 @@ export async function fetchProjectCss(): Promise<string> {
   return res.text();
 }
 
+export async function fetchComponentsCss(): Promise<string> {
+  const res = await fetch("/_api/_components.css");
+  if (!res.ok) throw new Error(`_components.css fetch failed: ${res.status}`);
+  return res.text();
+}
+
 export function connectReloadSocket(onMessage: (msg: WsMessage) => void): () => void {
   let ws: WebSocket | null = null;
   let closed = false;

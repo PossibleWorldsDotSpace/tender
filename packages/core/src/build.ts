@@ -1,6 +1,6 @@
 import { readFile } from "node:fs/promises";
 import { join, basename } from "node:path";
-import { loadProjectConfig } from "./config/load.js";
+import { loadProjectRegistry } from "./parse/load-project-registry.js";
 import { parseProject } from "./parse/project-parser.js";
 import { composeDocument } from "./compose/document.js";
 import { generateProjectCss } from "./compose/project-css.js";
@@ -9,6 +9,8 @@ import type { ProjectConfig } from "./config/schema.js";
 export interface BuildResult {
   html: string;
   projectCss: string;
+  /** Concatenated <style> blocks from every .tender component, alphabetical-by-name. */
+  componentsCss: string;
   stylesCss: string;
   config: ProjectConfig;
   projectDir: string;
@@ -17,14 +19,31 @@ export interface BuildResult {
 }
 
 export async function buildProject(projectDir: string): Promise<BuildResult> {
-  const config = await loadProjectConfig(projectDir);
+  const { config, registry } = await loadProjectRegistry(projectDir);
+
+  // The parser consumes ProjectConfig; the registry replaces (or augments)
+  // its `components` field with whatever loadProjectRegistry resolved.
+  const mergedComponents: Record<string, NonNullable<ProjectConfig["components"]>[string]> = {};
+  for (const [name, entry] of registry.byName) {
+    mergedComponents[name] = entry.def;
+  }
+  const mergedConfig: ProjectConfig = { ...config, components: mergedComponents };
+
   const md = await readFile(join(projectDir, "content.md"), "utf8");
   const stylesCss = await readFile(join(projectDir, "styles.css"), "utf8").catch(() => "");
-  const { html: parsed, startsWithPage } = await parseProject(md, config);
+  const { html: parsed, startsWithPage } = await parseProject(md, mergedConfig);
   const bodyHtml = startsWithPage ? parsed : `<div class="page">${parsed}</div>`;
-  const lang = config.typography?.lang ?? "en";
+  const lang = mergedConfig.typography?.lang ?? "en";
   const html = composeDocument({ bodyHtml, lang, title: basename(projectDir) });
-  const projectCss = generateProjectCss(config, { docTitle: basename(projectDir) });
-  const timeoutMs = config.render?.["timeout-ms"];
-  return { html, projectCss, stylesCss, config, projectDir, timeoutMs };
+  const projectCss = generateProjectCss(mergedConfig, { docTitle: basename(projectDir) });
+  const timeoutMs = mergedConfig.render?.["timeout-ms"];
+  return {
+    html,
+    projectCss,
+    componentsCss: registry.combinedCss,
+    stylesCss,
+    config: mergedConfig,
+    projectDir,
+    timeoutMs
+  };
 }

@@ -183,6 +183,15 @@ export async function startPreviewServer(opts: PreviewOptions): Promise<RunningS
     }
   });
 
+  app.get("/_api/_components.css", async (_req, res, next) => {
+    try {
+      const result = await ensureBuildResult();
+      res.type("text/css").send(result.componentsCss);
+    } catch (err) {
+      next(err);
+    }
+  });
+
   app.get("/_preview", async (_req, res) => {
     res.type("html").send(cachedHtml ?? "");
   });
