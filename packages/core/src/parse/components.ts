@@ -150,7 +150,11 @@ async function mdChildrenToHtml(children: RootContent[], config: ProjectConfig):
   return processor.stringify(hastTree as never) as string;
 }
 
-const SENTINEL_LINE_RE = /^---\s+([\w-]+)\s+---$/;
+// Recognizes both forms:
+//   - Legacy: `--- slotname ---` (deprecated; flagged by lint v1).
+//   - New:    `@@ slotname` (item 5; visually distinct, single-token).
+// Capture groups: [1] = legacy form's name, [2] = new form's name.
+const SENTINEL_LINE_RE = /^(?:---\s+([\w-]+)\s+---|@@\s+([\w-]+))\s*$/;
 
 interface TextChild {
   type: string;
@@ -182,7 +186,7 @@ function explodeSentinels(children: RootContent[]): Array<RootContent | { type: 
       if (only && only.type === "text" && typeof only.value === "string") {
         const m = only.value.match(SENTINEL_LINE_RE);
         if (m) {
-          out.push({ type: "_slotSentinel", name: m[1]! });
+          out.push({ type: "_slotSentinel", name: (m[1] ?? m[2])! });
           continue;
         }
       }
@@ -194,7 +198,7 @@ function explodeSentinels(children: RootContent[]): Array<RootContent | { type: 
       for (const line of lines) {
         const m = line.match(SENTINEL_LINE_RE);
         if (m) {
-          segments.push({ name: m[1]!, lines: [] });
+          segments.push({ name: (m[1] ?? m[2])!, lines: [] });
         } else {
           segments[segments.length - 1]!.lines.push(line);
         }

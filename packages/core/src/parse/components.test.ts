@@ -96,6 +96,43 @@ describe("block-template components (multi-slot)", () => {
     expect(html).toContain('"Hello world."');
   });
 
+  it("recognizes @@ slotname as the new slot sentinel", async () => {
+    const cfg = {
+      "page-templates": { default: { size: "A5", margin: 0 as const } },
+      components: {
+        "ad-lib": {
+          slots: ["suggested"],
+          template: `<div class="ad-lib"><div class="s">{{{suggested}}}</div></div>`
+        }
+      }
+    } as unknown as ProjectConfig;
+    const src = `<ad-lib>\n@@ suggested\n\n"Hi."\n</ad-lib>\n`;
+    const { html } = await parseProject(src, cfg);
+    expect(html).toContain('class="ad-lib"');
+    expect(html).toContain('"Hi."');
+  });
+
+  it("@@ form produces byte-identical output to legacy --- form", async () => {
+    const cfg = {
+      "page-templates": { default: { size: "A5", margin: 0 as const } },
+      components: {
+        "ad-lib": {
+          slots: ["suggested"],
+          template: `<div class="ad-lib"><div class="s">{{{suggested}}}</div></div>`
+        }
+      }
+    } as unknown as ProjectConfig;
+    const a = await parseProject(
+      `<ad-lib>\n@@ suggested\n\n"Hello world."\n</ad-lib>\n`,
+      cfg
+    );
+    const b = await parseProject(
+      `<ad-lib>\n--- suggested ---\n\n"Hello world."\n</ad-lib>\n`,
+      cfg
+    );
+    expect(a.html).toBe(b.html);
+  });
+
   it("errors when a multi-slot template's required slot is missing", async () => {
     const cfg = {
       "page-templates": { default: { size: "A5", margin: 0 as const } },

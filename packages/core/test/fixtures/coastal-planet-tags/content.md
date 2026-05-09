@@ -95,7 +95,7 @@ Welcome everyone. We're so glad you're here. Today we're going to travel through
 
 <ad-lib>
 
---- suggested ---
+@@ suggested
 
 "Before we begin, I want to name a few things about where we are and why we're gathered. [Name your location.] This place has a long relationship with the sea — with the creatures, the weather, the industries and communities that have shaped it over generations…"
 

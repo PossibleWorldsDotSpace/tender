@@ -99,6 +99,21 @@ describe("diagnostics — markdown registry checks", () => {
     expect(result).toEqual([]);
   });
 
+  it("recognizes @@ slot markers (item 5 form)", () => {
+    const result = provideDiagnostics({
+      index: syntheticIndex([
+        { name: "ad-lib", slots: ["suggested"] }
+      ]),
+      document: md(
+        "<ad-lib>\n@@ suggested\nA\n@@ response\nB\n</ad-lib>"
+      )
+    });
+    // `response` is undeclared; should warn.
+    expect(result.length).toBe(1);
+    expect(result[0]?.severity).toBe(DiagnosticSeverity.Warning);
+    expect(result[0]?.message).toMatch(/Slot "response"/);
+  });
+
   it("forwards parser diagnostics for unclosed tags", () => {
     const result = provideDiagnostics({
       index: syntheticIndex([{ name: "row" }]),

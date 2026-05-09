@@ -29,7 +29,9 @@ export interface DiagnosticsContext {
   document: TextDocument;
 }
 
-const SLOT_MARKER_RE = /^---\s+([\w-]+)\s+---\s*$/;
+// Recognizes both forms: legacy `--- name ---` and new `@@ name`.
+// Capture groups: [1] = legacy name, [2] = new name.
+const SLOT_MARKER_RE = /^(?:---\s+([\w-]+)\s+---|@@\s+([\w-]+))\s*$/;
 
 export function provideDiagnostics(ctx: DiagnosticsContext): Diagnostic[] {
   const path = uriPath(ctx.document.uri);
@@ -87,10 +89,11 @@ function diagnoseMarkdown(ctx: DiagnosticsContext): Diagnostic[] {
       for (const segment of body.split("\n")) {
         const m = segment.match(SLOT_MARKER_RE);
         if (m) {
-          if (!declaredSlots.has(m[1]!)) {
+          const slotName = (m[1] ?? m[2])!;
+          if (!declaredSlots.has(slotName)) {
             out.push({
               severity: DiagnosticSeverity.Warning,
-              message: `Slot "${m[1]}" is not declared on <${t.name}>. Declared slots: ${
+              message: `Slot "${slotName}" is not declared on <${t.name}>. Declared slots: ${
                 def.slots.length === 0 ? "(none)" : def.slots.join(", ")
               }.`,
               range: {
