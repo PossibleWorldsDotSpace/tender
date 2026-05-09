@@ -20,14 +20,65 @@ describe("ProjectConfig", () => {
     ).toThrow(/default/);
   });
 
-  it("parses a component definition", () => {
+  it("parses a wrapper-style component definition", () => {
     const c = ProjectConfig.parse({
       "page-templates": { default: { size: "A5", margin: 0 } },
       components: {
-        callout: { tag: "aside", class: "callout", attrs: ["variant"] }
+        callout: { tag: "aside", class: "callout", params: ["variant"] }
       }
     });
     expect(c.components?.callout?.tag).toBe("aside");
+    expect(c.components?.callout?.params).toEqual(["variant"]);
+  });
+
+  it("parses a block-template component definition", () => {
+    const c = ProjectConfig.parse({
+      "page-templates": { default: { size: "A5", margin: 0 } },
+      components: {
+        row: {
+          params: ["label", "icon"],
+          template: "<div class=\"row\">{{{body}}}</div>"
+        },
+        "ad-lib": {
+          slots: ["suggested"],
+          template: "<div>{{{suggested}}}</div>"
+        }
+      }
+    });
+    expect(c.components?.row?.params).toEqual(["label", "icon"]);
+    expect(c.components?.["ad-lib"]?.slots).toEqual(["suggested"]);
+    expect(c.components?.row?.template).toContain("{{{body}}}");
+  });
+
+  it("rejects a component that declares neither tag nor template", () => {
+    expect(() =>
+      ProjectConfig.parse({
+        "page-templates": { default: { size: "A5", margin: 0 } },
+        components: { broken: { params: ["x"] } }
+      })
+    ).toThrow(/either `tag`.*or `template`/);
+  });
+
+  it("rejects a component that declares both tag and template", () => {
+    expect(() =>
+      ProjectConfig.parse({
+        "page-templates": { default: { size: "A5", margin: 0 } },
+        components: {
+          confused: { tag: "div", template: "<div>{{{body}}}</div>" }
+        }
+      })
+    ).toThrow(/cannot declare both/);
+  });
+
+  it("rejects a wrapper component that declares slots", () => {
+    expect(() =>
+      ProjectConfig.parse({
+        "page-templates": { default: { size: "A5", margin: 0 } },
+        components: {
+          weird: { tag: "div", slots: ["a"] }
+        }
+      })
+    ).toThrow(/wrapper components.*cannot declare `slots`/);
   });
 
   it("parses headers/footers and verso/recto variants", () => {
@@ -77,14 +128,14 @@ describe("ProjectConfig", () => {
     expect(c.fonts?.[0]?.family).toBe("Display");
   });
 
-  it("accepts a palette block on a component", () => {
+  it("accepts a palette block on a wrapper component", () => {
     const c = ProjectConfig.parse({
       "page-templates": { default: { size: "A5", margin: 0 } },
       components: {
         callout: {
           tag: "aside",
           class: "callout",
-          attrs: ["variant"],
+          params: ["variant"],
           palette: {
             attrs: { variant: "warning" },
             body: "Watch your step.",
@@ -99,10 +150,10 @@ describe("ProjectConfig", () => {
     expect(c.components?.callout?.palette?.variants?.[0]?.body).toBe("Info.");
   });
 
-  it("accepts a palette block on a template with params and slots", () => {
+  it("accepts a palette block on a block-template component with slots", () => {
     const c = ProjectConfig.parse({
       "page-templates": { default: { size: "A5", margin: 0 } },
-      templates: {
+      components: {
         "ad-lib": {
           slots: ["suggested"],
           template: "<div>{{{suggested}}}</div>",
@@ -113,25 +164,7 @@ describe("ProjectConfig", () => {
         }
       }
     });
-    expect(c.templates?.["ad-lib"]?.palette?.slots?.suggested).toBe("Hello.");
-  });
-
-  it("parses a template definition with slots and params", () => {
-    const c = ProjectConfig.parse({
-      "page-templates": { default: { size: "A5", margin: 0 } },
-      templates: {
-        row: {
-          params: ["label", "icon"],
-          template: "<div class=\"row\">{{{body}}}</div>"
-        },
-        "ad-lib": {
-          slots: ["suggested"],
-          template: "<div>{{{suggested}}}</div>"
-        }
-      }
-    });
-    expect(c.templates?.row?.params).toEqual(["label", "icon"]);
-    expect(c.templates?.["ad-lib"]?.slots).toEqual(["suggested"]);
+    expect(c.components?.["ad-lib"]?.palette?.slots?.suggested).toBe("Hello.");
   });
 
   it("parses a render.timeout-ms override", () => {

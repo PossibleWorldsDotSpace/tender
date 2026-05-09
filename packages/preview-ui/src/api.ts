@@ -1,10 +1,8 @@
 export interface PaletteEntry {
   name: string;
-  kind: "component" | "template";
   meta: {
     tag?: string;
     class?: string;
-    attrs?: string[];
     params?: string[];
     slots?: string[];
     inline?: boolean;
@@ -20,7 +18,6 @@ export interface TypographySpecimen {
 
 export interface PaletteResponse {
   components: PaletteEntry[];
-  templates: PaletteEntry[];
   typography: TypographySpecimen[];
 }
 

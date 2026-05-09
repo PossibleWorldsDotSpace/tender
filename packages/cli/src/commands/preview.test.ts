@@ -129,10 +129,15 @@ describe("preview server", () => {
       expect(res.headers.get("content-type")).toMatch(/application\/json/);
       const body = await res.json();
       expect(body.components.length).toBeGreaterThan(0);
-      expect(body.templates.length).toBeGreaterThan(0);
       expect(body.typography.length).toBeGreaterThan(0);
-      expect(body.components[0].name).toBe("callout");
-      expect(body.components[0].renders[0].html).toContain("<aside");
+      // The fixture declares two components: `callout` (wrapper) and `row`
+      // (block template). After the merge both live in the same array;
+      // alphabetical insertion order from project.yaml puts `callout` first.
+      const calloutEntry = body.components.find((c: { name: string }) => c.name === "callout");
+      expect(calloutEntry).toBeDefined();
+      expect(calloutEntry.renders[0].html).toContain("<aside");
+      const rowEntry = body.components.find((c: { name: string }) => c.name === "row");
+      expect(rowEntry).toBeDefined();
     } finally {
       await server.close();
     }

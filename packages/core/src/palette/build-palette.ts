@@ -4,17 +4,14 @@ import type { ProjectConfig } from "../config/schema.js";
 
 export interface PaletteResponse {
   components: PaletteEntry[];
-  templates: PaletteEntry[];
   typography: TypographySpecimen[];
 }
 
 export interface PaletteEntry {
   name: string;
-  kind: "component" | "template";
   meta: {
     tag?: string;
     class?: string;
-    attrs?: string[];
     params?: string[];
     slots?: string[];
     inline?: boolean;
@@ -50,89 +47,77 @@ const TYPOGRAPHY: TypographySpecimen[] = [
   { id: "hr", label: "Horizontal rule", html: "<hr>" }
 ];
 
+type ComponentDef = NonNullable<ProjectConfig["components"]>[string];
+
 export async function buildPalette(config: ProjectConfig): Promise<PaletteResponse> {
   const components: PaletteEntry[] = [];
   for (const [name, def] of Object.entries(config.components ?? {})) {
     if (!def) continue;
     components.push(await buildComponentEntry(name, def, config));
   }
-  const templates: PaletteEntry[] = [];
-  for (const [name, def] of Object.entries(config.templates ?? {})) {
-    if (!def) continue;
-    templates.push(await buildTemplateEntry(name, def, config));
-  }
-  return { components, templates, typography: TYPOGRAPHY };
+  return { components, typography: TYPOGRAPHY };
 }
 
 async function buildComponentEntry(
   name: string,
-  def: NonNullable<ProjectConfig["components"]>[string],
+  def: ComponentDef,
   config: ProjectConfig
 ): Promise<PaletteEntry> {
   const renders: Render[] = [];
-  const baseAttrs = def.palette?.attrs ?? defaultAttrs(def.attrs);
-  const baseBody = def.palette?.body ?? placeholderBody(0);
-  renders.push({
-    label: "default",
-    html: await renderComponent(name, baseAttrs, baseBody, config, def.inline),
-    snippet: componentSnippet(name, baseAttrs, baseBody, def.inline)
-  });
-  const variants = def.palette?.variants ?? [];
-  for (let i = 0; i < variants.length; i++) {
-    const v = variants[i]!;
-    const attrs = { ...baseAttrs, ...(v.attrs ?? {}) };
-    const body = v.body ?? baseBody;
+  const isTemplate = def.template !== undefined;
+  if (isTemplate) {
+    const baseParams = def.palette?.params ?? defaultParams(def.params);
+    const baseBody = def.palette?.body ?? placeholderBody(0);
+    const baseSlots = def.palette?.slots ?? defaultSlots(def.slots, 1);
     renders.push({
-      label: `variant ${i + 1}`,
-      html: await renderComponent(name, attrs, body, config, def.inline),
-      snippet: componentSnippet(name, attrs, body, def.inline)
+      label: "default",
+      html: await renderTemplate(name, baseParams, baseBody, baseSlots, config),
+      snippet: templateSnippet(name, baseParams, baseBody, baseSlots, def.slots)
     });
+    for (let i = 0; i < (def.palette?.variants ?? []).length; i++) {
+      const v = def.palette!.variants![i]!;
+      const params = { ...baseParams, ...(v.params ?? {}) };
+      const body = v.body ?? baseBody;
+      const slots = { ...baseSlots, ...(v.slots ?? {}) };
+      renders.push({
+        label: `variant ${i + 1}`,
+        html: await renderTemplate(name, params, body, slots, config),
+        snippet: templateSnippet(name, params, body, slots, def.slots)
+      });
+    }
+  } else {
+    // Wrapper: previously called "Component" with `attrs`. Both are now stored
+    // under `params`; on a wrapper the resolver forwards them as `data-NAME`.
+    const baseAttrs = def.palette?.attrs ?? def.palette?.params ?? defaultParams(def.params);
+    const baseBody = def.palette?.body ?? placeholderBody(0);
+    renders.push({
+      label: "default",
+      html: await renderWrapper(name, baseAttrs, baseBody, config, def.inline),
+      snippet: wrapperSnippet(name, baseAttrs, baseBody, def.inline)
+    });
+    const variants = def.palette?.variants ?? [];
+    for (let i = 0; i < variants.length; i++) {
+      const v = variants[i]!;
+      const attrs = { ...baseAttrs, ...(v.attrs ?? v.params ?? {}) };
+      const body = v.body ?? baseBody;
+      renders.push({
+        label: `variant ${i + 1}`,
+        html: await renderWrapper(name, attrs, body, config, def.inline),
+        snippet: wrapperSnippet(name, attrs, body, def.inline)
+      });
+    }
   }
   return {
     name,
-    kind: "component",
-    meta: { tag: def.tag, class: def.class, attrs: def.attrs, inline: def.inline },
+    meta: {
+      tag: def.tag,
+      class: def.class,
+      params: def.params,
+      slots: def.slots,
+      inline: def.inline
+    },
     renders
   };
-}
-
-async function buildTemplateEntry(
-  name: string,
-  def: NonNullable<ProjectConfig["templates"]>[string],
-  config: ProjectConfig
-): Promise<PaletteEntry> {
-  const renders: Render[] = [];
-  const baseParams = def.palette?.params ?? defaultParams(def.params);
-  const baseBody = def.palette?.body ?? placeholderBody(0);
-  const baseSlots = def.palette?.slots ?? defaultSlots(def.slots, 1);
-  renders.push({
-    label: "default",
-    html: await renderTemplate(name, baseParams, baseBody, baseSlots, config),
-    snippet: templateSnippet(name, baseParams, baseBody, baseSlots, def.slots)
-  });
-  for (let i = 0; i < (def.palette?.variants ?? []).length; i++) {
-    const v = def.palette!.variants![i]!;
-    const params = { ...baseParams, ...(v.params ?? {}) };
-    const body = v.body ?? baseBody;
-    const slots = { ...baseSlots, ...(v.slots ?? {}) };
-    renders.push({
-      label: `variant ${i + 1}`,
-      html: await renderTemplate(name, params, body, slots, config),
-      snippet: templateSnippet(name, params, body, slots, def.slots)
-    });
-  }
-  return {
-    name,
-    kind: "template",
-    meta: { params: def.params, slots: def.slots },
-    renders
-  };
-}
-
-function defaultAttrs(attrs: string[] | undefined): Record<string, string> {
-  const out: Record<string, string> = {};
-  for (const a of attrs ?? []) out[a] = placeholderAttr(a);
-  return out;
 }
 
 function defaultParams(params: string[] | undefined): Record<string, string> {
@@ -148,7 +133,7 @@ function defaultSlots(slots: string[] | undefined, seedBase: number): Record<str
   return out;
 }
 
-async function renderComponent(
+async function renderWrapper(
   name: string,
   attrs: Record<string, string>,
   body: string,
@@ -182,7 +167,7 @@ async function renderTemplate(
   return (await parseProject(src, config)).html;
 }
 
-function componentSnippet(
+function wrapperSnippet(
   name: string,
   attrs: Record<string, string>,
   body: string,

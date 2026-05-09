@@ -25,9 +25,7 @@ components:
   callout:
     tag: aside
     class: callout
-    attrs: [variant]
-
-templates:
+    params: [variant]
   row:
     params: [label]
     template: |

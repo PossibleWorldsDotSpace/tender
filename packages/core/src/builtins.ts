@@ -1,8 +1,8 @@
 /**
- * Built-in templates that are always available without explicit declaration.
- * User templates with the same name override these.
+ * Built-in components that are always available without explicit declaration.
+ * User components with the same name override these.
  */
-export const BUILTIN_TEMPLATES: Record<
+export const BUILTIN_COMPONENTS: Record<
   string,
   { params?: readonly string[]; slots?: readonly string[]; template: string }
 > = {

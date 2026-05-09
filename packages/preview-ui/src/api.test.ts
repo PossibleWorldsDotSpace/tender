@@ -3,7 +3,7 @@ import { fetchPalette, fetchHelp } from "./api.ts";
 
 describe("api client", () => {
   it("fetchPalette parses JSON from /_api/palette", async () => {
-    const fakeResponse = { components: [], templates: [], typography: [] };
+    const fakeResponse = { components: [], typography: [] };
     vi.stubGlobal("fetch", vi.fn(() =>
       Promise.resolve(new Response(JSON.stringify(fakeResponse), { status: 200, headers: { "content-type": "application/json" } }))
     ));

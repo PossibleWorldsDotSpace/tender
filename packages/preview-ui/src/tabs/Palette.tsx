@@ -34,12 +34,6 @@ export function Palette() {
                 {(c) => <Tile title={c.name} meta={c.meta} renders={c.renders} css={d().css} />}
               </For>
             </Show>
-            <Show when={d().palette.templates.length > 0}>
-              <h2 class="palette-section">Layouts</h2>
-              <For each={d().palette.templates}>
-                {(t) => <Tile title={t.name} meta={t.meta} renders={t.renders} css={d().css} />}
-              </For>
-            </Show>
             <h2 class="palette-section">Typography specimen</h2>
             <For each={d().palette.typography}>
               {(t) => <Tile title={t.label} meta={{}} renders={[{ html: t.html, snippet: "" }]} css={d().css} />}

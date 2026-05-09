@@ -53,19 +53,40 @@ export const Palette = z.object({
   variants: z.array(PaletteVariant).optional()
 });
 
+/**
+ * A component is a layout element. Two flavors, distinguished by whether
+ * `template` is present:
+ *
+ * - **Wrapper** (no `template`): a fixed HTML wrapper. Declares `tag`, optional
+ *   `class`, optional `params` (forwarded as `data-NAME` attributes), and
+ *   optional `inline`.
+ * - **Block template** (has `template`): a Handlebars template. The `template`
+ *   string sees `{{{body}}}`, declared `{{params}}`, and named `{{{slots}}}`
+ *   when `slots` is set.
+ *
+ * The two are mutually exclusive at the field level: a `tag` is the wrapper's
+ * shorthand, and a `template` is the block-template's full body.
+ */
 export const Component = z.object({
-  tag: z.string(),
+  // Wrapper-only:
+  tag: z.string().optional(),
   class: z.string().optional(),
-  attrs: z.array(z.string()).optional(),
-  inline: z.boolean().optional(),
-  palette: Palette.optional()
-});
-
-export const Template = z.object({
+  // Common:
   params: z.array(z.string()).optional(),
   slots: z.array(z.string()).optional(),
-  template: z.string(),
+  inline: z.boolean().optional(),
+  // Template-only:
+  template: z.string().optional(),
   palette: Palette.optional()
+})
+.refine(c => c.tag !== undefined || c.template !== undefined, {
+  message: "component must declare either `tag` (wrapper) or `template` (Handlebars body)"
+})
+.refine(c => !(c.tag !== undefined && c.template !== undefined), {
+  message: "component cannot declare both `tag` and `template`"
+})
+.refine(c => !(c.template === undefined && c.slots !== undefined), {
+  message: "wrapper components (no `template`) cannot declare `slots`"
 });
 
 const Hyphenation = z.object({
@@ -100,7 +121,6 @@ export const ProjectConfig = z.object({
   "page-templates": z.record(z.string(), PageTemplate)
     .refine(t => "default" in t, { message: "page-templates.default is required" }),
   components: z.record(z.string(), Component).optional(),
-  templates: z.record(z.string(), Template).optional(),
   typography: Typography.optional(),
   fonts: z.array(Font).optional(),
   render: Render.optional()
