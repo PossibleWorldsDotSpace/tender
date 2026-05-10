@@ -15,3 +15,4 @@ jobs:
       - run: pnpm -r typecheck
       - run: pnpm -r build
       - run: pnpm -r test
+      - run: node scripts/lint-skill.mjs
