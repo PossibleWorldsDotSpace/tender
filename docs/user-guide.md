@@ -521,13 +521,115 @@ Each component's `<palette>` block (or the legacy palette: object inside frontma
 
 ---
 
+## Design tokens
+
+Your design vocabulary — colours, type sizes, leading, spacing — belongs in `project.yaml` under `design-tokens:` rather than scattered through `:root` in `styles.css`. Keeping it structured means it's scriptable (the `tender tokens` CLI can list, set, and edit values without you opening the file), it's lintable (Tender warns on unrecognisable values and unused tokens), and it's the single source of truth a Claude session or a teammate looks at first. Tokens compile to CSS custom properties at build time, so existing `var(--color-accent)` references in `styles.css` and component `<style>` blocks keep working unchanged.
+
+### The shape
+
+`design-tokens:` is a two-level map of `category → name → value`. Categories are open-ended — pick what fits your project. The set used by the `coastal-planet-tags` fixture is a good starting shape:
+
+```yaml
+design-tokens:
+  color:
+    ink: '#1a1a1a'
+    page: '#ffffff'
+    accent: '#FFE600'
+  font:
+    display: "'P22 Mackinac', Georgia, serif"
+    body: "'Inter', system-ui, sans-serif"
+  size:
+    body: 12pt
+    h1: 24pt
+    h2: 20pt
+  leading:
+    body: 1.6
+    head: 1.2
+```
+
+Both category and token names must match `[a-z][a-z0-9-]*` — lowercase, may contain digits and hyphens, must start with a letter. The same rule applies to both halves; `Color` or `2xl` or `accent_yellow` are all rejected.
+
+### Naming → CSS variable mapping
+
+`category.name` becomes `--category-name`. So:
+
+| In `project.yaml` | In CSS |
+|---|---|
+| `color.accent` | `var(--color-accent)` |
+| `size.body` | `var(--size-body)` |
+| `leading.head` | `var(--leading-head)` |
+| `font.display` | `var(--font-display)` |
+
+Use them anywhere in `styles.css` or component `<style>` blocks:
+
+```css
+body {
+  color: var(--color-ink);
+  font: var(--size-body)/var(--leading-body) var(--font-body);
+}
+h1 { font-size: var(--size-h1); line-height: var(--leading-head); }
+```
+
+### User CSS wins
+
+Design tokens emit into `_project.css`, which loads first. `styles.css` concatenates after, so anything you redeclare at `:root` in `styles.css` overrides the token. This is the documented escape hatch when you need to override a token in one project without editing `project.yaml`:
+
+```css
+/* styles.css — wins over design-tokens.color.brand */
+:root {
+  --color-brand: #ff3366;
+}
+```
+
+The cascade order is the same as everywhere else in Tender: `_project.css` → `_components.css` → `styles.css`. Source order does the work; no `!important` needed.
+
+### Deriving one token from another
+
+Token references inside `design-tokens:` itself are not supported in v1 — values are emitted verbatim. When you want one token to be an alias for another, do it at the CSS layer:
+
+```css
+:root {
+  --accent: var(--color-brand);
+  --rule: 1px solid var(--color-ink);
+}
+```
+
+This keeps the indirection visible in `styles.css` rather than hidden in YAML, and it composes with the user-CSS-wins rule above.
+
+### The `tender tokens` CLI
+
+Three subcommands, all operating on `project.yaml` in the current directory (or the path you pass).
+
+```
+tender tokens list                          # human-readable listing, grouped by category
+tender tokens list --json                   # machine-readable, for editor tooling
+tender tokens set color.accent '#FF6600'    # creates the token if not present; updates if it is
+tender tokens edit                          # opens $EDITOR on the design-tokens block (TTY required)
+```
+
+`set` is the right tool for scripted tweaks and one-off changes; `edit` is the right tool when you're rebalancing a whole palette and want a real editor. `list --json` is what the VS Code extension and the `tender-author` Claude skill consume.
+
+### Lint codes
+
+`tender lint` adds three checks for design tokens:
+
+| Code | Severity | What |
+|---|---|---|
+| `tender/token-name-invalid` | error | A category or token name doesn't match `[a-z][a-z0-9-]*`. |
+| `tender/token-value-shape` | warning | A value doesn't fit the category's expected shape — e.g. `color.x: "12pt"`, `size.x: "blue"`, `leading.x: "1px"`. Only fires for the well-known categories `color`, `size`, `space`, `leading`, `weight`; custom categories are skipped. |
+| `tender/token-unused` | info | A token is declared but no `var(--token-name)` reference appears in `styles.css` or any component `<style>` block. |
+
+Promote any of these to errors with `--strict`. The shape check is intentionally a warning, not an error: if you genuinely need a non-conforming value, the cascade lets you keep it.
+
+---
+
 ## `styles.css` conventions
 
 `styles.css` is plain CSS. A few conventions worth knowing:
 
 ### CSS custom properties for tokens
 
-Define design tokens once at `:root`, reference them throughout. Makes themes easy.
+The structured way to declare design tokens is `project.yaml`'s `design-tokens:` block — see [Design tokens](#design-tokens) above. You can also (or instead) define custom properties at `:root` directly in `styles.css`; the YAML route compiles to exactly this shape, and `styles.css` declarations override anything the YAML emits.
 
 ```css
 :root {
