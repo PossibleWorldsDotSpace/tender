@@ -56,11 +56,26 @@ Then start authoring components in the live preview.
 
 All three update automatically when you edit project files.
 
+## Design tokens
+
+Define your project's design vocabulary in `project.yaml` under `design-tokens:`:
+
+```yaml
+design-tokens:
+  color:
+    ink: '#1a1a1a'
+    accent: '#FFE600'
+  size:
+    body: 12pt
+```
+
+These compile to CSS custom properties (`--color-ink`, `--size-body`, …) your components consume via `var()`. See the [design tokens guide](docs/user-guide.md#design-tokens) for the full schema and the `tender tokens` CLI.
+
 ## Project structure
 
 ```
 my-doc/
-  project.yaml      # page templates, typography, fonts, inline shortcuts
+  project.yaml      # page templates, typography, fonts, inline shortcuts, design tokens
   styles.css        # presentation
   content.md        # prose + component invocations
   components/
@@ -78,6 +93,7 @@ my-doc/
 - `tender preview [dir]` — live-reloading HTML preview server (`--port`, `--host`)
 - `tender lint [dir]` — validate project; surface unused/unknown components, missing assets, deprecated syntax (`--strict`, `--json`)
 - `tender clean [path]` — sanitise content.md: strip paste artifacts; optionally apply smart typography (`--check`, `--yes`, `--typography`)
+- `tender tokens list|set|edit` — inspect and edit design tokens (`--json` on `list`)
 
 ## Reference
 
