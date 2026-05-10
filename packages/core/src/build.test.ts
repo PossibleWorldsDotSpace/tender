@@ -120,6 +120,15 @@ describe("buildProject", () => {
     expect(result.html).toContain('data-page-template="cover"');
   });
 
+  it("design-tokens fixture: tokens appear in projectCss before user styles", async () => {
+    const result = await buildProject(join(here, "../test/fixtures/design-tokens"));
+    expect(result.projectCss).toContain("--color-ink: #1a1a1a;");
+    expect(result.projectCss).toContain("--color-page: #ffffff;");
+    expect(result.projectCss).toContain("--size-body: 11pt;");
+    // user CSS is separate — its var() references are preserved verbatim
+    expect(result.stylesCss).toContain("var(--color-ink)");
+  });
+
   it("coastal-planet-paste-artifact: cleanText restores paste-artifact content to expected", async () => {
     // The fixture's content.md is a copy of coastal-planet-tags' content.md
     // with deliberately-introduced paste artifacts (BOM, NBSP, soft hyphen,

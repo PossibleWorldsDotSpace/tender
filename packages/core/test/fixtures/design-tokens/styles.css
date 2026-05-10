@@ -1,0 +1,5 @@
+body {
+  color: var(--color-ink);
+  background: var(--color-page);
+  font-size: var(--size-body);
+}
