@@ -6,7 +6,7 @@ import { lint, formatReport } from "./commands/lint.js";
 import { clean } from "./commands/clean.js";
 import { startPreviewServer } from "./commands/preview.js";
 import { init, formatInitResult } from "./commands/init.js";
-import { listTokens, formatTokensList, setToken } from "./commands/tokens.js";
+import { listTokens, formatTokensList, setToken, editTokens } from "./commands/tokens.js";
 import { renderBanner, shouldShowBanner } from "./ui/banner.js";
 import { startSpinner } from "./ui/spinner.js";
 import { red, dim, cyan } from "./ui/style.js";
@@ -182,6 +182,13 @@ tokensCmd
     const before = result.created ? dim("(new)") : (result.previous ?? "");
     console.log(`  ${cyan(token)}: ${before} → ${result.next}`);
     console.log(dim(`  Wrote ${join(projectDir, "project.yaml")}.`));
+  });
+
+tokensCmd
+  .command("edit [dir]")
+  .description("Interactive picker for design tokens (TTY required)")
+  .action(async (dir: string | undefined) => {
+    await editTokens(resolve(dir ?? "."));
   });
 
 // When no subcommand is given, print help. commander defaults to silently
