@@ -5,6 +5,8 @@ import type { ProjectConfig } from "../../config/schema.js";
 export interface TokensCheckInput {
   projectDir: string;
   tokens: ProjectConfig["design-tokens"];
+  /** All CSS that may consume tokens: styles.css + every component's <style> block. */
+  consumedCss?: string;
 }
 
 const CSS_NAMED_COLORS = new Set([
@@ -92,5 +94,24 @@ export function checkTokens(input: TokensCheckInput): LintFinding[] {
       }
     }
   }
+
+  if (input.consumedCss !== undefined && input.tokens) {
+    const css = input.consumedCss;
+    for (const [category, group] of Object.entries(input.tokens)) {
+      if (!group) continue;
+      for (const name of Object.keys(group)) {
+        const cssVar = `--${category}-${name}`;
+        if (!css.includes(cssVar)) {
+          findings.push({
+            code: "tender/token-unused",
+            severity: "info",
+            path,
+            message: `Token "${category}.${name}" is declared but never referenced as var(${cssVar}).`
+          });
+        }
+      }
+    }
+  }
+
   return findings;
 }

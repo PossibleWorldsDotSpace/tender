@@ -71,4 +71,25 @@ describe("checkTokens — value shape", () => {
     });
     expect(findings.length).toBe(1);
   });
+
+  it("flags tokens declared but never referenced as info", () => {
+    const findings = checkTokens({
+      projectDir: "/p",
+      tokens: { color: { used: "#000", lonely: "#fff" } },
+      consumedCss: "body { color: var(--color-used); }"
+    });
+    const unused = findings.filter(f => f.code === "tender/token-unused");
+    expect(unused.length).toBe(1);
+    expect(unused[0]?.severity).toBe("info");
+    expect(unused[0]?.message).toContain("color.lonely");
+  });
+
+  it("recognises tokens used in component <style> blocks", () => {
+    const findings = checkTokens({
+      projectDir: "/p",
+      tokens: { color: { ink: "#000" } },
+      consumedCss: ".callout { border-color: var(--color-ink); }"
+    });
+    expect(findings.filter(f => f.code === "tender/token-unused")).toEqual([]);
+  });
 });

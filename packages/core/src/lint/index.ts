@@ -52,7 +52,10 @@ export async function runLint(projectDir: string): Promise<LintReport> {
   findings.push(...checkUnknownComponent({ projectDir, registry, contentMd }));
   findings.push(...await checkMissingAsset({ projectDir, registry, contentMd }));
   findings.push(...checkDeprecatedSyntax({ projectDir, registry, contentMd }));
-  findings.push(...checkTokens({ projectDir, tokens: config["design-tokens"] }));
+  const stylesCss = await readFile(join(projectDir, "styles.css"), "utf8")
+    .catch(() => "");
+  const consumedCss = stylesCss + "\n" + registry.combinedCss;
+  findings.push(...checkTokens({ projectDir, tokens: config["design-tokens"], consumedCss }));
 
   return { findings };
 }

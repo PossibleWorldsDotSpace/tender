@@ -14,7 +14,8 @@ export type LintCode =
   | "tender/missing-asset"
   | "tender/deprecated-syntax"
   | "tender/project-config"
-  | "tender/token-value-shape";
+  | "tender/token-value-shape"
+  | "tender/token-unused";
 
 export interface LintFinding {
   code: LintCode;
