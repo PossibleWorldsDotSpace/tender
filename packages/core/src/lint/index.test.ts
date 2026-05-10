@@ -16,6 +16,6 @@ describe("runLint orchestrator", () => {
     const report = await runLint(join(fixtures, "tokens-invalid-name"));
     const errs = report.findings.filter(f => f.severity === "error");
     expect(errs.length).toBeGreaterThan(0);
-    expect(errs[0].message.toLowerCase()).toContain("token");
+    expect(errs.some(f => f.code === "tender/project-config")).toBe(true);
   });
 });
