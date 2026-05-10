@@ -5,7 +5,7 @@ import { build } from "./commands/build.js";
 import { lint, formatReport } from "./commands/lint.js";
 import { clean } from "./commands/clean.js";
 import { startPreviewServer } from "./commands/preview.js";
-import { init } from "./commands/init.js";
+import { init, formatInitResult } from "./commands/init.js";
 
 const program = new Command();
 program.name("tender").description("Print-layout tool for text documents");
@@ -88,13 +88,13 @@ program.command("preview [dir]")
     });
   });
 
-program.command("init <dir>")
-  .description("Scaffold a new Tender project")
-  .option("--force", "overwrite an existing directory")
-  .action(async (dir: string, opts: { force?: boolean }) => {
-    await init(resolve(dir), opts);
-    console.log(`Initialized Tender project at ${resolve(dir)}`);
-    console.log(`Try: tender build ${dir}`);
+program.command("init [dir]")
+  .description("Scaffold a Tender project (idempotent; preserves existing files)")
+  .option("--force", "overwrite existing files instead of preserving them")
+  .action(async (dir: string | undefined, opts: { force?: boolean }) => {
+    const target = resolve(dir ?? ".");
+    const result = await init(target, opts);
+    console.log(formatInitResult(result));
   });
 
 program.parseAsync(process.argv);

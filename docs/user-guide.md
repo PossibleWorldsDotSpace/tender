@@ -615,12 +615,14 @@ WOFF2, in `assets/fonts/`. Declare in `project.yaml`'s `fonts:` block — that e
 If you're starting from a manuscript in Google Docs, Word, Pages, or anywhere else, the typical workflow is:
 
 ```
-tender init my-doc                  # scaffold the project
-# open my-doc/content.md in your editor
-# paste your prose from Google Docs / Word / Pages
-tender clean my-doc/content.md      # sanitise paste artifacts
-tender preview my-doc               # see it live; start authoring
+mkdir my-doc && cd my-doc
+# open content.md in your editor; paste your prose; save
+tender init                         # scaffold project.yaml et al. around your content
+tender clean                        # sanitise paste artifacts in content.md
+tender preview                      # see it live; start authoring
 ```
+
+`tender init` is **idempotent**: it preserves any existing files and only creates the missing scaffolding. Your pasted `content.md` is left untouched.
 
 `tender clean` strips the dirty bits a paste typically introduces: BOMs, zero-width spaces, soft hyphens, NBSPs in prose, mixed line endings, trailing whitespace, runs of blank lines. Optionally with `--typography`, it also converts straight quotes to curly, `--` to em-dashes, and `...` to ellipses.
 
@@ -791,14 +793,31 @@ error  : content.md:42:1: Unknown component "callout-warning". [tender/unknown-c
 
 ## CLI reference
 
-### `tender init <dir>`
+### `tender init [dir]`
 
-Scaffolds a new project from the default starter. Refuses if `<dir>` is non-empty unless `--force`.
+Scaffolds a Tender project. Idempotent: every template file is *created* if absent, *preserved* if present. Default `dir` is the current directory.
 
 ```
-tender init my-doc
-tender init my-doc --force
+tender init                  # scaffold around the cwd; preserves existing files
+tender init my-doc           # scaffold a new project in my-doc/
+tender init my-doc --force   # overwrite existing files (rarely needed)
 ```
+
+The most common flow is "user has a directory with their content.md already in it, runs `tender init` there, ends up with a working project." The existing `content.md` is preserved verbatim; `project.yaml`, `styles.css`, and `components/` get filled in. The output reports exactly which files were created vs preserved.
+
+```
+$ tender init
+Created 2 files:
+  + project.yaml
+  + styles.css
+Preserved 1 existing file:
+  = content.md
+
+Project ready at /home/me/manuscripts/script.
+Try: tender preview
+```
+
+`--force` overwrites existing files. Re-running without `--force` is always safe — every file is reported as preserved and nothing changes.
 
 ### `tender build [dir]`
 
