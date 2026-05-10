@@ -121,7 +121,7 @@ describe("buildProject", () => {
   });
 
   it("design-tokens fixture: tokens appear in projectCss before user styles", async () => {
-    const result = await buildProject(join(here, "../test/fixtures/design-tokens"));
+    const result = await buildProject(join(fixturesDir, "design-tokens"));
     expect(result.projectCss).toContain("--color-ink: #1a1a1a;");
     expect(result.projectCss).toContain("--color-page: #ffffff;");
     expect(result.projectCss).toContain("--size-body: 11pt;");
