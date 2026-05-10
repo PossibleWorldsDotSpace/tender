@@ -1,6 +1,18 @@
-# Tender
+```
+████████ ███████ ███    ██ ██████  ███████ ██████
+   ██    ██      ████   ██ ██   ██ ██      ██   ██
+   ██    █████   ██ ██  ██ ██   ██ █████   ██████
+   ██    ██      ██  ██ ██ ██   ██ ██      ██   ██
+   ██    ███████ ██   ████ ██████  ███████ ██   ██
+```
 
-A print-layout tool for text documents. Author in Markdown with project-defined components; build to print-ready PDF.
+# Layout-as-code for print.
+
+Scaffold in YAML, build components in CSS, compose in Markdown, export to PDF.
+
+*Built by [possibleworlds.space](https://possibleworlds.space).*
+
+---
 
 ## Why
 
