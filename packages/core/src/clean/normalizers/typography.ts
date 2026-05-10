@@ -44,14 +44,12 @@ export async function normalizeTypography(
 
   let out = "";
   let originalNonSkip = "";
-  let processedNonSkip = "";
   for (const seg of segments) {
     if (seg.skip) {
       out += seg.text;
     } else {
       originalNonSkip += seg.text;
       const processed = String(await processor.process(seg.text));
-      processedNonSkip += processed;
       out += processed;
     }
   }
@@ -60,21 +58,39 @@ export async function normalizeTypography(
     return { output: out, change: null };
   }
 
-  // Approximate change count: number of differing chars between the
-  // pre/post non-skip text. An integer is sufficient for the change summary.
-  let count = 0;
-  const minLen = Math.min(originalNonSkip.length, processedNonSkip.length);
-  for (let i = 0; i < minLen; i++) {
-    if (originalNonSkip[i] !== processedNonSkip[i]) count++;
-  }
-  count += Math.abs(originalNonSkip.length - processedNonSkip.length);
+  // Count by category: each typography-source token in the non-skip input
+  // that retext-smartypants converts. Position-based diffing would inflate
+  // the count enormously because curly quotes and em-dashes change byte
+  // length, shifting all subsequent characters.
+  const count = countTypographyChanges(originalNonSkip);
 
   return {
     output: out,
     change: {
       code: "clean/typography",
       count,
-      description: `${count} typography character${count === 1 ? "" : "s"} normalized`
+      description: `${count} typography conversion${count === 1 ? "" : "s"}`
     }
   };
+}
+
+/**
+ * Count tokens in the input that retext-smartypants converts:
+ *   - Straight double quotes (")
+ *   - Straight single quotes / apostrophes (')
+ *   - Triple-hyphen (---) and double-hyphen (--)
+ *   - Triple-dot (...)
+ *
+ * Approximate but more honest than a position-based byte diff.
+ */
+function countTypographyChanges(text: string): number {
+  let count = 0;
+  count += (text.match(/"/g) ?? []).length;
+  count += (text.match(/'/g) ?? []).length;
+  // ---. Match triple-hyphen first; remaining double-hyphens are counted next.
+  count += (text.match(/---/g) ?? []).length;
+  // -- not part of a triple-hyphen run.
+  count += (text.match(/(?<!-)--(?!-)/g) ?? []).length;
+  count += (text.match(/\.\.\./g) ?? []).length;
+  return count;
 }

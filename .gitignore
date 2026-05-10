@@ -5,3 +5,6 @@ out/
 .DS_Store
 .vitest-cache/
 *.tsbuildinfo
+
+# Local scratch / test files (not part of the project)
+PlanetScript.md
