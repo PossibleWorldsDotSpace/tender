@@ -14,11 +14,60 @@ Scaffold in YAML, build components in CSS, compose in Markdown, export to PDF.
 
 ---
 
-## Why
+## What is Tender?
 
-CSS Paged Media is the right layout engine for print: full typographic control, the same rules that power web layout, and a clear separation of content from presentation. Tender wraps Paged.js + headless Chromium in a small CLI so you can author documents in plain text and ship PDFs.
+Tender is a print-layout tool for people who'd rather express a document as code than wrestle a WYSIWYG editor. You declare your design vocabulary (page templates, design tokens, fonts) in `project.yaml`, write reusable components as single `.tender` files (frontmatter + Handlebars + scoped CSS), and compose your prose in Markdown. A small CLI watches your sources, runs them through CSS Paged Media in headless Chromium, and produces a print-ready PDF — typeset to the standard you'd expect from InDesign, in a workflow that diffs cleanly in git.
 
-**What you can do with CSS:** anything Chromium renders, plus what Paged.js polyfills of the print spec — full Grid, Flexbox, modern selectors, container queries, custom properties, the lot. Tender takes a few opinions (a fixed cascade order, a `.page` wrapper around every page, project-local asset paths, no post-render JS) but doesn't restrict what CSS itself can do. See [`docs/user-guide.md`](docs/user-guide.md#what-you-can-do-with-css) for the detail.
+The opinions are deliberately narrow: a fixed cascade order, a `.page` wrapper around every page, project-local asset paths, no post-render JS. Beyond that, anything Chromium renders works — full Grid, Flexbox, modern selectors, container queries, custom properties, the lot — plus everything Paged.js polyfills of the print spec. The point isn't to invent a new layout engine; it's to make the existing one ergonomic for documents that need to ship as PDFs.
+
+## How it flows
+
+```mermaid
+flowchart LR
+    A[tender init] --> B[project.yaml<br/>styles.css<br/>content.md<br/>components/]
+    B --> C[tender tokens set<br/>edit project.yaml<br/>edit components]
+    C --> D[tender preview<br/>live HTML reload]
+    D --> C
+    C --> E[tender lint]
+    E --> F[tender build]
+    F --> G[document.pdf<br/>document.html]
+```
+
+The loop in the middle (edit → preview) is the day-to-day; `init` happens once, `build` happens when you ship.
+
+## Architecture
+
+```mermaid
+flowchart TB
+    subgraph surfaces["Authoring surfaces"]
+        CLI["@tender/cli<br/>(init / tokens / preview / build / lint / clean)"]
+        SKILL["claude/skills/tender-author<br/>(natural-language authoring)"]
+        VSC["@tender/vscode-extension<br/>(syntax, completion, diagnostics)"]
+    end
+
+    subgraph engine["Engine"]
+        CORE["@tender/core<br/>(schema, parse, lint, palette, compose)"]
+        RENDER["@tender/render<br/>(Paged.js + headless Chromium)"]
+        PUI["@tender/preview-ui<br/>(SolidJS preview app)"]
+        LSP["@tender/language-server<br/>(LSP backend for VS Code)"]
+    end
+
+    SRC[("project.yaml<br/>styles.css<br/>content.md<br/>components/*.tender")]
+    PDF[document.pdf]
+    HTML[document.html]
+
+    CLI --> SRC
+    SKILL --> SRC
+    VSC --> LSP
+    LSP --> CORE
+    SRC --> CORE
+    CORE --> RENDER
+    CORE --> PUI
+    RENDER --> PDF
+    RENDER --> HTML
+```
+
+The CLI and the Claude skill are peer **control surfaces** — both speak directly to your source files and run the same engine underneath. The VS Code extension is an editing surface; it talks to the language server, not the build pipeline.
 
 ## Install
 
@@ -58,15 +107,20 @@ tender clean --typography my-doc/content.md   # also: curly quotes, em-dashes, e
 
 Then start authoring components in the live preview.
 
-## Preview UI
+## Project structure
 
-`tender preview` opens a tabbed UI:
-
-- **Preview** — the live-reloading rendered output.
-- **Palette** — gallery of components and typography in this project, each rendered with project styles.
-- **Help** — the user guide.
-
-All three update automatically when you edit project files.
+```
+my-doc/
+  project.yaml      # page templates, typography, fonts, inline shortcuts, design tokens, clean, render
+  styles.css        # presentation
+  content.md        # prose + component invocations
+  components/
+    row.tender      # one .tender file per component
+    callout.tender
+  assets/
+    images/
+    fonts/
+```
 
 ## Design tokens
 
@@ -83,73 +137,66 @@ design-tokens:
 
 These compile to CSS custom properties (`--color-ink`, `--size-body`, …) your components consume via `var()`. See the [design tokens guide](docs/user-guide.md#design-tokens) for the full schema and the `tender tokens` CLI.
 
-## Project structure
+## Preview UI
 
-```
-my-doc/
-  project.yaml      # page templates, typography, fonts, inline shortcuts, design tokens, clean, render
-  styles.css        # presentation
-  content.md        # prose + component invocations
-  components/
-    row.tender      # one .tender file per component
-    callout.tender
-  assets/
-    images/
-    fonts/
-```
+`tender preview` opens a tabbed UI:
 
-## Commands
+- **Preview** — the live-reloading rendered output.
+- **Palette** — gallery of components and typography in this project, each rendered with project styles.
+- **Help** — the user guide.
 
-- `tender init <dir>` — scaffold a new project from the default starter
-- `tender build [dir]` — produce `out/document.pdf` and `out/document.html`
-- `tender preview [dir]` — live-reloading HTML preview server (`--port`, `--host`)
-- `tender lint [dir]` — validate project; surface unused/unknown components, missing assets, deprecated syntax (`--strict`, `--json`)
-- `tender clean [path]` — sanitise content.md: strip paste artifacts; optionally apply smart typography (`--check`, `--yes`, `--typography`)
-- `tender tokens list|set|edit` — inspect and edit design tokens (`--json` on `list`)
+All three update automatically when you edit project files.
 
-## Reference
+## Control surfaces
 
-- **User guide:** [`docs/user-guide.md`](docs/user-guide.md) — authoring conventions, `project.yaml` reference, `styles.css` patterns, CLI commands.
-- **Design:** [`docs/plans/2026-05-08-tender-authoring-experience-plan.md`](docs/plans/2026-05-08-tender-authoring-experience-plan.md)
-- **Worked example:** [`packages/core/test/fixtures/coastal-planet-tags/`](packages/core/test/fixtures/coastal-planet-tags/) — a workshop playbook reproducing the original `example.html`. Shows the full authoring stack: `=== page` markers, tag-syntax components, `@@` slots, and a multi-component layout.
+Tender has two equal control surfaces — the CLI and the Claude skill. Both operate directly on your project files and run the same engine. Use whichever fits the task.
 
-## Editor support
+### `tender` — the CLI
 
-A VS Code extension lives in [`packages/vscode-extension/`](packages/vscode-extension/). It spawns the language server, registers `.tender` as a custom language with TextMate grammars and snippets, and provides completion, hover, diagnostics, and definition jumps for both `.tender` files and tag-syntax in `content.md`.
+Six commands, all run from inside (or pointed at) a project directory.
 
-### Authoring with Claude Code
+- **`tender init <dir>`** — scaffold a new project from the default starter (idempotent; preserves existing files).
+- **`tender build [dir]`** — produce `out/document.pdf` and `out/document.html`.
+- **`tender preview [dir]`** — live-reloading HTML preview server (`--port`, `--host`).
+- **`tender lint [dir]`** — validate the project; surface unused/unknown components, missing assets, deprecated syntax, design-token issues (`--strict`, `--json`).
+- **`tender clean [path]`** — sanitise content.md: strip paste artifacts; optionally apply smart typography (`--check`, `--yes`, `--typography`).
+- **`tender tokens list|set|edit`** — inspect and edit design tokens (`--json` on `list`, AST round-trip on `set` so comments survive, raw-mode TUI on `edit`).
 
-A Claude skill at [`claude/skills/tender-author/`](claude/skills/tender-author/) lets you describe components, style tweaks, content structure, and diagnoses in natural language. Claude reads your project, makes the file edits, runs `tender lint`, and reports what landed.
+Run `tender --help` (or `tender <command> --help`) for examples on every command.
 
-To install:
+### `tender-author` — the Claude skill
+
+A Claude Code skill at [`claude/skills/tender-author/`](claude/skills/tender-author/) lets you describe components, style tweaks, content structure, design-token edits, and lint diagnoses in natural language. Claude reads your project, makes the file edits, runs `tender lint`, and reports what landed.
+
+Install via symlink (so `git pull` keeps it fresh):
 
 ```bash
 ln -s "$(pwd)/claude/skills/tender-author" ~/.claude/skills/tender-author
 ```
-
-(Symlink keeps you up-to-date as you `git pull`. Or copy the directory if you prefer a static install.)
 
 Then, in Claude Code with a Tender project open:
 
 ```
 > Make a callout component for warnings with a red left border.
 > Wrap these dialogue paragraphs as <row> blocks with speaker attributes.
+> Change the accent colour to a softer yellow.
 > Why is this lint warning firing?
 ```
 
-The skill is scoped to authoring tasks: component creation, styling tweaks, content structuring, and lint/build diagnosis. It doesn't run preview/build, choose fonts, or draft prose — those stay with you.
+The skill is scoped to five authoring concerns: components, styling tweaks, content structuring, design-token edits, and lint/build diagnosis. It doesn't run preview/build, choose fonts, or draft prose — those stay with you.
 
-## Security considerations
+## Editor support
 
-Tender renders documents in headless Chromium, launched with `--no-sandbox`. This is required on many Linux hosts (including most CI environments) where unprivileged user namespaces are disabled, but it means the rendering process runs without Chromium's normal sandbox isolation.
+A VS Code extension lives in [`packages/vscode-extension/`](packages/vscode-extension/). It spawns the language server, registers `.tender` as a custom language with TextMate grammars and snippets, and provides completion, hover, diagnostics, and definition jumps for both `.tender` files and tag-syntax in `content.md`.
 
-In practice the risk is low because Tender renders local fixtures you author yourself. If you ever pipe untrusted Markdown, YAML, or HTML into Tender (e.g. as part of a hosted service), this tradeoff deserves explicit review — a malicious document could include script content that the headless browser would execute without sandboxing.
+## Reference
 
-## v1 limits
+- **User guide:** [`docs/user-guide.md`](docs/user-guide.md) — authoring conventions, `project.yaml` reference, `styles.css` patterns, CLI commands, security model.
+- **Design plans:** [`docs/plans/`](docs/plans/) — dated design and implementation docs for each feature.
+- **Worked example:** [`packages/core/test/fixtures/coastal-planet-tags/`](packages/core/test/fixtures/coastal-planet-tags/) — a workshop playbook reproducing the original `example.html`. Shows the full authoring stack: `=== page` markers, tag-syntax components, `@@` slots, multi-component layout, and a real `design-tokens:` block.
 
-The following are intentionally out of scope for v1:
-- Multi-file content (single `content.md` only)
-- PDF/X / CMYK / commercial prepress (output is RGB)
-- ePub or other reflowable formats
-- Layout-warning system (orphan/widow/break linting)
-- Full GUI editing surface (preview is read-only)
+## Built by Possible Worlds
+
+Tender is built by [Possible Worlds](https://possibleworlds.space) — a small studio working on tools and texts for thinking about better futures. We use Tender ourselves to ship workshop playbooks, research reports, and other documents that live more comfortably as PDFs than as web pages.
+
+If Tender is useful to you, we'd love to hear what you're using it for. File an issue, open a discussion, or get in touch via the website.
