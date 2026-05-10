@@ -33,7 +33,7 @@ The reference fixture is `packages/core/test/fixtures/coastal-planet-tags/` in t
 ```
 my-doc/
   project.yaml          # globals: page-templates, typography, fonts, inline-shortcuts, clean
-  styles.css            # presentation: design tokens, layout, typography
+  styles.css            # presentation: layout, typography, design-token overrides
   content.md            # prose with components invoked by name
   components/
     row.tender          # one .tender file per component
@@ -46,8 +46,8 @@ my-doc/
 
 Four-way split:
 
-- **`project.yaml`** declares vocabulary (page templates, inline shortcuts) and global settings (page geometry, typography, hyphenation, fonts).
-- **`styles.css`** styles the elements — design tokens, layout grids, base typography.
+- **`project.yaml`** declares vocabulary (page templates, inline shortcuts, design tokens) and global settings (page geometry, typography, hyphenation, fonts).
+- **`styles.css`** styles the elements — layout grids, base typography. Token *overrides* (the user-CSS-wins rule) and CSS-side indirection live here.
 - **`content.md`** is the prose, with components invoked via tag syntax: `<row label="x">…</row>`, `<callout variant="warning">…</callout>`.
 - **`components/*.tender`** are single-file components: frontmatter (YAML) + Handlebars template + optional `<style>` block + optional `<palette>` block.
 
@@ -82,9 +82,21 @@ Quick decision rule: if the user's request is "I want a class on a span/div/asid
 
 Component names should be **hyphenated** (`stage-direction`, `cover-spiral`, `ad-lib`, `spanning-row`). Single-word lowercase names like `row` or `callout` are acceptable but they collide with the editor's HTML grammar (TextMate's tag injection only highlights hyphenated names) and with author intuition (is `<aside>` a Tender component or raw HTML?). Prefer hyphenated names for new components, especially inline ones.
 
+## Design tokens
+
+Tender's design vocabulary (colours, fonts, sizes, leadings, spaces) lives in `project.yaml` under `design-tokens:` — not at `:root` in `styles.css`. Tokens compile to CSS custom properties under `:root` in a generated stylesheet that loads *before* `styles.css`, so user CSS still wins on conflicts.
+
+**Schema.** A two-level map `category → name → value`. Both names match `[a-z][a-z0-9-]*`. Categories are open-ended; lint validates *shapes* for the known ones (`color`, `size`, `space`, `leading`, `weight`). A token at `design-tokens.color.ink: '#1a1a1a'` compiles to `--color-ink: #1a1a1a;`.
+
+**User-CSS-wins.** Anything you redeclare at `:root` in `styles.css` overrides the token. This is the documented escape hatch: use it for token references (e.g. `--accent: var(--color-brand)`), since token-to-token references inside the YAML aren't supported in v1.
+
+**CLI.** The user can drive token edits with `tender tokens list`, `tender tokens set color.accent '#c33'`, or `tender tokens edit` (opens `$EDITOR` on the block). You can call the CLI or edit `project.yaml` directly — your judgment. Don't change tokens without being asked; they're vocabulary, not implementation detail.
+
+For the canonical worked example, see `packages/core/test/fixtures/coastal-planet-tags/project.yaml` (6 categories, 17 tokens). For the full reference, see the "Design tokens" section of `docs/user-guide.md`.
+
 ## Authoring tasks
 
-The four scopes you handle. For each, work through: read what's relevant, decide the recipe, make the edits, run `tender lint --json`, report what landed.
+The five scopes you handle. For each, work through: read what's relevant, decide the recipe, make the edits, run `tender lint --json`, report what landed.
 
 ### 1. Component + style creation
 
@@ -133,7 +145,7 @@ Notice:
 - `class: callout` so authors can target the same class in their `styles.css` if they want to override.
 - `params: [variant]`, not `attrs: [variant]`.
 - The `<style>` block uses CSS attribute selectors `[data-variant="warning"]` because wrapper-component params land as `data-NAME` attributes on the rendered element.
-- A CSS variable `var(--color-rule, #888)` with a fallback. Authors define design tokens at `:root` in `styles.css`; component CSS references them so themes are easy.
+- A CSS variable `var(--color-rule, #888)` with a fallback. Authors define design tokens in `project.yaml`'s `design-tokens:` block — they compile to CSS custom properties (`color.rule` → `--color-rule`). Component CSS references them so themes change in one place.
 
 For a block-template component example, see `examples/row.tender` (verbatim from `coastal-planet-tags`):
 
@@ -235,11 +247,38 @@ Common diagnoses:
 - **`tender/missing-asset`**: a `src=`/`href=` reference points at a file that doesn't exist. Either the path is wrong or the asset wasn't added to `assets/`. Confirm with the user; offer to fix the path or stub a placeholder.
 - **`tender/unused-component`**: a `.tender` file declares a component that nothing references. Either the user just created it (and will use it shortly) or it's dead code. Mention; don't auto-delete.
 - **`tender/deprecated-syntax`**: a `.tender` file or `content.md` uses `:::name`, `--- slot ---`, or `attrs:`. Mention; don't auto-migrate (that's `tender migrate`'s job).
+- **`tender/token-name-invalid`**: a category or token name in `design-tokens:` doesn't match `[a-z][a-z0-9-]*` (e.g. uppercase, underscores). Surfaced as an error — these come from project-config-load failing at parse time. Fix the YAML and re-run.
+- **`tender/token-value-shape`**: a token's value doesn't match its category's expected shape (e.g. `color.accent: 'mauveish'` isn't a CSS color). Warning only; the lint is a typo-catcher, not a CSS validator. If the value is intentional, ignore.
+- **`tender/token-unused`**: a token is declared but no `var(--token-name)` reference appears in any `styles.css` or component `<style>` block. Info-level — often expected when authors add tokens before consuming them. Mention; don't auto-fix.
 
 For build/preview errors, common patterns:
 
 - **Pages overflow**: usually a `.row` or `.callout` block is too wide for its column, or `break-inside: avoid` is forcing a too-tall block onto one page. Suggest CSS `break-inside`, `widows`, `orphans` adjustments — but the user often needs to see the preview to decide.
 - **Component not styled**: the component's `<style>` block uses a class that doesn't match the rendered HTML. Read the template and the CSS together; check for typos in class names.
+
+### 5. Design-token edits
+
+**Triggering prompts:**
+
+- "Change the accent color to red."
+- "Make body text 11pt instead of 12pt."
+- "Add a brand color."
+- "These leadings feel cramped — bump body leading to 1.7."
+
+**Recipe:**
+
+1. **Read `project.yaml`** to see the current `design-tokens:` block.
+2. **Decide if it's a value update or a new token.** For an update, just edit the YAML in place. For a new token, choose the right category (color/size/space/leading/weight — or a new category for design vocabulary not covered).
+3. **Edit the YAML.** Preserve quote style (single vs. double) and category ordering — don't reflow the file. For a brand-new token, place it in alphabetical order within its category.
+4. **For values that look exotic** (e.g. `calc(...)` for size, multi-stop gradient for color), warn the user that the value won't pass `tender/token-value-shape` and offer to put it in `styles.css` instead (under the escape-hatch rule).
+5. **Run `tender lint --json`** to verify the edit didn't introduce shape warnings.
+6. **Report** which token changed and what the previous value was.
+
+**Canonical example.** The user says "change accent to a softer yellow." Read `design-tokens.color.accent` (`'#FFE600'`), edit to `'#E8D000'`, run lint (clean), report:
+
+> Edited `project.yaml:48` — `color.accent: '#FFE600' → '#E8D000'`. Component CSS using `var(--color-accent)` picks this up automatically on the next build.
+
+For a *new* token: the user says "add a `color.brand`." Edit `project.yaml` to add `brand: '#0066cc'` under `color:`. Mention that no CSS currently references `--color-brand` so lint will emit a `tender/token-unused` info finding until the user wires it up — that's expected, not a problem.
 
 ## Verifying the change
 
