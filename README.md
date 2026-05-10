@@ -1,6 +1,6 @@
 # Tender
 
-A print-layout tool for text documents. Author in Markdown with project-defined components and templates; build to print-ready PDF.
+A print-layout tool for text documents. Author in Markdown with project-defined components; build to print-ready PDF.
 
 ## Why
 
@@ -33,12 +33,23 @@ open my-doc/out/document.pdf
 
 `tender preview my-doc` runs a live-reloading HTML preview at http://127.0.0.1:3993.
 
+## Onboarding from existing prose
+
+Pasting from Google Docs, Word, Pages, or another tool? After `tender init`, paste your prose into `content.md`, then sanitise:
+
+```
+tender clean my-doc/content.md          # strips BOMs, NBSPs, soft hyphens, mixed line endings, trailing whitespace
+tender clean --typography my-doc/content.md   # also: curly quotes, em-dashes, ellipses
+```
+
+Then start authoring components in the live preview.
+
 ## Preview UI
 
 `tender preview` opens a tabbed UI:
 
-- **Preview** — the live-reloading rendered output (same as before).
-- **Palette** — gallery of components, templates, and typography in this project, each rendered with project styles.
+- **Preview** — the live-reloading rendered output.
+- **Palette** — gallery of components and typography in this project, each rendered with project styles.
 - **Help** — the user guide.
 
 All three update automatically when you edit project files.
@@ -47,9 +58,12 @@ All three update automatically when you edit project files.
 
 ```
 my-doc/
-  project.yaml      # page templates, components, typography
+  project.yaml      # page templates, typography, fonts, inline shortcuts
   styles.css        # presentation
   content.md        # prose + component invocations
+  components/
+    row.tender      # one .tender file per component
+    callout.tender
   assets/
     images/
     fonts/
@@ -59,15 +73,19 @@ my-doc/
 
 - `tender init <dir>` — scaffold a new project from the default starter
 - `tender build [dir]` — produce `out/document.pdf` and `out/document.html`
-- `tender preview [dir]` — live-reloading HTML preview server (default `--port 3993 --host 127.0.0.1`; pass `--host 0.0.0.0` to expose on LAN/Tailscale)
-- `tender lint [dir]` — validate config and content; exit non-zero on errors
+- `tender preview [dir]` — live-reloading HTML preview server (`--port`, `--host`)
+- `tender lint [dir]` — validate project; surface unused/unknown components, missing assets, deprecated syntax (`--strict`, `--json`)
+- `tender clean [path]` — sanitise content.md: strip paste artifacts; optionally apply smart typography (`--check`, `--yes`, `--typography`)
 
 ## Reference
 
 - **User guide:** [`docs/user-guide.md`](docs/user-guide.md) — authoring conventions, `project.yaml` reference, `styles.css` patterns, CLI commands.
-- **Design:** [`docs/plans/2026-05-08-tender-design.md`](docs/plans/2026-05-08-tender-design.md)
-- **Implementation plan:** [`docs/plans/2026-05-08-tender-implementation.md`](docs/plans/2026-05-08-tender-implementation.md)
-- **Worked example:** [`packages/core/test/fixtures/coastal-planet/`](packages/core/test/fixtures/coastal-planet/) — a workshop playbook reproducing the original `example.html`.
+- **Design:** [`docs/plans/2026-05-08-tender-authoring-experience-plan.md`](docs/plans/2026-05-08-tender-authoring-experience-plan.md)
+- **Worked example:** [`packages/core/test/fixtures/coastal-planet-tags/`](packages/core/test/fixtures/coastal-planet-tags/) — a workshop playbook reproducing the original `example.html`. Shows the full authoring stack: `=== page` markers, tag-syntax components, `@@` slots, and a multi-component layout.
+
+## Editor support
+
+A VS Code extension lives in [`packages/vscode-extension/`](packages/vscode-extension/). It spawns the language server, registers `.tender` as a custom language with TextMate grammars and snippets, and provides completion, hover, diagnostics, and definition jumps for both `.tender` files and tag-syntax in `content.md`.
 
 ## Security considerations
 
@@ -77,9 +95,8 @@ In practice the risk is low because Tender renders local fixtures you author you
 
 ## v1 limits
 
-The following are intentionally out of scope for v1 and tracked as roadmap items in the design doc:
+The following are intentionally out of scope for v1:
 - Multi-file content (single `content.md` only)
-- In-source typographic markers (no soft hyphens, NBSP, manual page-break markers in prose)
 - PDF/X / CMYK / commercial prepress (output is RGB)
 - ePub or other reflowable formats
 - Layout-warning system (orphan/widow/break linting)

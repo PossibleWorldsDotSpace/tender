@@ -4,13 +4,17 @@ Tender turns a project directory of plain text and CSS into print-ready PDFs. Th
 
 ## Mental model
 
-A Tender project is three files plus an assets folder:
+A Tender project is a directory with three files, a components folder, and an assets folder:
 
 ```
 my-doc/
-  project.yaml      # what your document is and what components exist
-  styles.css        # how things look
-  content.md        # the prose
+  project.yaml      # globals: page templates, typography, fonts, inline shortcuts
+  styles.css        # presentation: design tokens, layout, typography
+  content.md        # the prose, with components invoked by name
+  components/
+    row.tender      # one .tender file per component, frontmatter + template + style + palette
+    callout.tender
+    ...
   assets/
     images/
     fonts/
@@ -18,11 +22,12 @@ my-doc/
 
 The split is deliberate:
 
-- **`project.yaml`** declares your **vocabulary** (the names of page templates, block components, inline spans, layout templates) and **global settings** (page size, margins, typography, hyphenation). It's the "what".
-- **`styles.css`** styles the elements. It's the "how it looks".
-- **`content.md`** is just the prose, with named components invoked by name. It's the "what it says".
+- **`project.yaml`** declares your **vocabulary** (page templates, inline shortcuts) and **global settings** (page geometry, typography, hyphenation, fonts). It's the "what".
+- **`styles.css`** styles the elements — design tokens, layout grids, base typography. It's the "how it looks".
+- **`content.md`** is the prose, with named components invoked via tag syntax. It's the "what it says".
+- **`components/*.tender`** are single-file components — frontmatter declaring params/slots, a Handlebars template, optional `<style>` and `<palette>` blocks. Each component lives in one file alongside its CSS.
 
-Authoring loop: edit `content.md` (or any of the three), watch the live preview update, build to PDF when ready.
+Authoring loop: edit any of the four sources, watch the live preview update, build to PDF when ready.
 
 ```
 tender preview my-doc      # one terminal — leave running
@@ -36,97 +41,73 @@ tender build my-doc        # when satisfied
 
 ### Pages
 
-Every page in your output starts with `::::page`. Open with four colons, write content, close with `::::`.
+Every page begins with a `=== page` marker on its own line. Content before the first marker is wrapped in an implicit default page.
 
 ```
-::::page
+=== page
 
 # This is the start of a page.
 
 A paragraph on this page.
 
-::::
+=== page
+
+# A new page.
+
+Content on the next page.
 ```
 
-To apply a non-default page template (different geometry, different headers/footers):
+To use a non-default page template (different geometry, different headers/footers):
 
 ```
-::::page{template=cover}
+=== page{template=cover}
 
 # Title page
 
-::::
+=== page
+
+# Body
 ```
 
-`template=name` matches a named entry in `project.yaml`'s `page-templates` block.
+`template=name` matches an entry in `project.yaml`'s `page-templates:` block.
 
-**Why four colons?** Tender uses Pandoc-style directives (`:::name`) for everything else. The outer fence has to use *more* colons than anything nested inside it. Since most directives use three, page wrappers use four. If you ever nest a `::::page` inside something using four colons, escalate to five.
-
-### Forcing a page break
-
-To break to a new page mid-document, simply close one page and open the next:
+You can also use explicit `<page>` tags when you need to wrap a region with attributes that aren't ergonomic as marker attributes. The two forms are equivalent and can mix; prefer markers in prose.
 
 ```
-::::page
+<page template="chapter-opener">
 
-First page content.
+# Chapter 4
 
-::::
-
-::::page
-
-Second page content.
-
-::::
+</page>
 ```
-
-A break can land mid-section by closing the current page directly after the line you want, then re-opening with the continuation:
-
-```
-:::row{speaker="Facilitator A" icon=speaker}
-
-Welcome everyone. Today we're going to travel through time together.
-
-:::
-
-::::
-
-::::page
-
-:::row{speaker="Facilitator B" icon=speaker}
-
-And I'm here to make sure we have everything we need along the way.
-
-:::
-```
-
-There is no `<!-- pagebreak -->` style marker in v1. Page breaks are always expressed as page boundaries.
 
 ### Block components
 
-A **block component** wraps any content into a styled block. Define one in `project.yaml`:
-
-```yaml
-components:
-  callout:
-    tag: aside
-    class: callout
-    attrs: [variant]
-```
-
-Use it with three colons:
+A **block component** wraps any content into a styled block. Define one as `components/callout.tender`:
 
 ```
-:::callout{variant=warning}
+---
+tag: aside
+class: callout
+params: [variant]
+---
+```
+
+(That's the simplest case — a wrapper component. See "Single-file `.tender` components" below for the full format.)
+
+Use it in `content.md` with closed-pair tag syntax:
+
+```
+<callout variant="warning">
 
 Watch your step.
 
-:::
+</callout>
 ```
 
 This compiles to `<aside class="callout" data-variant="warning">…</aside>`. Whatever Markdown you put inside parses normally — paragraphs, lists, emphasis, sub-components.
 
-The `attrs` list is a whitelist. Each attribute given in source becomes a `data-*` attribute on the rendered HTML, which you target in CSS:
+The `params` list is a whitelist. Each declared attribute given in source becomes a `data-*` attribute on the rendered HTML, which you target in CSS:
 
 ```css
 .callout[data-variant="warning"] { border-left: 3px solid red; }
@@ -135,95 +116,119 @@ The `attrs` list is a whitelist. Each attribute given in source becomes a `data-
 
 ### Inline components
 
-Same idea but inline, for marking up a span of text inside a paragraph:
-
-```yaml
-components:
-  stage-direction:
-    tag: span
-    class: stage-direction
-    inline: true
-```
-
-In source, single colons + bracketed content:
+Same idea but for marking up a span of text inside a paragraph. Declare with `inline: true`:
 
 ```
-Welcome everyone. :stage-direction[The facilitator looks around the room.] We're so glad you're here.
+---
+tag: span
+class: stage-direction
+inline: true
+---
+```
+
+Use inline in `content.md`:
+
+```
+Welcome everyone. <stage-direction>The facilitator looks around the room.</stage-direction> We're so glad you're here.
 ```
 
 `inline: true` makes the component reject block-level use; without it, a component can be used either way.
 
-### Templates (layouts with parameters and slots)
+### Inline shortcuts (single-character marks)
 
-When a "component" is more than a simple wrapper — when it takes parameters or has multiple content regions — declare it as a `template` instead. Templates are HTML strings with mustache placeholders.
-
-#### Single-slot templates
-
-The body content goes into the implicit `body` slot. Parameters become attributes on the directive.
+For inline components used heavily in prose, declare a single-character shortcut in `project.yaml`:
 
 ```yaml
-templates:
-  row:
-    params: [label, icon, speaker]
-    template: |
-      <div class="row">
-        <div class="col-l">
-          {{#if label}}<span class="margin-label">{{label}}</span>{{/if}}
-          {{#if speaker}}<span class="speaker-name">{{speaker}}</span>{{/if}}
-          {{#if icon}}<img src="assets/images/{{icon}}.png" alt="" class="margin-icon">{{/if}}
-        </div>
-        <div class="col-r">{{{body}}}</div>
-      </div>
+inline-shortcuts:
+  "@": speaker-name
+  "|": stage-direction
+```
+
+Then in `content.md`:
+
+```
+@Facilitator A@ |She gestures to the room.| Welcome everyone.
+```
+
+becomes
+
+```
+<speaker-name>Facilitator A</speaker-name> <stage-direction>She gestures to the room.</stage-direction> Welcome everyone.
+```
+
+Allowed shortcut characters: `@`, `%`, `|`, `§`. Other characters are rejected at config-load time. The mapped component must exist and be `inline: true`.
+
+Same-line only: a shortcut span can't cross a newline. Backslash escapes `\@text\@` pass through as literal `@text@`. Inside fenced code blocks, inline code spans, HTML comments, and tag attribute values, shortcut characters are left alone.
+
+### Block templates with parameters and slots
+
+When a component is more than a wrapper — when it takes parameters or has multiple content regions — declare it as a block template. The frontmatter declares params/slots and the body is the Handlebars template.
+
+`components/row.tender`:
+
+```
+---
+params: [label, icon, speaker, no-break]
+---
+
+<div class="row{{#if no-break}} no-break{{/if}}">
+  <div class="col-l">
+    {{#if speaker}}<span class="speaker-name">{{speaker}}</span>{{/if}}
+    {{#if label}}<span class="margin-label">{{label}}</span>{{/if}}
+    {{#if icon}}<img src="assets/images/{{icon}}.png" alt="" class="margin-icon">{{/if}}
+  </div>
+  <div class="col-r">{{{body}}}</div>
+</div>
 ```
 
 Use it:
 
 ```
-:::row{label="45 min" icon=clock}
+<row label="45 min" icon=clock>
 
 #### Welcome and introductions
 
 The opening sets a friendly tone and connects participants to the day.
 
-:::
+</row>
 ```
 
 Parameters can be omitted. When `label` isn't given, the `{{#if label}}` block disappears. The triple-mustache `{{{body}}}` inserts the parsed body HTML; the double-mustache `{{label}}` inserts attribute values with HTML escaping.
 
 #### Multi-slot templates
 
-When a template needs multiple content regions, declare named slots:
-
-```yaml
-templates:
-  ad-lib:
-    slots: [suggested]
-    template: |
-      <div class="ad-lib">
-        <div class="ad-lib__suggested">{{{suggested}}}</div>
-        <div class="ad-lib__box">
-          <span class="ad-lib__label">your version</span>
-        </div>
-      </div>
-```
-
-In source, separate slots with `--- slotname ---`:
+When a template needs multiple content regions, declare named slots and use `@@ slotname` markers in the body:
 
 ```
-:::ad-lib
+---
+slots: [suggested]
+---
 
---- suggested ---
+<div class="ad-lib">
+  <div class="ad-lib__suggested">{{{suggested}}}</div>
+  <div class="ad-lib__box">
+    <span class="ad-lib__label">your version</span>
+  </div>
+</div>
+```
+
+In `content.md`:
+
+```
+<ad-lib>
+
+@@ suggested
 
 "Before we begin, I want to name a few things about where we are…"
 
-:::
+</ad-lib>
 ```
 
 Each slot's content is parsed as Markdown.
 
 ### Inline HTML
 
-Sometimes Markdown can't express what you need — a `<br>` inside a span, a CSS-grid layout for a cover page, etc. Just use raw HTML:
+Sometimes Markdown can't express what you need — a `<br>` inside a span, a CSS-grid layout for a cover page. Just use raw HTML:
 
 ```
 <div class="cover-tags">
@@ -232,11 +237,11 @@ Sometimes Markdown can't express what you need — a `<br>` inside a span, a CSS
 </div>
 ```
 
-Tender passes raw HTML through. The corresponding CSS lives in your `styles.css`. Reach for raw HTML sparingly — anything you find yourself reaching for repeatedly should become a component or template.
+Tender passes raw HTML through. Reach for it sparingly — anything you find yourself repeating should become a component.
 
 ### Headings, lists, paragraphs, emphasis
 
-These are vanilla CommonMark. Use whatever Markdown features you'd expect:
+These are vanilla CommonMark:
 
 ```
 # H1
@@ -256,7 +261,74 @@ A paragraph with *emphasis*, **strong**, `code`, and a [link](https://example.co
 > A blockquote.
 ```
 
-These render to standard HTML elements and you style them in `styles.css`.
+These render to standard HTML elements; you style them in `styles.css`.
+
+---
+
+## Single-file `.tender` components
+
+Each component lives in one file under `components/`. The format has up to four sections:
+
+```
+---
+<frontmatter as YAML>
+---
+
+<template HTML with Handlebars>
+
+<style>
+<CSS rules>
+</style>
+
+<palette>
+<palette as YAML>
+</palette>
+```
+
+Only the template is required (or just the frontmatter, for a wrapper). Everything else is optional.
+
+### Frontmatter fields
+
+| Field | Type | Notes |
+|---|---|---|
+| `tag` | string | HTML element name. Required for **wrapper** components. |
+| `class` | string | CSS class added to the wrapper. |
+| `params` | string list | Whitelisted attribute names. For wrappers, each becomes `data-name`. For block templates, each is a Handlebars variable. |
+| `slots` | string list | Named content regions filled with `@@ slotname` markers. |
+| `inline` | boolean | If `true`, only valid inline. Wrappers only. |
+| `template` | (auto) | Block-template body — anything between frontmatter and `<style>`/`<palette>` is the template. |
+
+A component is a **wrapper** when its frontmatter has `tag` and no template body. A component is a **block template** when its body is non-empty Handlebars HTML. Both flavors can declare `params` (and block templates can also have `slots`).
+
+### `<style>` block
+
+CSS rules scoped to the project's `_components.css` stylesheet (loaded after `_project.css`, before `styles.css`). Useful for keeping component-specific styles next to the template.
+
+```
+<style>
+.row {
+  display: grid;
+  grid-template-columns: 3fr 5fr;
+  column-gap: 8mm;
+}
+</style>
+```
+
+The `<style>` opener and `</style>` closer must be at column 0. Inner content can include any text including raw `</style>`-shaped strings inside CSS values.
+
+### `<palette>` block
+
+Optional examples shown in the Palette tab in `tender preview`. Doesn't affect PDF/HTML output. Same shape as the legacy `palette:` YAML block — see "Palette" below.
+
+```
+<palette>
+params: { label: "45 min" }
+body: "Sample row content."
+variants:
+  - params: { label: "20 min", icon: clock }
+    body: "A second example."
+</palette>
+```
 
 ---
 
@@ -299,26 +371,17 @@ fonts:
     weight: 400
     style: normal
 
-components:
-  callout:
-    tag: aside
-    class: callout
-    attrs: [variant]
-  stage-direction:
-    tag: span
-    class: stage-direction
-    inline: true
+inline-shortcuts:
+  "@": speaker-name
+  "|": stage-direction
 
-templates:
-  row:
-    params: [label, icon, speaker]
-    template: |
-      <div class="row">…</div>
+clean:
+  typography: smart
 ```
 
 ### `page-templates`
 
-Every project must have a `default` page template. Declare any number of additional ones; reference them in source via `::::page{template=name}`.
+Every project must have a `default` page template. Declare any number of additional ones; reference them in source via `=== page{template=name}`.
 
 | Field | Type | Notes |
 |---|---|---|
@@ -367,7 +430,7 @@ chapter-opener:
     right: "{page}"
 ```
 
-The first page of any `chapter-opener` template gets no header; subsequent pages of the same template (if content overflows) get the `headers-rest` values.
+The first page of any `chapter-opener` template gets no header; subsequent pages of the same template get the `headers-rest` values.
 
 ### `typography`
 
@@ -375,10 +438,10 @@ The first page of any `chapter-opener` template gets no header; subsequent pages
 |---|---|---|
 | `lang` | `en` | Sets `<html lang>`; controls hyphenation dictionary in Chromium. |
 | `hyphenation.enabled` | `true` | |
-| `hyphenation.min-word-length` | `5` | Don't hyphenate words shorter than this. |
-| `hyphenation.min-chars-before` | `2` | Min chars left on the previous line. |
-| `hyphenation.min-chars-after` | `2` | Min chars on the next line. |
-| `hyphenation.max-consecutive-hyphens` | (unlimited) | Max consecutive lines ending with a hyphen. |
+| `hyphenation.min-word-length` | `5` | |
+| `hyphenation.min-chars-before` | `2` | |
+| `hyphenation.min-chars-after` | `2` | |
+| `hyphenation.max-consecutive-hyphens` | (unlimited) | |
 | `orphans` | (browser default) | Min lines kept at the bottom of a page. |
 | `widows` | (browser default) | Min lines kept at the top of a page. |
 
@@ -401,22 +464,31 @@ fonts:
 Use the families in `styles.css`:
 
 ```css
-:root {
-  --font-display: 'Display', Georgia, serif;
-}
+:root { --font-display: 'Display', Georgia, serif; }
 h1 { font-family: var(--font-display); }
 ```
 
-### `components`
+### `inline-shortcuts`
 
-| Field | Notes |
-|---|---|
-| `tag` | HTML element name (e.g. `aside`, `span`, `blockquote`). Required. |
-| `class` | CSS class added to the element. |
-| `attrs` | Whitelist of attribute names. Each becomes `data-name` on the element. |
-| `inline` | If `true`, only valid as inline directive (`:name[…]`). |
+Map a single-character mark to an inline component. The character must be one of `@`, `%`, `|`, `§`. The mapped component must exist and have `inline: true`.
 
-**`palette` block (optional)** — overrides for the Palette tab in `tender preview`.
+```yaml
+inline-shortcuts:
+  "@": speaker-name
+  "|": stage-direction
+```
+
+### `clean`
+
+Settings for `tender clean`.
+
+| Field | Default | Notes |
+|---|---|---|
+| `typography` | `off` | Set to `smart` to enable curly-quote / em-dash / ellipsis conversion in `tender clean`. |
+
+### Palette overrides
+
+Each component's `<palette>` block (or the legacy palette: object inside frontmatter) provides example renders for the Palette tab in `tender preview`. Doesn't affect PDF/HTML output.
 
 | Field | Notes |
 |---|---|
@@ -424,18 +496,6 @@ h1 { font-family: var(--font-display); }
 | `body` | Body content for the default render. |
 | `slots` | Object of slot contents (for templates with named slots). |
 | `variants` | List of variant objects (each can override any of the above), shown as additional renders in the tile. |
-
-The `palette` block never affects PDF/HTML output — it's only used for the Palette tab's example tiles. Templates also support a `palette` block with the same shape.
-
-### `templates`
-
-| Field | Notes |
-|---|---|
-| `params` | Names of accepted attributes; available as `{{name}}` in the template. |
-| `slots` | Names of named content slots; each available as `{{{slotname}}}`. Omit for single-slot templates that just use `{{{body}}}`. |
-| `template` | Mustache (Handlebars) HTML string. Use `{{name}}` for attributes, `{{{slotname}}}` for raw HTML slots, `{{#if name}}…{{/if}}` for conditionals. |
-
-Templates accept the same optional `palette` block described under [`components`](#components) above.
 
 ---
 
@@ -467,7 +527,7 @@ body {
 
 ### Print units
 
-Use `pt`, `mm`, `cm`, `in` for type and spacing where the printed dimension matters; use `em` for proportional spacing relative to font size. Avoid `px` for anything print-critical.
+Use `pt`, `mm`, `cm`, `in` for type and spacing where the printed dimension matters; use `em` for proportional spacing. Avoid `px` for anything print-critical.
 
 ```css
 h1 { font-size: 24pt; margin-bottom: 6mm; }
@@ -489,7 +549,7 @@ p              { orphans: 3; widows: 3; } /* min 3 lines each end of page */
 
 ### Targeting page templates from CSS
 
-A `::::page{template=cover}` becomes `<div class="page" data-page-template="cover">`, which you can target:
+A `=== page{template=cover}` becomes `<div class="page" data-page-template="cover">`, which you can target:
 
 ```css
 .page[data-page-template="cover"] {
@@ -502,11 +562,17 @@ A `::::page{template=cover}` becomes `<div class="page" data-page-template="cove
 }
 ```
 
-This pattern is how you implement bottom-anchored content, full-bleed covers, multi-column layouts on specific page templates, etc.
+This pattern is how you implement bottom-anchored content, full-bleed covers, multi-column layouts on specific page templates.
 
-### Avoiding `!important`
+### Cascade order
 
-Tender prepends a generated `_project.css` (your `@page` rules, hyphenation, etc.) before your `styles.css`. Your styles override automatically by source order. You should rarely need `!important`.
+Three CSS layers load in order:
+
+1. `_project.css` — generated from `project.yaml`'s `page-templates` and `typography` (carries `@page` rules and base typography).
+2. `_components.css` — concatenated `<style>` blocks from every component's `.tender` file, in alphabetical-by-name order.
+3. `styles.css` — your project-wide overrides and design tokens.
+
+You should rarely need `!important`. Source order does the work.
 
 ---
 
@@ -528,12 +594,12 @@ Or as raw HTML:
 
 Or via a template:
 
-```yaml
-templates:
-  row:
-    params: [icon]
-    template: |
-      <img src="assets/images/{{icon}}.png">
+```
+---
+params: [icon]
+---
+
+<img src="assets/images/{{icon}}.png">
 ```
 
 PNG, JPEG, GIF, SVG, WebP all work. In the standalone HTML output, images get base64-inlined; in the PDF, Chromium reads them off disk.
@@ -544,26 +610,46 @@ WOFF2, in `assets/fonts/`. Declare in `project.yaml`'s `fonts:` block — that e
 
 ---
 
+## Onboarding from existing prose
+
+If you're starting from a manuscript in Google Docs, Word, Pages, or anywhere else, the typical workflow is:
+
+```
+tender init my-doc                  # scaffold the project
+# open my-doc/content.md in your editor
+# paste your prose from Google Docs / Word / Pages
+tender clean my-doc/content.md      # sanitise paste artifacts
+tender preview my-doc               # see it live; start authoring
+```
+
+`tender clean` strips the dirty bits a paste typically introduces: BOMs, zero-width spaces, soft hyphens, NBSPs in prose, mixed line endings, trailing whitespace, runs of blank lines. Optionally with `--typography`, it also converts straight quotes to curly, `--` to em-dashes, and `...` to ellipses.
+
+Pasted from a tool that supports it, **"Copy as Markdown"** (Google Docs has this since 2024) is worth using — your headings, lists, bold, and italic survive the clipboard. Otherwise plain text arrives, and you'll add structure progressively in `content.md`.
+
+Once content is sanitised, the authoring loop is regular Tender: edit `content.md`, watch `tender preview` reload, wrap content in `<row>`/`<callout>`/etc. as the structure becomes clear.
+
+---
+
 ## Authoring patterns
 
 ### A two-column layout (margin column + body)
 
-The pattern from the worked example. Margin column carries labels, icons, speaker names; body column has the prose.
+The pattern from the `coastal-planet-tags` reference fixture. Margin column carries labels, icons, speaker names; body column has the prose.
 
-`project.yaml`:
-```yaml
-templates:
-  row:
-    params: [label, icon, speaker]
-    template: |
-      <div class="row">
-        <div class="col-l">
-          {{#if speaker}}<span class="speaker-name">{{speaker}}</span>{{/if}}
-          {{#if label}}<span class="margin-label">{{label}}</span>{{/if}}
-          {{#if icon}}<img src="assets/images/{{icon}}.png" class="margin-icon" alt="">{{/if}}
-        </div>
-        <div class="col-r">{{{body}}}</div>
-      </div>
+`components/row.tender`:
+```
+---
+params: [label, icon, speaker, no-break]
+---
+
+<div class="row{{#if no-break}} no-break{{/if}}">
+  <div class="col-l">
+    {{#if speaker}}<span class="speaker-name">{{speaker}}</span>{{/if}}
+    {{#if label}}<span class="margin-label">{{label}}</span>{{/if}}
+    {{#if icon}}<img src="assets/images/{{icon}}.png" class="margin-icon" alt="">{{/if}}
+  </div>
+  <div class="col-r">{{{body}}}</div>
+</div>
 ```
 
 `styles.css`:
@@ -579,13 +665,13 @@ templates:
 
 Use:
 ```
-:::row{label="45 min" icon=clock}
+<row label="45 min" icon=clock>
 
 #### Stage 1. Welcome
 
 The welcome sets a friendly tone…
 
-:::
+</row>
 ```
 
 ### A bottom-anchored cover
@@ -615,15 +701,13 @@ page-templates:
 
 `content.md`:
 ```
-::::page{template=cover}
+=== page{template=cover}
 
 # This Coastal Planet
 
 …cover content…
 
-<div class="cover-spiral"><img src="assets/images/spiral.png" alt=""></div>
-
-::::
+<cover-spiral />
 ```
 
 ### Keeping a block together across page breaks
@@ -634,21 +718,20 @@ page-templates:
 ```
 
 In source, a row template that takes a `no-break` flag:
+```
+---
+params: [label, no-break]
+---
 
-```yaml
-templates:
-  row:
-    params: [label, no-break]
-    template: |
-      <div class="row{{#if no-break}} no-break{{/if}}">…</div>
+<div class="row{{#if no-break}} no-break{{/if}}">…</div>
 ```
 
 ```
-:::row{label="Note" no-break=true}
+<row label="Note" no-break=true>
 
 This whole block stays on one page.
 
-:::
+</row>
 ```
 
 ### A chapter opener with a different first page
@@ -667,34 +750,42 @@ page-templates:
 ```
 
 ```
-::::page{template=chapter-opener}
+=== page{template=chapter-opener}
 
 # Chapter 4
 
 The chapter opens here. The running head is suppressed on this page,
 and if the chapter overflows to subsequent pages those will get
 "Chapter 4 / 17" style running heads automatically.
-
-::::
 ```
 
 ---
 
 ## Validation
 
-Run `tender lint my-doc` before building or committing. It catches:
+Run `tender lint my-doc` before building or committing. v1 checks:
 
-- Malformed `project.yaml` (with the offending line).
-- Unknown component or template names in `content.md` (with `content.md:LINE:COL`).
-- Missing required slots in multi-slot templates.
-- Missing `project.yaml` or `content.md`.
+| Code | Severity | What |
+|---|---|---|
+| `tender/unused-component` | warning | A `components/foo.tender` exists but no `<foo>` invocation in content. |
+| `tender/unknown-component` | error | `content.md` references a component name that's not declared. |
+| `tender/missing-asset` | error | A relative `src=`/`href=` reference points at a file that doesn't exist. |
+| `tender/deprecated-syntax` | info | Old-style `:::name` directives or `--- slot ---` markers — suggests `<name>` and `@@ slot`. |
+
+Flags:
+
+- `--strict` promotes warnings to errors (CI gating).
+- `--json` emits findings as JSON for editor integrations.
+
+Exit code is non-zero on errors (or any warnings under `--strict`).
 
 ```
 $ tender lint my-doc
-error: content.md:42:1: Unknown component "callout-warning"
-```
+warning: components/yellow-tag.tender:1: Component "yellow-tag" is declared but never used. [tender/unused-component]
+error  : content.md:42:1: Unknown component "callout-warning". [tender/unknown-component]
 
-Exit code is non-zero on errors, suitable for CI.
+1 errors, 1 warnings, 0 info.
+```
 
 ---
 
@@ -722,28 +813,38 @@ tender build my-doc --html-only
 
 ### `tender preview [dir]`
 
-Live-reloading HTML preview. Edits to `project.yaml`, `styles.css`, `content.md`, or any file in `assets/` trigger a rebuild and browser refresh.
+Live-reloading HTML preview. Edits to `project.yaml`, `styles.css`, `content.md`, any `.tender` component, or any file in `assets/` trigger a rebuild and browser refresh.
 
 ```
 tender preview my-doc
 tender preview my-doc --port 3993
 tender preview my-doc --host 0.0.0.0          # expose on LAN/Tailscale
-tender preview my-doc --host 100.64.x.x       # bind only to a specific IP
 ```
 
-The preview shows pages as printed sheets (white background, drop shadow, page numbers, margin guides) so you can see what the PDF will look like without re-exporting.
-
-Build errors during preview surface in two places: in the terminal where `tender preview` is running, and as an error overlay in the browser. The server stays up and recovers when you fix the error.
-
-Stop with Ctrl-C.
+The preview shows pages as printed sheets (white background, drop shadow, page numbers, margin guides). Build errors surface in the terminal and as a browser overlay; the server stays up and recovers when you fix the error. Stop with Ctrl-C.
 
 ### `tender lint [dir]`
 
-Validate without building. Exits non-zero on errors.
+Validates a project and surfaces structural issues. See "Validation" above.
 
 ```
 tender lint my-doc
+tender lint my-doc --strict     # warnings → errors
+tender lint my-doc --json       # machine-readable
 ```
+
+### `tender clean [path]`
+
+Sanitises a Markdown file: strips paste artifacts (BOM, zero-width chars, soft hyphens, NBSPs in prose, mixed line endings, trailing whitespace, redundant blank lines). Optionally with `--typography`, applies smart quotes / dashes / ellipses.
+
+```
+tender clean my-doc/content.md           # interactive: prompts before writing
+tender clean --check my-doc/content.md   # exit non-zero if changes pending
+tender clean --yes my-doc/content.md     # skip prompt
+tender clean --typography my-doc/content.md
+```
+
+Set `clean.typography: smart` in `project.yaml` to make `--typography` the default for that project.
 
 ---
 
@@ -755,13 +856,14 @@ This is acceptable for the typical Tender use case — rendering local source fi
 
 ## What's not in v1
 
-Limitations to be aware of:
-
 - **Single content file.** Multi-file content (chapters across files, with cross-references and continuous numbering) is a v2 item.
-- **No in-source typographic markers.** Soft hyphens (`&shy;`), non-breaking spaces in source, and manual `<!-- pagebreak -->` comments are not honored. Hyphenation is governed by `project.yaml`'s `typography.hyphenation` block; page breaks are expressed as `::::page` boundaries.
 - **No layout-warning system.** Bad column breaks, very-short last lines, orphans the engine couldn't fix — none flagged automatically. Your eye is the linter; the preview is the tool.
 - **No mixed token + literal in headers/footers.** `"Page {page}"` will throw an error; use either a single token or a single literal per region.
 - **RGB only.** No CMYK, PDF/X, or commercial prepress conformance.
-- **No ePub or reflowable formats.** Tender is print-first; the standalone HTML output is just a portable mirror of the PDF, not a separate web target.
+- **No ePub or reflowable formats.** Tender is print-first; the standalone HTML output is a portable mirror of the PDF, not a separate web target.
 
-For the design rationale and roadmap, see [`docs/plans/2026-05-08-tender-design.md`](plans/2026-05-08-tender-design.md).
+## Appendix: emergency escape hatch
+
+If you suspect a regression in the new tag-syntax pipeline, set `TENDER_TAG_SYNTAX=0` to disable preprocessing. Source falls back to the legacy `:::name` directive parser. This exists for bisecting; the legacy path will be removed once `tender migrate` lands and projects are converted.
+
+For the design rationale and roadmap, see [`docs/plans/2026-05-08-tender-authoring-experience-plan.md`](plans/2026-05-08-tender-authoring-experience-plan.md).
