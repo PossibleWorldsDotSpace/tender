@@ -243,4 +243,40 @@ describe("ProjectConfig", () => {
       })
     ).toThrow();
   });
+
+  describe("design-tokens", () => {
+    it("accepts categorised tokens with string and number leaves", () => {
+      const cfg = ProjectConfig.parse({
+        "page-templates": { default: { size: "A4", margin: 0 } },
+        "design-tokens": {
+          color: { ink: "#1a1a1a", accent: "#FFE600" },
+          size: { h1: "24pt", body: "12pt" },
+          leading: { body: 1.6 }
+        }
+      });
+      expect(cfg["design-tokens"]?.color?.ink).toBe("#1a1a1a");
+      expect(cfg["design-tokens"]?.leading?.body).toBe(1.6);
+    });
+
+    it("rejects category names that don't match [a-z][a-z0-9-]*", () => {
+      expect(() => ProjectConfig.parse({
+        "page-templates": { default: { size: "A4", margin: 0 } },
+        "design-tokens": { Color: { ink: "#000" } }
+      })).toThrow();
+    });
+
+    it("rejects token names that don't match [a-z][a-z0-9-]*", () => {
+      expect(() => ProjectConfig.parse({
+        "page-templates": { default: { size: "A4", margin: 0 } },
+        "design-tokens": { color: { Ink: "#000" } }
+      })).toThrow();
+    });
+
+    it("design-tokens is optional", () => {
+      const cfg = ProjectConfig.parse({
+        "page-templates": { default: { size: "A4", margin: 0 } }
+      });
+      expect(cfg["design-tokens"]).toBeUndefined();
+    });
+  });
 });

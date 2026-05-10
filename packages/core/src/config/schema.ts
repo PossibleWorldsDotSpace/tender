@@ -143,6 +143,16 @@ export const Clean = z.object({
   typography: z.enum(["off", "smart"]).optional()
 });
 
+const TokenIdent = z.string().regex(/^[a-z][a-z0-9-]*$/, {
+  message: "must be lowercase, hyphenated (matching /^[a-z][a-z0-9-]*$/)"
+});
+
+const TokenValue = z.union([z.string(), z.number()]);
+
+const TokenGroup = z.record(TokenIdent, TokenValue);
+
+const DesignTokens = z.record(TokenIdent, TokenGroup);
+
 export const ProjectConfig = z.object({
   "page-templates": z.record(z.string(), PageTemplate)
     .refine(t => "default" in t, { message: "page-templates.default is required" }),
@@ -164,7 +174,8 @@ export const ProjectConfig = z.object({
   /** `tender clean` settings (item 9). */
   clean: Clean.optional(),
   fonts: z.array(Font).optional(),
-  render: Render.optional()
+  render: Render.optional(),
+  "design-tokens": DesignTokens.optional()
 });
 
 export type ProjectConfig = z.infer<typeof ProjectConfig>;
