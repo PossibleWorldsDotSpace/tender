@@ -174,3 +174,47 @@ describe("generateProjectCss", () => {
     expect(firstBlock).not.toContain("@top-");
   });
 });
+
+describe("design-tokens compile", () => {
+  it("emits a :root block with --category-name custom properties", () => {
+    const css = generateProjectCss({
+      "page-templates": { default: { size: "A4", margin: 0 } },
+      "design-tokens": {
+        color: { ink: "#1a1a1a", accent: "#FFE600" },
+        size: { h1: "24pt" },
+        leading: { body: 1.6 }
+      }
+    } as never);
+    expect(css).toContain(":root {");
+    expect(css).toContain("--color-ink: #1a1a1a;");
+    expect(css).toContain("--color-accent: #FFE600;");
+    expect(css).toContain("--size-h1: 24pt;");
+    expect(css).toContain("--leading-body: 1.6;");
+  });
+
+  it("emits :root before @page rules", () => {
+    const css = generateProjectCss({
+      "page-templates": { default: { size: "A4", margin: 0 } },
+      "design-tokens": { color: { ink: "#000" } }
+    } as never);
+    const rootIdx = css.indexOf(":root {");
+    const pageIdx = css.indexOf("@page");
+    expect(rootIdx).toBeGreaterThanOrEqual(0);
+    expect(pageIdx).toBeGreaterThan(rootIdx);
+  });
+
+  it("omits :root when design-tokens is absent", () => {
+    const css = generateProjectCss({
+      "page-templates": { default: { size: "A4", margin: 0 } }
+    } as never);
+    expect(css).not.toContain(":root {");
+  });
+
+  it("omits :root when design-tokens is empty", () => {
+    const css = generateProjectCss({
+      "page-templates": { default: { size: "A4", margin: 0 } },
+      "design-tokens": {}
+    } as never);
+    expect(css).not.toContain(":root {");
+  });
+});

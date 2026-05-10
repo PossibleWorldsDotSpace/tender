@@ -220,8 +220,24 @@ function emitTemplateRules(t: ResolvedPageTemplate): string[] {
   return out;
 }
 
+function emitTokensRoot(tokens: ProjectConfig["design-tokens"]): string {
+  if (!tokens) return "";
+  const lines: string[] = [];
+  for (const [category, group] of Object.entries(tokens)) {
+    if (!group) continue;
+    for (const [name, value] of Object.entries(group)) {
+      lines.push(`  --${category}-${name}: ${value};`);
+    }
+  }
+  if (lines.length === 0) return "";
+  return [":root {", ...lines, "}"].join("\n");
+}
+
 export function generateProjectCss(config: ProjectConfig, opts: ProjectCssOptions = {}): string {
   const parts: string[] = [];
+
+  const tokensRoot = emitTokensRoot(config["design-tokens"]);
+  if (tokensRoot) parts.push(tokensRoot);
 
   const fonts = config.fonts ?? [];
   for (const font of fonts) {
