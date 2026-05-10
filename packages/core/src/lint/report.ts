@@ -12,7 +12,8 @@ export type LintCode =
   | "tender/unused-component"
   | "tender/unknown-component"
   | "tender/missing-asset"
-  | "tender/deprecated-syntax";
+  | "tender/deprecated-syntax"
+  | "tender/project-config";
 
 export interface LintFinding {
   code: LintCode;

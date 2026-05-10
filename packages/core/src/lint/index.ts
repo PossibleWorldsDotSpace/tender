@@ -18,7 +18,19 @@ import type { LintFinding, LintReport } from "./report.js";
  */
 export async function runLint(projectDir: string): Promise<LintReport> {
   const findings: LintFinding[] = [];
-  const { registry } = await loadProjectRegistry(projectDir);
+  let registry;
+  try {
+    ({ registry } = await loadProjectRegistry(projectDir));
+  } catch (err) {
+    return {
+      findings: [{
+        code: "tender/project-config",
+        severity: "error",
+        path: join(projectDir, "project.yaml"),
+        message: err instanceof Error ? err.message : String(err)
+      }]
+    };
+  }
   const contentMd = await readFile(join(projectDir, "content.md"), "utf8")
     .catch(() => "");
 

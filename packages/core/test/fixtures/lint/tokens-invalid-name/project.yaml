@@ -1,0 +1,6 @@
+page-templates:
+  default: { size: A5, margin: 0 }
+
+design-tokens:
+  Color:    # invalid — uppercase
+    ink: '#000'
