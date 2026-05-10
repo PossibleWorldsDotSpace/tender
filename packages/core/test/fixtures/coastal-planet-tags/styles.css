@@ -1,35 +1,12 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=JetBrains+Mono:wght@400;600&display=swap');
 
-/* ── Tokens ── */
-:root {
-  --font-display: 'P22 Mackinac', Georgia, serif;
-  --font-body:    'Inter', system-ui, sans-serif;
-  --font-mono:    'JetBrains Mono', monospace;
-
-  --color-ink:    #1a1a1a;
-  --color-page:   #ffffff;
-  --color-accent: #FFE600;
-
-  --size-h1:   24pt;
-  --size-h2:   20pt;
-  --size-h3:   16pt;
-  --size-h4:   12pt;
-  --size-body: 12pt;
-  --size-mono: 10pt;
-  --size-tag:   9pt;
-
-  --leading-body: 1.6;
-  --leading-head: 1.2;
-
-  --col-gap: 8mm;
-
-  /*
-    Baseline offset between JetBrains Mono and Inter.
-    Tune this value after loading real fonts — start at 0
-    and adjust in 0.5px increments until baselines align.
-  */
-  --baseline-offset: 0px;
-}
+/* ── Tokens ──
+   Design tokens live in project.yaml under `design-tokens:` and compile
+   to a :root { --token: value; } block prepended to this stylesheet.
+   See docs for the full token list; --space-baseline-offset is the
+   baseline offset between JetBrains Mono and Inter (start at 0, tune
+   in 0.5px increments after loading real fonts).
+*/
 
 html, body {
   margin: 0;
@@ -109,7 +86,7 @@ strong { font-weight: 600; }
   display: flex;
   justify-content: space-between;
   align-items: first baseline;
-  margin-top: var(--baseline-offset);
+  margin-top: var(--space-baseline-offset);
 }
 
 /* ── Spanning Header ── */

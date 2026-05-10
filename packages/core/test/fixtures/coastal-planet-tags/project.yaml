@@ -6,6 +6,31 @@ page-templates:
     size: A4
     margin: { top: 12mm, bottom: 12mm, inner: 12mm, outer: 12mm }
 
+design-tokens:
+  font:
+    display: "'P22 Mackinac', Georgia, serif"
+    body: "'Inter', system-ui, sans-serif"
+    mono: "'JetBrains Mono', monospace"
+  color:
+    ink: '#1a1a1a'
+    page: '#ffffff'
+    accent: '#FFE600'
+  size:
+    h1: 24pt
+    h2: 20pt
+    h3: 16pt
+    h4: 12pt
+    body: 12pt
+    mono: 10pt
+    tag: 9pt
+  leading:
+    body: 1.6
+    head: 1.2
+  col:
+    gap: 8mm
+  space:
+    baseline-offset: 0px
+
 typography:
   lang: en
   hyphenation:
