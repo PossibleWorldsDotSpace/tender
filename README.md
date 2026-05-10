@@ -203,6 +203,18 @@ The skill is scoped to five authoring concerns: components, styling tweaks, cont
 
 A VS Code extension lives in [`packages/vscode-extension/`](packages/vscode-extension/). It spawns the language server, registers `.tender` as a custom language with TextMate grammars and snippets, and provides completion, hover, diagnostics, and definition jumps for both `.tender` files and tag-syntax in `content.md`.
 
+The extension isn't on the marketplace yet ([#2](https://github.com/joshajh/tender/issues/2)). The supported install path is to run it from a clone of the repo:
+
+```bash
+git clone https://github.com/joshajh/tender.git
+cd tender
+pnpm install
+pnpm -r build
+code --extensionDevelopmentPath="$(pwd)/packages/vscode-extension"
+```
+
+VS Code opens with the extension live; the language server spawns from the workspace's `node_modules` automatically. The extension stays in sync with the codebase as you `git pull` and rebuild — no reinstall step.
+
 ## Reference
 
 - **User guide:** [`docs/user-guide.md`](docs/user-guide.md) — authoring conventions, `project.yaml` reference, `styles.css` patterns, CLI commands, security model.

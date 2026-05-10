@@ -8,7 +8,10 @@
   "engines": {
     "vscode": "^1.85.0"
   },
-  "categories": ["Programming Languages", "Snippets"],
+  "categories": [
+    "Programming Languages",
+    "Snippets"
+  ],
   "main": "./dist/extension.js",
   "activationEvents": [
     "workspaceContains:project.yaml",
@@ -18,8 +21,13 @@
     "languages": [
       {
         "id": "tender",
-        "aliases": ["Tender", "tender"],
-        "extensions": [".tender"],
+        "aliases": [
+          "Tender",
+          "tender"
+        ],
+        "extensions": [
+          ".tender"
+        ],
         "configuration": "./language-configuration.json"
       }
     ],
@@ -47,7 +55,9 @@
       {
         "scopeName": "source.tender.markdown.injection",
         "path": "./syntaxes/tender-md.tmGrammar.json",
-        "injectTo": ["text.html.markdown"]
+        "injectTo": [
+          "text.html.markdown"
+        ]
       }
     ],
     "configuration": {
@@ -55,7 +65,11 @@
       "properties": {
         "tender.lsp.trace": {
           "type": "string",
-          "enum": ["off", "messages", "verbose"],
+          "enum": [
+            "off",
+            "messages",
+            "verbose"
+          ],
           "default": "off",
           "description": "Trace LSP messages between VS Code and the Tender language server."
         }
@@ -66,7 +80,7 @@
     "build": "tsc -p tsconfig.json",
     "test": "vitest run --passWithNoTests",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "package": "vsce package --no-dependencies"
+    "package": "vsce package --no-dependencies --out tender-vscode.vsix"
   },
   "dependencies": {
     "@tender/language-server": "workspace:*",
