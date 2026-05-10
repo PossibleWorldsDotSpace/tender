@@ -284,6 +284,12 @@ The existing `tender preview` palette page can grow a "tokens" tab that
 renders the swatch grid in HTML — out of scope for this doc, follows
 naturally from the JSON shape `tender tokens list --json` produces.
 
+### Full interactive picker (color, length, font preview)
+
+The minimal v1 of `tender tokens edit` (Task 11) is plain-text only. The
+full picker — 24-bit color picker with HSL sliders, length steppers with
+unit cycling, font preview — is tracked in **#8**.
+
 ## Implementation order
 
 Phased so each step is independently shippable:
