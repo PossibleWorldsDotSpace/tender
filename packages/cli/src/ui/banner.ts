@@ -1,6 +1,22 @@
 import { magenta, dim, colorEnabled } from "./style.js";
 
 /**
+ * Render `text` as an OSC 8 terminal hyperlink to `url`. Modern terminals
+ * (iTerm2, kitty, WezTerm, GNOME Terminal, recent Windows Terminal) make
+ * the text clickable; older terminals ignore the escape and render only
+ * the visible text — so it's safe everywhere. Skipped when color is off
+ * (NO_COLOR signals "plain output").
+ *
+ * Format: ESC ] 8 ; ; URL ESC \  text  ESC ] 8 ; ; ESC \
+ */
+function osc8(url: string, text: string): string {
+  if (!colorEnabled) return text;
+  const ESC = "\x1b";
+  const ST = `${ESC}\\`;
+  return `${ESC}]8;;${url}${ST}${text}${ESC}]8;;${ST}`;
+}
+
+/**
  * The wordmark — figlet "ANSI Regular" font. Uses U+2588 FULL BLOCK (`█`),
  * which is widely supported in modern terminals (any UTF-8 PTY, SSH,
  * tmux, GitHub Actions logs). It's not strictly 7-bit ASCII — but Tender
@@ -35,9 +51,11 @@ export interface BannerOptions {
  */
 export function renderBanner(opts: BannerOptions = {}): string {
   const lines = WORDMARK.split("\n");
-  const tagline = opts.tagline ?? "print-layout for text documents";
+  const tagline = opts.tagline ?? "layout-as-code for print";
   const colored = lines.map(l => magenta(l)).join("\n");
-  return `${colored}${dim(`            ${tagline}`)}\n`;
+  const link = osc8("https://possibleworlds.space", "possibleworlds.space");
+  const credit = dim("            built by ") + dim(link);
+  return `${colored}${dim(`            ${tagline}`)}\n${credit}\n`;
 }
 
 /**

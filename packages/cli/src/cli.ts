@@ -14,7 +14,7 @@ const program = new Command();
 
 program
   .name("tender")
-  .description(`${renderBanner()}\n  Print-layout for text documents — Markdown + components → PDF.`)
+  .description(`${renderBanner()}\n  Define your templates in yaml. Build components in CSS. Add text in Markdown. Export to PDF.`)
   .version("0.0.0", "-v, --version", "show version");
 
 // commander prints `description` before the usage line for the root command.
