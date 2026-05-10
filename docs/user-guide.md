@@ -37,6 +37,28 @@ tender build my-doc        # when satisfied
 
 ---
 
+## What you can do with CSS
+
+Tender exposes the CSS Paged Media model running in headless Chromium. **Anything Chromium renders — Grid, Flexbox, modern selectors, container queries, custom properties, plus everything Paged.js polyfills of the print spec — you can use.** That's a lot. The print typography control is on par with what InDesign exposes, and the layout primitives (Grid especially) are richer than print designers usually expect from the web stack.
+
+Where Tender takes opinions:
+
+- **Stylesheets load in a fixed order.** `_project.css` (auto-generated from `project.yaml`'s `page-templates` and `typography`) → `_components.css` (concatenated `<style>` blocks from every `.tender` file, alphabetical-by-name) → `styles.css` (your project styles). Source order does the cascade work; you should rarely need `!important`.
+- **Every page is wrapped in `<div class="page">`.** Your CSS can target `.page` and `.page[data-page-template="cover"]`, but the wrapper itself is non-optional. If a design assumes content sitting directly under `<body>`, you'll need to adjust.
+- **Asset paths are project-relative.** Images and fonts live under `assets/` and you reference them as `assets/images/foo.png`. Remote URLs (`https://cdn…`) work in the standalone HTML build but are fragile under Paged.js' request interception during PDF rendering — keep assets local.
+- **No client-side JavaScript that runs after render.** Tender produces static HTML and a paginated PDF. There's no runtime mutating classNames, no React, no fetch-and-restyle. Whatever the page looks like at first paint is what ships.
+
+Worth knowing about print rendering specifically:
+
+- `position: fixed` becomes "fixed within the current page," not "fixed in the viewport." Useful for running heads/feet defined directly in CSS rather than via `project.yaml`.
+- `vh`/`vw` resolve against the page box, not a screen viewport.
+- `@media (hover)` is always false; `@media print` is always true.
+- A few CSS Paged Media features (named flows, advanced region layouts) are in W3C drafts that Chromium hasn't shipped. Paged.js polyfills most of them; if something exotic doesn't work, [check Paged.js' coverage](https://pagedjs.org/posts/2020-04-02-paged-js-and-css-spec/) before assuming Tender is the limit.
+
+The short version: you write real CSS that runs in a real browser. The opinions are about how Tender connects your `project.yaml`, components, and content to that browser — not about restricting what CSS itself can do.
+
+---
+
 ## Source conventions
 
 ### Pages

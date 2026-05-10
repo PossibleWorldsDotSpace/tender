@@ -6,6 +6,8 @@ A print-layout tool for text documents. Author in Markdown with project-defined 
 
 CSS Paged Media is the right layout engine for print: full typographic control, the same rules that power web layout, and a clear separation of content from presentation. Tender wraps Paged.js + headless Chromium in a small CLI so you can author documents in plain text and ship PDFs.
 
+**What you can do with CSS:** anything Chromium renders, plus what Paged.js polyfills of the print spec — full Grid, Flexbox, modern selectors, container queries, custom properties, the lot. Tender takes a few opinions (a fixed cascade order, a `.page` wrapper around every page, project-local asset paths, no post-render JS) but doesn't restrict what CSS itself can do. See [`docs/user-guide.md`](docs/user-guide.md#what-you-can-do-with-css) for the detail.
+
 ## Install
 
 Requires Node 20+ and pnpm.
