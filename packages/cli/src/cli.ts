@@ -3,6 +3,7 @@ import { Command } from "commander";
 import { resolve } from "node:path";
 import { build } from "./commands/build.js";
 import { lint, formatReport } from "./commands/lint.js";
+import { clean } from "./commands/clean.js";
 import { startPreviewServer } from "./commands/preview.js";
 import { init } from "./commands/init.js";
 
@@ -43,6 +44,18 @@ program.command("lint [dir]")
     } else {
       console.log(formatReport(report, projectDir));
     }
+    if (exitCode !== 0) process.exit(exitCode);
+  });
+
+program.command("clean [path]")
+  .description("Sanitise content.md: strip paste artifacts, optionally apply smart typography")
+  .option("--check", "exit non-zero if changes are pending; don't write")
+  .option("--yes", "skip the confirmation prompt; write immediately")
+  .option("--typography", "apply smart-typography rules (default: off)")
+  .action(async (path: string | undefined, opts: { check?: boolean; yes?: boolean; typography?: boolean }) => {
+    const target = resolve(path ?? "content.md");
+    const { summary, exitCode } = await clean(target, opts);
+    if (summary) console.log(summary);
     if (exitCode !== 0) process.exit(exitCode);
   });
 
