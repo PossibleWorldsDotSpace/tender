@@ -218,4 +218,29 @@ describe("ProjectConfig", () => {
       })
     ).toThrow();
   });
+
+  it("accepts a clean.typography setting", () => {
+    const c = ProjectConfig.parse({
+      "page-templates": { default: { size: "A5", margin: 0 } },
+      clean: { typography: "smart" }
+    });
+    expect(c.clean?.typography).toBe("smart");
+  });
+
+  it("accepts clean: {} as the no-op default", () => {
+    const c = ProjectConfig.parse({
+      "page-templates": { default: { size: "A5", margin: 0 } },
+      clean: {}
+    });
+    expect(c.clean?.typography).toBeUndefined();
+  });
+
+  it("rejects unknown values for clean.typography", () => {
+    expect(() =>
+      ProjectConfig.parse({
+        "page-templates": { default: { size: "A5", margin: 0 } },
+        clean: { typography: "yes" }
+      })
+    ).toThrow();
+  });
 });

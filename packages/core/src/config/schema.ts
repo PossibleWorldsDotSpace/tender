@@ -133,6 +133,16 @@ export const Render = z.object({
   "timeout-ms": z.number().int().positive().optional()
 });
 
+/**
+ * Configuration for `tender clean`. Only one field for v1; the schema's
+ * object shape is forward-compatible with future fields like
+ * preserve-trailing-double-space, dash-style, quote-direction.
+ */
+export const Clean = z.object({
+  /** Enable rule 8 (smart-typography). Default: off. */
+  typography: z.enum(["off", "smart"]).optional()
+});
+
 export const ProjectConfig = z.object({
   "page-templates": z.record(z.string(), PageTemplate)
     .refine(t => "default" in t, { message: "page-templates.default is required" }),
@@ -151,6 +161,8 @@ export const ProjectConfig = z.object({
     z.string()
   ).optional(),
   typography: Typography.optional(),
+  /** `tender clean` settings (item 9). */
+  clean: Clean.optional(),
   fonts: z.array(Font).optional(),
   render: Render.optional()
 });
