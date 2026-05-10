@@ -220,6 +220,12 @@ function emitTemplateRules(t: ResolvedPageTemplate): string[] {
   return out;
 }
 
+/**
+ * Emitted as the first rule in the project CSS bundle. styles.css concatenates
+ * after this bundle, so any user-authored `:root { --token: ... }` overrides
+ * cascade-wins over the generated value — the documented escape hatch for
+ * design tokens (see docs/plans/2026-05-10-design-tokens-design.md).
+ */
 function emitTokensRoot(tokens: ProjectConfig["design-tokens"]): string {
   if (!tokens) return "";
   const lines: string[] = [];
