@@ -20,6 +20,20 @@ Tender is a print-layout tool for people who'd rather express a document as code
 
 The opinions are deliberately narrow: a fixed cascade order, a `.page` wrapper around every page, project-local asset paths, no post-render JS. Beyond that, anything Chromium renders works — full Grid, Flexbox, modern selectors, container queries, custom properties, the lot — plus everything Paged.js polyfills of the print spec. The point isn't to invent a new layout engine; it's to make the existing one ergonomic for documents that need to ship as PDFs.
 
+## What you do
+
+```mermaid
+flowchart LR
+    A[Init your project] --> B[Set globals & design tokens<br/>in project.yaml]
+    B --> C[Build components in CSS]
+    C --> D[Compose your prose<br/>in Markdown]
+    D --> E[Preview live, iterate]
+    E --> D
+    E --> F[Export to PDF]
+```
+
+Most of the day is in that *compose ↔ preview* loop. Set things up once at the start; export when you're happy.
+
 ## How it flows
 
 ```mermaid
