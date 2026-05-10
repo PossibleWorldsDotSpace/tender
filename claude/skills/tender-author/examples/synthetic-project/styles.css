@@ -1,0 +1,14 @@
+/* Minimal styles for the tender-author skill's synthetic test project. */
+body {
+  font-family: serif;
+  font-size: 11pt;
+  line-height: 1.55;
+}
+
+.row {
+  display: grid;
+  grid-template-columns: 3fr 5fr;
+  column-gap: 8mm;
+  margin-bottom: 1em;
+}
+.row .col-l { font-size: 9pt; color: #666; }

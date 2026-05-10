@@ -1,0 +1,15 @@
+---
+tag: aside
+class: callout
+params: [variant]
+---
+
+<style>
+.callout {
+  border-left: 3px solid var(--color-rule, #888);
+  padding: 1em 1.2em;
+  margin: 1em 0;
+}
+.callout[data-variant="warning"] { border-left-color: #c33; }
+.callout[data-variant="info"]    { border-left-color: steelblue; }
+</style>
