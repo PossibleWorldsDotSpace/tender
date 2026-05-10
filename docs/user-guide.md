@@ -8,7 +8,7 @@ A Tender project is a directory with three files, a components folder, and an as
 
 ```
 my-doc/
-  project.yaml      # globals: page templates, typography, fonts, inline shortcuts, design tokens
+  project.yaml      # globals: page templates, typography, fonts, inline shortcuts, design tokens, clean, render
   styles.css        # presentation: layout, typography, design-token overrides
   content.md        # the prose, with components invoked by name
   components/
@@ -508,6 +508,14 @@ Settings for `tender clean`.
 |---|---|---|
 | `typography` | `off` | Set to `smart` to enable curly-quote / em-dash / ellipsis conversion in `tender clean`. |
 
+### `render`
+
+Settings for the Paged.js render step in `tender build` and `tender preview`.
+
+| Field | Default | Notes |
+|---|---|---|
+| `timeout-ms` | `60000` | Maximum wall-clock time for pagination. Long documents on slow hardware may need more. The CLI flag `tender build --timeout <ms>` overrides this on a per-build basis. |
+
 ### Palette overrides
 
 Each component's `<palette>` block (or the legacy palette: object inside frontmatter) provides example renders for the Palette tab in `tender preview`. Doesn't affect PDF/HTML output.
@@ -611,15 +619,14 @@ tender tokens edit                          # opens $EDITOR on the design-tokens
 
 ### Lint codes
 
-`tender lint` adds three checks for design tokens:
+`tender lint` adds two token-specific checks. Schema-shape problems (an invalid category or token name, e.g. uppercase) surface as the project-wide `tender/project-config` error from the existing validation pipeline — see the validation section below.
 
 | Code | Severity | What |
 |---|---|---|
-| `tender/token-name-invalid` | error | A category or token name doesn't match `[a-z][a-z0-9-]*`. |
 | `tender/token-value-shape` | warning | A value doesn't fit the category's expected shape — e.g. `color.x: "12pt"`, `size.x: "blue"`, `leading.x: "1px"`. Only fires for the well-known categories `color`, `size`, `space`, `leading`, `weight`; custom categories are skipped. |
 | `tender/token-unused` | info | A token is declared but no `var(--token-name)` reference appears in `styles.css` or any component `<style>` block. |
 
-Promote any of these to errors with `--strict`. The shape check is intentionally a warning, not an error: if you genuinely need a non-conforming value, the cascade lets you keep it.
+Promote either of these to errors with `--strict`. The shape check is intentionally a warning, not an error: if you genuinely need a non-conforming value, the cascade lets you keep it.
 
 ---
 
@@ -893,10 +900,13 @@ Run `tender lint my-doc` before building or committing. v1 checks:
 
 | Code | Severity | What |
 |---|---|---|
+| `tender/project-config` | error | `project.yaml` failed schema validation — a malformed top-level key, an invalid design-token name, a missing `page-templates.default`, etc. |
 | `tender/unused-component` | warning | A `components/foo.tender` exists but no `<foo>` invocation in content. |
 | `tender/unknown-component` | error | `content.md` references a component name that's not declared. |
 | `tender/missing-asset` | error | A relative `src=`/`href=` reference points at a file that doesn't exist. |
 | `tender/deprecated-syntax` | info | Old-style `:::name` directives or `--- slot ---` markers — suggests `<name>` and `@@ slot`. |
+| `tender/token-value-shape` | warning | A design-token value doesn't fit the category's expected shape. See [Design tokens → Lint codes](#lint-codes). |
+| `tender/token-unused` | info | A design-token is declared but no `var(--token-name)` reference appears in any styles. See [Design tokens → Lint codes](#lint-codes). |
 
 Flags:
 

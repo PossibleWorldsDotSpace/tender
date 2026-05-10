@@ -75,7 +75,7 @@ These compile to CSS custom properties (`--color-ink`, `--size-body`, …) your 
 
 ```
 my-doc/
-  project.yaml      # page templates, typography, fonts, inline shortcuts, design tokens
+  project.yaml      # page templates, typography, fonts, inline shortcuts, design tokens, clean, render
   styles.css        # presentation
   content.md        # prose + component invocations
   components/

@@ -32,7 +32,7 @@ The reference fixture is `packages/core/test/fixtures/coastal-planet-tags/` in t
 
 ```
 my-doc/
-  project.yaml          # globals: page-templates, typography, fonts, inline-shortcuts, clean
+  project.yaml          # globals: page-templates, typography, fonts, inline-shortcuts, design-tokens, clean, render
   styles.css            # presentation: layout, typography, design-token overrides
   content.md            # prose with components invoked by name
   components/
@@ -247,7 +247,7 @@ Common diagnoses:
 - **`tender/missing-asset`**: a `src=`/`href=` reference points at a file that doesn't exist. Either the path is wrong or the asset wasn't added to `assets/`. Confirm with the user; offer to fix the path or stub a placeholder.
 - **`tender/unused-component`**: a `.tender` file declares a component that nothing references. Either the user just created it (and will use it shortly) or it's dead code. Mention; don't auto-delete.
 - **`tender/deprecated-syntax`**: a `.tender` file or `content.md` uses `:::name`, `--- slot ---`, or `attrs:`. Mention; don't auto-migrate (that's `tender migrate`'s job).
-- **`tender/token-name-invalid`**: a category or token name in `design-tokens:` doesn't match `[a-z][a-z0-9-]*` (e.g. uppercase, underscores). Surfaced as an error — these come from project-config-load failing at parse time. Fix the YAML and re-run.
+- **`tender/project-config`**: `project.yaml` failed schema validation — a malformed top-level key, a missing `page-templates.default`, or a `design-tokens:` category/token name that doesn't match `[a-z][a-z0-9-]*` (e.g. uppercase, underscores). Surfaced as an error from the config-load step. Read the message; fix the YAML; re-run.
 - **`tender/token-value-shape`**: a token's value doesn't match its category's expected shape (e.g. `color.accent: 'mauveish'` isn't a CSS color). Warning only; the lint is a typo-catcher, not a CSS validator. If the value is intentional, ignore.
 - **`tender/token-unused`**: a token is declared but no `var(--token-name)` reference appears in any `styles.css` or component `<style>` block. Info-level — often expected when authors add tokens before consuming them. Mention; don't auto-fix.
 
@@ -391,4 +391,4 @@ When in doubt, consult:
 - `examples/` (in this skill's directory) — verbatim canonical fixtures.
 - `tender lint --json` — structural findings; the source of truth for "what's wrong."
 
-When the user's prompt is outside the four authoring scopes (component creation, iterative tweaks, content structuring, diagnosis) and outside the explicit non-goals, do your best — it's still a Tender project and you have the right context. But check the design plan (`docs/plans/2026-05-08-tender-authoring-experience-plan.md`) before inventing new conventions; many things are deliberately out of scope or tracked as future issues.
+When the user's prompt is outside the five authoring scopes (component creation, iterative tweaks, content structuring, diagnosis, design-token edits) and outside the explicit non-goals, do your best — it's still a Tender project and you have the right context. But check the design plan (`docs/plans/2026-05-08-tender-authoring-experience-plan.md`) before inventing new conventions; many things are deliberately out of scope or tracked as future issues.
