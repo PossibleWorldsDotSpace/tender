@@ -8,8 +8,8 @@ A Tender project is a directory with three files, a components folder, and an as
 
 ```
 my-doc/
-  project.yaml      # globals: page templates, typography, fonts, inline shortcuts
-  styles.css        # presentation: design tokens, layout, typography
+  project.yaml      # globals: page templates, typography, fonts, inline shortcuts, design tokens
+  styles.css        # presentation: layout, typography, design-token overrides
   content.md        # the prose, with components invoked by name
   components/
     row.tender      # one .tender file per component, frontmatter + template + style + palette
@@ -22,8 +22,8 @@ my-doc/
 
 The split is deliberate:
 
-- **`project.yaml`** declares your **vocabulary** (page templates, inline shortcuts) and **global settings** (page geometry, typography, hyphenation, fonts). It's the "what".
-- **`styles.css`** styles the elements — design tokens, layout grids, base typography. It's the "how it looks".
+- **`project.yaml`** declares your **vocabulary** (page templates, inline shortcuts, design tokens) and **global settings** (page geometry, typography, hyphenation, fonts). It's the "what".
+- **`styles.css`** styles the elements — layout grids, base typography, and token overrides. It's the "how it looks".
 - **`content.md`** is the prose, with named components invoked via tag syntax. It's the "what it says".
 - **`components/*.tender`** are single-file components — frontmatter declaring params/slots, a Handlebars template, optional `<style>` and `<palette>` blocks. Each component lives in one file alongside its CSS.
 
@@ -995,11 +995,12 @@ Set `clean.typography: smart` in `project.yaml` to make `--typography` the defau
 
 A Claude skill at [`claude/skills/tender-author/`](../claude/skills/tender-author/) turns natural-language conversation about your project into the right file edits. Claude reads `project.yaml`, your components, and `content.md`; makes the changes you describe; runs `tender lint` to verify; and reports what landed.
 
-The skill is scoped to four authoring concerns:
+The skill is scoped to five authoring concerns:
 
 - **Component + style creation**: "Make a callout component for warnings."
 - **Iterative styling**: "Make the row's left column narrower."
 - **Content structuring**: "Wrap these dialogue paragraphs as `<row>` blocks."
+- **Design-token edits**: "Change the accent colour to red. Add a brand colour."
 - **Diagnosis**: "Why is this lint warning firing?"
 
 It deliberately doesn't run `tender build` (slow), restart `tender preview` (auto-reloads), pick fonts, or draft prose — those stay with you.
