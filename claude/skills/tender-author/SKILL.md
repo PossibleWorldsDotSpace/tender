@@ -253,10 +253,29 @@ Categorize each finding:
 
 If lint passes, you're done with the verification step. If a fix introduced a new lint error you can't resolve cleanly, **revert your change** and ask the user for guidance — better to undo than to ship something broken.
 
+### When to suggest `tender clean`
+
+`tender clean` is the Markdown sanitiser. It strips paste artifacts (BOMs, zero-width chars, soft hyphens, NBSPs in prose, mixed line endings, trailing whitespace, runs of blank lines) and optionally applies smart typography (curly quotes, em-dashes, ellipses).
+
+Suggest it when:
+
+- The user just pasted prose into `content.md` and the file is full of dirty bytes — diagnostic signs include "I copied this from Word/Docs," `^M` artifacts in diffs, NBSPs visible in some editors, runs of trailing whitespace.
+- The user asks "why is my content rendering weirdly" and you can see invisible characters in the source.
+- Before content structuring (scope #3): cleanup-first means structure-second is operating on clean prose, not paste artifacts.
+
+The user runs the command — you don't run it for them, because the default mode prompts `[y/N]` and waits for stdin. Tell them:
+
+> Looks like there are paste artifacts in `content.md`. Run `tender clean` (with `--typography` for smart quotes) to sanitise before we structure further.
+
+You can run `tender clean --check` (read-only) yourself to confirm there are pending changes, but defer the actual write to the user.
+
+`tender clean` is **not** for typographic preferences inside an already-clean file — there's no point running it on a file that's been edited carefully. Suggest it once when paste artifacts are visible, not as a routine pre-step.
+
 ## What this skill does NOT do automatically
 
 - **Don't run `tender build`.** Slow (~30s per build). Suggest "Run `tender build` when you're ready to produce a PDF" only when the user signals they're done iterating.
 - **Don't restart `tender preview`.** It auto-reloads on file changes. If the user reports the preview isn't updating, suggest checking the terminal where preview is running for errors — but don't try to start preview yourself.
+- **Don't run `tender clean` in interactive mode.** Default mode prompts the user; let them run it. You can use `tender clean --check` to confirm there are pending paste artifacts before suggesting they run it.
 - **Don't `git commit`.** That's the user's call. Mention "Ready to commit?" only when a meaningful chunk of work is done.
 - **Don't pick fonts, colors, or page geometry from scratch.** Wire up an `@font-face` if the user names a file in `assets/fonts/`. Adjust an existing page template's margins. But don't recommend "use Garamond for body."
 - **Don't draft prose.** Authors do that. The skill structures and styles existing content.
