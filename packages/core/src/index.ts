@@ -19,3 +19,5 @@ export { parseTenderFile } from "./parse/tender-file.js";
 export type { TenderFile, TenderFrontmatter, SectionRange, PaletteBlock } from "./parse/tender-file.js";
 export { runLint, hasFailures } from "./lint/index.js";
 export type { LintReport, LintFinding, LintCode } from "./lint/index.js";
+export { cleanText, totalChanges } from "./clean/index.js";
+export type { CleanResult, CleanRuleChange, CleanRuleCode, CleanOptions } from "./clean/index.js";
