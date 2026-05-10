@@ -28,6 +28,17 @@ describe("checkTokens — value shape", () => {
     expect(findings).toEqual([]);
   });
 
+  it("accepts CSS lengths including %, ch, ex, viewport units, and calc()/var()", () => {
+    const findings = checkTokens({
+      projectDir: "/p",
+      tokens: {
+        size: { a: "12pt", b: "8mm", c: "1em", d: "0" },
+        space: { e: "50%", f: "3ch", g: "100vw", h: "calc(100% - 8mm)", i: "var(--gap)" }
+      }
+    });
+    expect(findings).toEqual([]);
+  });
+
   it("ignores unknown categories (no value-shape check)", () => {
     const findings = checkTokens({
       projectDir: "/p",

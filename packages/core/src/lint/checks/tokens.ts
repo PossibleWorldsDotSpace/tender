@@ -17,8 +17,10 @@ const CSS_NAMED_COLORS = new Set([
 ]);
 
 const HEX_RE = /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{4}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$/;
+// Intentionally shallow: validates the function head only (e.g. rgb(...)), not
+// the contents inside the parens. A typo-catcher; not a CSS validator.
 const FUNC_RE = /^(rgb|rgba|hsl|hsla|color|oklch|lch|lab)\(.+\)$/;
-const LENGTH_RE = /^-?\d+(\.\d+)?(mm|cm|in|pt|px|em|rem)$/;
+const LENGTH_RE = /^-?\d+(\.\d+)?(mm|cm|in|pt|px|em|rem|%|ch|ex|vh|vw|vmin|vmax)$/;
 
 function isValidColor(v: string): boolean {
   if (HEX_RE.test(v)) return true;
@@ -29,6 +31,7 @@ function isValidColor(v: string): boolean {
 
 function isValidLength(v: string): boolean {
   if (v === "0") return true;
+  if (v.startsWith("calc(") || v.startsWith("var(")) return true;
   return LENGTH_RE.test(v);
 }
 
@@ -66,7 +69,7 @@ export function checkTokens(input: TokensCheckInput): LintFinding[] {
       } else if (category === "size" || category === "space") {
         if (!isValidLength(v)) {
           ok = false;
-          expected = "a CSS length (e.g. 12pt, 8mm, 1em) or 0";
+          expected = "a CSS length (e.g. 12pt, 8mm, 1em, 50%), 0, or a calc()/var() expression";
         }
       } else if (category === "leading") {
         if (!isValidLeading(value)) {
