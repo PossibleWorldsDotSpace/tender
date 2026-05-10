@@ -6,6 +6,7 @@ import { lint, formatReport } from "./commands/lint.js";
 import { clean } from "./commands/clean.js";
 import { startPreviewServer } from "./commands/preview.js";
 import { init, formatInitResult } from "./commands/init.js";
+import { listTokens, formatTokensList } from "./commands/tokens.js";
 import { renderBanner, shouldShowBanner } from "./ui/banner.js";
 import { startSpinner } from "./ui/spinner.js";
 import { red, dim, cyan } from "./ui/style.js";
@@ -150,6 +151,25 @@ program
     }
     const result = await init(target, opts);
     console.log(formatInitResult(result));
+  });
+
+const tokensCmd = program
+  .command("tokens")
+  .description("Inspect and edit design tokens");
+
+tokensCmd
+  .command("list [dir]")
+  .description("List the project's design tokens")
+  .option("--json", "emit tokens as JSON")
+  .addHelpText("after", "\nExamples:\n  $ tender tokens list\n  $ tender tokens list --json | jq '.color'\n")
+  .action(async (dir: string | undefined, opts: { json?: boolean }) => {
+    const projectDir = resolve(dir ?? ".");
+    const tokens = await listTokens(projectDir);
+    if (opts.json) {
+      console.log(JSON.stringify(tokens, null, 2));
+    } else {
+      console.log(formatTokensList(tokens));
+    }
   });
 
 // When no subcommand is given, print help. commander defaults to silently
