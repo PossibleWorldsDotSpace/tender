@@ -1,0 +1,12 @@
+---
+params: [label, icon, speaker, no-break]
+---
+
+<div class="row{{#if no-break}} no-break{{/if}}">
+  <div class="col-l">
+    {{#if speaker}}<span class="speaker-name">{{speaker}}</span>{{/if}}
+    {{#if label}}<span class="margin-label">{{label}}</span>{{/if}}
+    {{#if icon}}<img src="assets/images/{{icon}}.png" alt="" class="margin-icon">{{/if}}
+  </div>
+  <div class="col-r">{{{body}}}</div>
+</div>

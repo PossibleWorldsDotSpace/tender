@@ -1,7 +1,8 @@
 import { describe, it, expect } from "vitest";
-import { mkdtemp, mkdir, writeFile, rm } from "node:fs/promises";
+import { mkdtemp, mkdir, writeFile, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { buildProject } from "./build.js";
+import { cleanText } from "./clean/index.js";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 
@@ -117,5 +118,20 @@ describe("buildProject", () => {
     // Sanity: structural markers still present.
     expect(result.html).toContain('class="row"');
     expect(result.html).toContain('data-page-template="cover"');
+  });
+
+  it("coastal-planet-paste-artifact: cleanText restores paste-artifact content to expected", async () => {
+    // The fixture's content.md is a copy of coastal-planet-tags' content.md
+    // with deliberately-introduced paste artifacts (BOM, NBSP, soft hyphen,
+    // zero-width space, trailing whitespace, CRLF line endings). After
+    // cleaning, the output should be byte-identical to the hand-saved
+    // expected file (which is the original, clean version).
+    const dir = join(fixturesDir, "coastal-planet-paste-artifact");
+    const dirty = await readFile(join(dir, "content.md"), "utf8");
+    const expected = await readFile(join(dir, "content-expected.md"), "utf8");
+    const r = await cleanText(dirty);
+    expect(r.output).toBe(expected);
+    // Sanity: the cleaner did meaningful work.
+    expect(r.changes.length).toBeGreaterThanOrEqual(5);
   });
 });
