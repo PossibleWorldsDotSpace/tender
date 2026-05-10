@@ -2,22 +2,24 @@ import type { CleanRuleChange } from "../types.js";
 import type { SkipRegion } from "../skip-regions.js";
 import { isInSkipRegion } from "../skip-regions.js";
 
-const SOFT_HYPHEN = "\u00AD";
+// Use a Unicode escape so the source is unambiguous regardless of editor.
+const NBSP = "\u00A0";
 
-export interface SoftHyphensResult {
+export interface NbspResult {
   output: string;
   change: CleanRuleChange | null;
 }
 
-export function normalizeSoftHyphens(
+export function normalizeNbsp(
   source: string,
   skip: SkipRegion[]
-): SoftHyphensResult {
+): NbspResult {
   let out = "";
   let count = 0;
   for (let i = 0; i < source.length; i++) {
     const ch = source[i]!;
-    if (ch === SOFT_HYPHEN && !isInSkipRegion(i, skip)) {
+    if (ch === NBSP && !isInSkipRegion(i, skip)) {
+      out += " ";
       count++;
       continue;
     }
@@ -27,9 +29,9 @@ export function normalizeSoftHyphens(
   return {
     output: out,
     change: {
-      code: "clean/soft-hyphens",
+      code: "clean/nbsp",
       count,
-      description: `${count} soft hyphen${count === 1 ? "" : "s"} removed`
+      description: `${count} NBSP${count === 1 ? "" : "s"} normalized to space`
     }
   };
 }

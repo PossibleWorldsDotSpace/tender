@@ -6,7 +6,7 @@ export interface BomResult {
 }
 
 export function normalizeBom(source: string): BomResult {
-  if (!source.startsWith("﻿")) {
+  if (!source.startsWith("\uFEFF")) {
     return { output: source, change: null };
   }
   return {

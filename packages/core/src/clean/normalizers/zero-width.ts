@@ -2,7 +2,7 @@ import type { CleanRuleChange } from "../types.js";
 import type { SkipRegion } from "../skip-regions.js";
 import { isInSkipRegion } from "../skip-regions.js";
 
-const ZERO_WIDTH = new Set(["​", "‌", "‍", "⁠"]);
+const ZERO_WIDTH = new Set(["\u200B", "\u200C", "\u200D", "\u2060"]);
 
 export interface ZeroWidthResult {
   output: string;
