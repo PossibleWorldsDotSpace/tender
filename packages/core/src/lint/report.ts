@@ -13,7 +13,8 @@ export type LintCode =
   | "tender/unknown-component"
   | "tender/missing-asset"
   | "tender/deprecated-syntax"
-  | "tender/project-config";
+  | "tender/project-config"
+  | "tender/token-value-shape";
 
 export interface LintFinding {
   code: LintCode;

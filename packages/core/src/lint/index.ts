@@ -5,6 +5,7 @@ import { checkUnusedComponent } from "./checks/unused-component.js";
 import { checkUnknownComponent } from "./checks/unknown-component.js";
 import { checkMissingAsset } from "./checks/missing-asset.js";
 import { checkDeprecatedSyntax } from "./checks/deprecated-syntax.js";
+import { checkTokens } from "./checks/tokens.js";
 import type { LintFinding, LintReport } from "./report.js";
 
 /**
@@ -19,8 +20,9 @@ import type { LintFinding, LintReport } from "./report.js";
 export async function runLint(projectDir: string): Promise<LintReport> {
   const findings: LintFinding[] = [];
   let registry;
+  let config;
   try {
-    ({ registry } = await loadProjectRegistry(projectDir));
+    ({ registry, config } = await loadProjectRegistry(projectDir));
   } catch (err) {
     return {
       findings: [{
@@ -50,6 +52,7 @@ export async function runLint(projectDir: string): Promise<LintReport> {
   findings.push(...checkUnknownComponent({ projectDir, registry, contentMd }));
   findings.push(...await checkMissingAsset({ projectDir, registry, contentMd }));
   findings.push(...checkDeprecatedSyntax({ projectDir, registry, contentMd }));
+  findings.push(...checkTokens({ projectDir, tokens: config["design-tokens"] }));
 
   return { findings };
 }

@@ -1,0 +1,7 @@
+page-templates:
+  default: { size: A5, margin: 0 }
+
+design-tokens:
+  color:
+    ink: '#1a1a1a'        # valid
+    accent: 'mauveish'    # invalid — not a CSS color

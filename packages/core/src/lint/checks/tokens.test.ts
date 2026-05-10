@@ -1,0 +1,38 @@
+import { describe, it, expect } from "vitest";
+import { checkTokens } from "./tokens.js";
+
+describe("checkTokens — value shape", () => {
+  it("flags a non-CSS color string as warning", () => {
+    const findings = checkTokens({
+      projectDir: "/p",
+      tokens: { color: { ink: "#1a1a1a", accent: "mauveish" } }
+    });
+    const warns = findings.filter(f => f.severity === "warning");
+    expect(warns.length).toBe(1);
+    expect(warns[0]?.message).toContain("accent");
+    expect(warns[0]?.code).toBe("tender/token-value-shape");
+  });
+
+  it("accepts hex, rgb(), hsl(), and CSS named colors", () => {
+    const findings = checkTokens({
+      projectDir: "/p",
+      tokens: {
+        color: {
+          a: "#fff", b: "#ffffff", c: "#ffffff80",
+          d: "rgb(0, 0, 0)", e: "rgba(0, 0, 0, 0.5)",
+          f: "hsl(0, 0%, 0%)", g: "hsla(0, 0%, 0%, 0.5)",
+          h: "rebeccapurple"
+        }
+      }
+    });
+    expect(findings).toEqual([]);
+  });
+
+  it("ignores unknown categories (no value-shape check)", () => {
+    const findings = checkTokens({
+      projectDir: "/p",
+      tokens: { vibe: { mood: "chill" } }
+    });
+    expect(findings).toEqual([]);
+  });
+});
