@@ -46,4 +46,29 @@ describe("checkTokens — value shape", () => {
     });
     expect(findings).toEqual([]);
   });
+
+  it("flags non-length size/space values", () => {
+    const findings = checkTokens({
+      projectDir: "/p",
+      tokens: { size: { h1: "huge" }, space: { gap: "wide" } }
+    });
+    expect(findings.length).toBe(2);
+    expect(findings.every(f => f.code === "tender/token-value-shape")).toBe(true);
+  });
+
+  it("flags non-numeric leading", () => {
+    const findings = checkTokens({
+      projectDir: "/p",
+      tokens: { leading: { body: "1.6em" } }
+    });
+    expect(findings.length).toBe(1);
+  });
+
+  it("flags invalid font-weight", () => {
+    const findings = checkTokens({
+      projectDir: "/p",
+      tokens: { weight: { body: "kinda-bold" } }
+    });
+    expect(findings.length).toBe(1);
+  });
 });
