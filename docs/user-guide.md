@@ -867,6 +867,29 @@ Set `clean.typography: smart` in `project.yaml` to make `--typography` the defau
 
 ---
 
+## Authoring with Claude Code
+
+A Claude skill at [`claude/skills/tender-author/`](../claude/skills/tender-author/) turns natural-language conversation about your project into the right file edits. Claude reads `project.yaml`, your components, and `content.md`; makes the changes you describe; runs `tender lint` to verify; and reports what landed.
+
+The skill is scoped to four authoring concerns:
+
+- **Component + style creation**: "Make a callout component for warnings."
+- **Iterative styling**: "Make the row's left column narrower."
+- **Content structuring**: "Wrap these dialogue paragraphs as `<row>` blocks."
+- **Diagnosis**: "Why is this lint warning firing?"
+
+It deliberately doesn't run `tender build` (slow), restart `tender preview` (auto-reloads), pick fonts, or draft prose — those stay with you.
+
+Install via symlink:
+
+```bash
+ln -s "$(pwd)/claude/skills/tender-author" ~/.claude/skills/tender-author
+```
+
+Then in any Claude Code session inside a Tender project, the skill activates automatically. See [`claude/skills/tender-author/SKILL.md`](../claude/skills/tender-author/SKILL.md) for the full skill body and [`docs/plans/2026-05-10-tender-author-skill-design.md`](plans/2026-05-10-tender-author-skill-design.md) for the design rationale.
+
+---
+
 ## Security considerations
 
 Tender renders via headless Chromium, launched with `--no-sandbox`. The flag is required on Linux hosts that disable unprivileged user namespaces (most CI environments fall into this category). The tradeoff: the rendering process runs without Chromium's normal sandbox isolation.

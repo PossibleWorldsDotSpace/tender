@@ -87,6 +87,28 @@ my-doc/
 
 A VS Code extension lives in [`packages/vscode-extension/`](packages/vscode-extension/). It spawns the language server, registers `.tender` as a custom language with TextMate grammars and snippets, and provides completion, hover, diagnostics, and definition jumps for both `.tender` files and tag-syntax in `content.md`.
 
+### Authoring with Claude Code
+
+A Claude skill at [`claude/skills/tender-author/`](claude/skills/tender-author/) lets you describe components, style tweaks, content structure, and diagnoses in natural language. Claude reads your project, makes the file edits, runs `tender lint`, and reports what landed.
+
+To install:
+
+```bash
+ln -s "$(pwd)/claude/skills/tender-author" ~/.claude/skills/tender-author
+```
+
+(Symlink keeps you up-to-date as you `git pull`. Or copy the directory if you prefer a static install.)
+
+Then, in Claude Code with a Tender project open:
+
+```
+> Make a callout component for warnings with a red left border.
+> Wrap these dialogue paragraphs as <row> blocks with speaker attributes.
+> Why is this lint warning firing?
+```
+
+The skill is scoped to authoring tasks: component creation, styling tweaks, content structuring, and lint/build diagnosis. It doesn't run preview/build, choose fonts, or draft prose — those stay with you.
+
 ## Security considerations
 
 Tender renders documents in headless Chromium, launched with `--no-sandbox`. This is required on many Linux hosts (including most CI environments) where unprivileged user namespaces are disabled, but it means the rendering process runs without Chromium's normal sandbox isolation.
