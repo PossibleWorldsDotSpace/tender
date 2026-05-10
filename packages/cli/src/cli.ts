@@ -1,12 +1,12 @@
 #!/usr/bin/env node
 import { Command } from "commander";
-import { resolve } from "node:path";
+import { resolve, join } from "node:path";
 import { build } from "./commands/build.js";
 import { lint, formatReport } from "./commands/lint.js";
 import { clean } from "./commands/clean.js";
 import { startPreviewServer } from "./commands/preview.js";
 import { init, formatInitResult } from "./commands/init.js";
-import { listTokens, formatTokensList } from "./commands/tokens.js";
+import { listTokens, formatTokensList, setToken } from "./commands/tokens.js";
 import { renderBanner, shouldShowBanner } from "./ui/banner.js";
 import { startSpinner } from "./ui/spinner.js";
 import { red, dim, cyan } from "./ui/style.js";
@@ -170,6 +170,18 @@ tokensCmd
     } else {
       console.log(formatTokensList(tokens));
     }
+  });
+
+tokensCmd
+  .command("set <token> <value> [dir]")
+  .description("Set a design token value (writes project.yaml in place)")
+  .addHelpText("after", "\nExamples:\n  $ tender tokens set color.accent '#c33'\n  $ tender tokens set size.body 11pt\n")
+  .action(async (token: string, value: string, dir: string | undefined) => {
+    const projectDir = resolve(dir ?? ".");
+    const result = await setToken(projectDir, token, value);
+    const before = result.created ? dim("(new)") : (result.previous ?? "");
+    console.log(`  ${cyan(token)}: ${before} → ${result.next}`);
+    console.log(dim(`  Wrote ${join(projectDir, "project.yaml")}.`));
   });
 
 // When no subcommand is given, print help. commander defaults to silently

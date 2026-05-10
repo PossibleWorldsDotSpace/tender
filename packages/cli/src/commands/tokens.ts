@@ -1,3 +1,6 @@
+import { readFile, writeFile } from "node:fs/promises";
+import { join } from "node:path";
+import { parseDocument } from "yaml";
 import { loadProjectConfig } from "@tender/core";
 import { cyan, dim } from "../ui/style.js";
 
@@ -41,4 +44,34 @@ export function formatTokensList(tokens: Tokens): string {
   }
   lines.push(dim(`${categories.length} categories, ${totalTokens} tokens.`));
   return lines.join("\n");
+}
+
+export interface SetTokenResult {
+  previous: string | undefined;
+  next: string;
+  created: boolean;
+}
+
+export async function setToken(
+  projectDir: string,
+  tokenPath: string,
+  value: string
+): Promise<SetTokenResult> {
+  const m = /^([a-z][a-z0-9-]*)\.([a-z][a-z0-9-]*)$/.exec(tokenPath);
+  if (!m) throw new Error(`Token path must be \`category.name\` (got: ${tokenPath})`);
+  const category = m[1]!;
+  const name = m[2]!;
+  const path = join(projectDir, "project.yaml");
+  const src = await readFile(path, "utf8");
+  const doc = parseDocument(src);
+
+  const previous = doc.getIn(["design-tokens", category, name]);
+  doc.setIn(["design-tokens", category, name], value);
+
+  await writeFile(path, doc.toString());
+  return {
+    previous: previous === undefined || previous === null ? undefined : String(previous),
+    next: value,
+    created: previous === undefined || previous === null
+  };
 }
