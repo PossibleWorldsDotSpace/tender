@@ -27,13 +27,25 @@ export interface HelpResponse {
 }
 
 export type WsMessage =
-  | { kind: "content" }
+  | { kind: "content"; doc: string }
   | { kind: "project" }
   | { kind: "components" }
   | { kind: "styles" }
   | { kind: "help" }
   | { kind: "assets" }
+  | { kind: "docs" }
   | { kind: "error"; message: string };
+
+export interface DocsResponse {
+  docs: { basename: string; filename: string; isContent: boolean }[];
+  default: string | null;
+}
+
+export async function fetchDocs(): Promise<DocsResponse> {
+  const res = await fetch("/_api/docs");
+  if (!res.ok) throw new Error(`/_api/docs ${res.status}`);
+  return res.json();
+}
 
 export async function fetchPalette(): Promise<PaletteResponse> {
   const res = await fetch("/_api/palette");

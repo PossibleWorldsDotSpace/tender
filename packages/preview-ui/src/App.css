@@ -1,4 +1,15 @@
 .app { display: flex; flex-direction: column; height: 100vh; }
+.app-header {
+  display: flex;
+  align-items: stretch;
+  border-bottom: 1px solid #ccc;
+  background: #f6f6f6;
+}
+.app-header .tabbar {
+  flex: 1;
+  border-bottom: 0;
+  background: transparent;
+}
 .content { flex: 1; overflow: hidden; }
 .tab-content { height: 100%; overflow: auto; }
 .tab-content.hidden { display: none; }
