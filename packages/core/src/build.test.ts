@@ -215,4 +215,17 @@ describe("buildProject", () => {
     const results = await buildProjectAll(dir);
     expect(results).toEqual([]);
   });
+
+  it("coastal-multi-doc fixture: every *.md builds and shares the same component registry", async () => {
+    const dir = join(fixturesDir, "coastal-multi-doc");
+    const results = await buildProjectAll(dir);
+    expect(results.map(r => r.docBasename)).toEqual(["content", "cover-letter", "resume"]);
+    for (const r of results) {
+      expect(r.html).toContain("<html");
+      // Every doc references <highlight>; the shared registry resolves it to a <span class="highlight">.
+      expect(r.html).toContain('class="highlight"');
+      // Project CSS is identical across docs (same registry).
+      expect(r.componentsCss).toBe(results[0]!.componentsCss);
+    }
+  });
 });

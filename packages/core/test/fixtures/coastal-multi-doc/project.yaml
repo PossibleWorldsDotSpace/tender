@@ -1,0 +1,4 @@
+page-templates:
+  default:
+    size: A5
+    margin: { top: 18mm, bottom: 20mm, inner: 18mm, outer: 14mm }
