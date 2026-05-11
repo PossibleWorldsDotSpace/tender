@@ -1,6 +1,8 @@
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 import { loadProjectRegistry } from "../parse/load-project-registry.js";
+import { listDocuments } from "../parse/list-documents.js";
+import type { ProjectDocument } from "../parse/list-documents.js";
 import { checkUnusedComponent } from "./checks/unused-component.js";
 import { checkUnknownComponent } from "./checks/unknown-component.js";
 import { checkMissingAsset } from "./checks/missing-asset.js";
@@ -13,9 +15,11 @@ import type { LintFinding, LintReport } from "./report.js";
  * fold into LintReport.findings. The CLI decides whether the report
  * represents an exit-code failure via the `hasFailures` helper.
  *
- * Each check is invoked from this orchestrator with a shared input object
- * (registry + parsed content). Future checks (CSS-aware, etc.) plug in
- * here.
+ * Each per-document check (deprecated-syntax, unknown-component,
+ * missing-asset) runs once per `*.md` document discovered at the project
+ * root. The cross-doc `unused-component` check operates on the concatenated
+ * content of every doc, so a component referenced from any doc is
+ * considered used.
  */
 export async function runLint(projectDir: string): Promise<LintReport> {
   const findings: LintFinding[] = [];
@@ -33,8 +37,6 @@ export async function runLint(projectDir: string): Promise<LintReport> {
       }]
     };
   }
-  const contentMd = await readFile(join(projectDir, "content.md"), "utf8")
-    .catch(() => "");
 
   // Forward registry-load diagnostics (e.g. yaml-component deprecation,
   // inline-shortcut validation errors) as lint findings so users see them
@@ -48,10 +50,28 @@ export async function runLint(projectDir: string): Promise<LintReport> {
     });
   }
 
-  findings.push(...checkUnusedComponent({ registry, contentMd }));
-  findings.push(...checkUnknownComponent({ projectDir, registry, contentMd }));
-  findings.push(...await checkMissingAsset({ projectDir, registry, contentMd }));
-  findings.push(...checkDeprecatedSyntax({ projectDir, registry, contentMd }));
+  // Read every root document. listDocuments returns content.md first if
+  // present.
+  const docs = await listDocuments(projectDir);
+  const docContents: { doc: ProjectDocument; md: string }[] = [];
+  for (const doc of docs) {
+    const md = await readFile(doc.path, "utf8").catch(() => "");
+    docContents.push({ doc, md });
+  }
+
+  // Per-doc checks: run each once per doc, attaching the doc's path so
+  // findings carry the right filename.
+  for (const { doc, md } of docContents) {
+    findings.push(...checkUnknownComponent({ projectDir, registry, contentMd: md, contentPath: doc.path }));
+    findings.push(...await checkMissingAsset({ projectDir, registry, contentMd: md, contentPath: doc.path }));
+    findings.push(...checkDeprecatedSyntax({ projectDir, registry, contentMd: md, contentPath: doc.path }));
+  }
+
+  // Cross-doc: unused-component looks for tag references across all docs.
+  // A component referenced anywhere is considered used.
+  const allMd = docContents.map(d => d.md).join("\n");
+  findings.push(...checkUnusedComponent({ registry, contentMd: allMd }));
+
   const stylesCss = await readFile(join(projectDir, "styles.css"), "utf8")
     .catch(() => "");
   const consumedCss = stylesCss + "\n" + registry.combinedCss;

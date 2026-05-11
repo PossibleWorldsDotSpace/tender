@@ -1,4 +1,3 @@
-import { join } from "node:path";
 import type { ComponentRegistry } from "../../parse/load-components-dir.js";
 import type { LintFinding } from "../report.js";
 
@@ -22,11 +21,12 @@ export interface DeprecatedSyntaxInput {
   projectDir: string;
   registry: ComponentRegistry;
   contentMd: string;
+  contentPath: string;
 }
 
 export function checkDeprecatedSyntax(input: DeprecatedSyntaxInput): LintFinding[] {
   const findings: LintFinding[] = [];
-  const contentPath = join(input.projectDir, "content.md");
+  const contentPath = input.contentPath;
 
   // 1. :::name directives in content.md.
   for (const m of input.contentMd.matchAll(DIRECTIVE_RE)) {

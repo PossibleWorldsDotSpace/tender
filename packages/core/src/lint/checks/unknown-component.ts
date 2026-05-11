@@ -1,7 +1,6 @@
 import { parseTagNames } from "../../parse/try-parse-tag.js";
 import type { ComponentRegistry } from "../../parse/load-components-dir.js";
 import type { LintFinding } from "../report.js";
-import { join } from "node:path";
 
 /**
  * `tender/unknown-component` — error on a tag invocation referencing a name
@@ -24,6 +23,7 @@ export interface UnknownComponentInput {
   projectDir: string;
   registry: ComponentRegistry;
   contentMd: string;
+  contentPath: string;
 }
 
 export function checkUnknownComponent(input: UnknownComponentInput): LintFinding[] {
@@ -47,7 +47,7 @@ export function checkUnknownComponent(input: UnknownComponentInput): LintFinding
     findings.push({
       code: "tender/unknown-component",
       severity: "error",
-      path: join(input.projectDir, "content.md"),
+      path: input.contentPath,
       message: `Unknown component "${name}".`,
       suggestion: `Declare it in components/${name}.tender or remove the reference.`
     });

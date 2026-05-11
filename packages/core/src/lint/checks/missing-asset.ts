@@ -23,6 +23,7 @@ export interface MissingAssetInput {
   projectDir: string;
   registry: ComponentRegistry;
   contentMd: string;
+  contentPath: string;
 }
 
 export async function checkMissingAsset(input: MissingAssetInput): Promise<LintFinding[]> {
@@ -57,7 +58,7 @@ export async function checkMissingAsset(input: MissingAssetInput): Promise<LintF
       findings.push({
         code: "tender/missing-asset",
         severity: "error",
-        path: join(input.projectDir, "content.md"),
+        path: input.contentPath,
         message: `Missing asset "${ref}".`
       });
     }
@@ -73,7 +74,7 @@ export async function checkMissingAsset(input: MissingAssetInput): Promise<LintF
       findings.push({
         code: "tender/missing-asset",
         severity: "error",
-        path: join(input.projectDir, "content.md"),
+        path: input.contentPath,
         message: `Missing asset "${ref}".`
       });
     }
