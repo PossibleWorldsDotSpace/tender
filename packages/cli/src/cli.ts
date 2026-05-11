@@ -95,7 +95,7 @@ program
 
 program
   .command("clean [path]")
-  .description("Sanitise content.md: strip paste artifacts, optionally apply smart typography")
+  .description("Sanitise a document: strip paste artifacts, optionally apply smart typography")
   .option("--check", "exit non-zero if changes are pending; don't write")
   .option("--yes", "skip the confirmation prompt; write immediately")
   .option("--typography", "apply smart-typography rules (default: off)")
@@ -104,7 +104,18 @@ program
     `\nExamples:\n  $ tender clean                       # interactive: shows diff, prompts y/N\n  $ tender clean --check               # CI gate: exit 1 if pending\n  $ tender clean --yes --typography    # write quietly with smart quotes\n`
   )
   .action(async (path: string | undefined, opts: { check?: boolean; yes?: boolean; typography?: boolean }) => {
-    const target = resolve(path ?? "content.md");
+    let target: string;
+    if (path) {
+      target = resolve(path);
+    } else {
+      const docs = await listDocuments(resolve("."));
+      if (docs.length > 1) {
+        const names = docs.map(d => d.filename).join(", ");
+        console.error(`${red("error")}: multiple documents found — pass a path. Available: ${names}`);
+        process.exit(2);
+      }
+      target = resolve(docs[0]?.filename ?? "content.md");
+    }
     const { summary, exitCode } = await clean(target, opts);
     if (summary) console.log(summary);
     if (exitCode !== 0) process.exit(exitCode);
