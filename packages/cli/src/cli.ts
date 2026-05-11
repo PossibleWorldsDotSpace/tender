@@ -32,7 +32,7 @@ program
   .option("--timeout <ms>", "max time (ms) for Paged.js pagination (default 60000)")
   .addHelpText(
     "after",
-    `\nExamples:\n  $ tender build\n  $ tender build my-doc --pdf-only\n  $ tender build . --out dist --timeout 120000\n`
+    `\nExamples:\n  $ tender build\n  $ tender build my-doc --pdf-only\n  $ tender build . --doc resume\n  $ tender build . --out dist --timeout 120000\n`
   )
   .action(async (dir: string | undefined, opts: { out: string; doc?: string; pdfOnly?: boolean; htmlOnly?: boolean; timeout?: string }) => {
     const timeoutMs = opts.timeout ? parseInt(opts.timeout, 10) : undefined;
