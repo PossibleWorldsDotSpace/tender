@@ -224,6 +224,148 @@ describe("preview server", () => {
     }
   }, 30_000);
 
+  it("/_api/docs returns the discovered set with the right default", async () => {
+    const tmp = await mkdtemp(join(tmpdir(), "tender-docs-"));
+    try {
+      await writeFile(join(tmp, "project.yaml"), `page-templates:\n  default: { size: A5, margin: 0 }\n`);
+      await writeFile(join(tmp, "styles.css"), `body{}`);
+      await writeFile(join(tmp, "content.md"), `# Hello`);
+      await writeFile(join(tmp, "resume.md"), `# Resume`);
+
+      const server = await startPreviewServer({ projectDir: tmp, port: 0 });
+      try {
+        const res = await fetch(`http://127.0.0.1:${server.port}/_api/docs`);
+        expect(res.status).toBe(200);
+        const body = await res.json();
+        expect(body.docs.map((d: { basename: string }) => d.basename)).toEqual(["content", "resume"]);
+        expect(body.default).toBe("content");
+        const content = body.docs.find((d: { basename: string }) => d.basename === "content");
+        expect(content.isContent).toBe(true);
+        expect(content.filename).toBe("content.md");
+      } finally {
+        await server.close();
+      }
+    } finally {
+      await rm(tmp, { recursive: true, force: true });
+    }
+  }, 60_000);
+
+  it("/_api/docs.default reflects --doc", async () => {
+    const tmp = await mkdtemp(join(tmpdir(), "tender-docs-default-"));
+    try {
+      await writeFile(join(tmp, "project.yaml"), `page-templates:\n  default: { size: A5, margin: 0 }\n`);
+      await writeFile(join(tmp, "styles.css"), `body{}`);
+      await writeFile(join(tmp, "content.md"), `# Hello`);
+      await writeFile(join(tmp, "resume.md"), `# Resume`);
+
+      const server = await startPreviewServer({ projectDir: tmp, port: 0, docName: "resume" });
+      try {
+        const res = await fetch(`http://127.0.0.1:${server.port}/_api/docs`);
+        const body = await res.json();
+        expect(body.default).toBe("resume");
+      } finally {
+        await server.close();
+      }
+    } finally {
+      await rm(tmp, { recursive: true, force: true });
+    }
+  }, 60_000);
+
+  it("/_preview?doc=<name> serves the named doc; without ?doc= falls back to the default", async () => {
+    const tmp = await mkdtemp(join(tmpdir(), "tender-preview-doc-"));
+    try {
+      await writeFile(join(tmp, "project.yaml"), `page-templates:\n  default: { size: A5, margin: 0 }\n`);
+      await writeFile(join(tmp, "styles.css"), `body{}`);
+      await writeFile(join(tmp, "content.md"), `# Cover Page Marker`);
+      await writeFile(join(tmp, "resume.md"), `# Resume Heading`);
+
+      const server = await startPreviewServer({ projectDir: tmp, port: 0 });
+      try {
+        const resumeRes = await fetch(`http://127.0.0.1:${server.port}/_preview?doc=resume`);
+        expect(resumeRes.status).toBe(200);
+        expect(await resumeRes.text()).toMatch(/Resume/i);
+
+        const defaultRes = await fetch(`http://127.0.0.1:${server.port}/_preview`);
+        expect(defaultRes.status).toBe(200);
+        expect(await defaultRes.text()).toMatch(/Cover Page Marker/);
+      } finally {
+        await server.close();
+      }
+    } finally {
+      await rm(tmp, { recursive: true, force: true });
+    }
+  }, 60_000);
+
+  it("WS content message on a non-content doc change carries the doc name", async () => {
+    const tmp = await mkdtemp(join(tmpdir(), "tender-ws-docname-"));
+    try {
+      await writeFile(join(tmp, "project.yaml"), `page-templates:\n  default: { size: A5, margin: 0 }\n`);
+      await writeFile(join(tmp, "styles.css"), `body{}`);
+      await writeFile(join(tmp, "content.md"), `# Hi`);
+      await writeFile(join(tmp, "resume.md"), `# Resume`);
+
+      const server = await startPreviewServer({ projectDir: tmp, port: 0 });
+      try {
+        const ws = new WebSocket(`ws://127.0.0.1:${server.port}/_tender`);
+        const message = await new Promise<string>((resolve, reject) => {
+          ws.on("open", async () => {
+            // Give chokidar a moment so the rewrite reliably registers.
+            await new Promise(r => setTimeout(r, 250));
+            await writeFile(join(tmp, "resume.md"), `# Resume Updated`);
+          });
+          ws.on("message", (data) => resolve(data.toString()));
+          ws.on("error", reject);
+          setTimeout(() => reject(new Error("timeout")), 15_000);
+        });
+        ws.close();
+        const parsed = JSON.parse(message);
+        expect(parsed.kind).toBe("content");
+        expect(parsed.doc).toBe("resume");
+      } finally {
+        await server.close();
+      }
+    } finally {
+      await rm(tmp, { recursive: true, force: true });
+    }
+  }, 30_000);
+
+  it("emits a docs-kind WS message when a new root .md is added and the doc list updates", async () => {
+    const tmp = await mkdtemp(join(tmpdir(), "tender-ws-docs-add-"));
+    try {
+      await writeFile(join(tmp, "project.yaml"), `page-templates:\n  default: { size: A5, margin: 0 }\n`);
+      await writeFile(join(tmp, "styles.css"), `body{}`);
+      await writeFile(join(tmp, "content.md"), `# Hi`);
+
+      const server = await startPreviewServer({ projectDir: tmp, port: 0 });
+      try {
+        const ws = new WebSocket(`ws://127.0.0.1:${server.port}/_tender`);
+        const sawDocs = new Promise<void>((resolve, reject) => {
+          ws.on("open", async () => {
+            await new Promise(r => setTimeout(r, 250));
+            await writeFile(join(tmp, "cover-letter.md"), `# Cover Letter`);
+          });
+          ws.on("message", (data) => {
+            const parsed = JSON.parse(data.toString());
+            if (parsed.kind === "docs") resolve();
+          });
+          ws.on("error", reject);
+          setTimeout(() => reject(new Error("timeout waiting for docs event")), 15_000);
+        });
+        await sawDocs;
+        ws.close();
+
+        const res = await fetch(`http://127.0.0.1:${server.port}/_api/docs`);
+        const body = await res.json();
+        const names = body.docs.map((d: { basename: string }) => d.basename);
+        expect(names).toContain("cover-letter");
+      } finally {
+        await server.close();
+      }
+    } finally {
+      await rm(tmp, { recursive: true, force: true });
+    }
+  }, 30_000);
+
   it("binds to a custom host when --host is supplied", async () => {
     const server = await startPreviewServer({
       projectDir: join(fixturesDir, "hello"),

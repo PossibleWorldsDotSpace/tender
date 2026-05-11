@@ -115,12 +115,29 @@ program
   .description("Live-reloading HTML preview server")
   .option("--port <n>", "port (default 3993; use 0 for auto)", "3993")
   .option("--host <addr>", "bind address (default 127.0.0.1; use 0.0.0.0 to expose on LAN/Tailscale)", "127.0.0.1")
+  .option("--doc <name>", "preselect a document in the preview UI (basename without .md)")
   .addHelpText(
     "after",
-    `\nExamples:\n  $ tender preview\n  $ tender preview my-doc --port 4000\n  $ tender preview --host 0.0.0.0     # expose on LAN/Tailscale\n`
+    `\nExamples:\n  $ tender preview\n  $ tender preview my-doc --port 4000\n  $ tender preview . --doc resume\n  $ tender preview --host 0.0.0.0     # expose on LAN/Tailscale\n`
   )
-  .action(async (dir: string | undefined, opts: { port: string; host: string }) => {
+  .action(async (dir: string | undefined, opts: { port: string; host: string; doc?: string }) => {
     const port = parseInt(opts.port, 10);
+    const projectDir = resolve(dir ?? ".");
+    let docName: string | undefined;
+    if (opts.doc !== undefined) {
+      if (opts.doc === "") {
+        console.error(`${red("error")}: --doc requires a document name`);
+        process.exit(2);
+      }
+      const available = await listDocuments(projectDir);
+      const requested = opts.doc.endsWith(".md") ? opts.doc.slice(0, -3) : opts.doc;
+      if (!available.some(d => d.basename === requested)) {
+        const names = available.map(d => d.basename).join(", ");
+        console.error(`${red("error")}: no document "${opts.doc}". Available: ${names || "(none)"}`);
+        process.exit(2);
+      }
+      docName = requested;
+    }
     if (shouldShowBanner()) {
       process.stdout.write(renderBanner());
     }
@@ -128,9 +145,10 @@ program
     let server: Awaited<ReturnType<typeof startPreviewServer>>;
     try {
       server = await startPreviewServer({
-        projectDir: resolve(dir ?? "."),
+        projectDir,
         port: isNaN(port) ? 3993 : port,
-        host: opts.host
+        host: opts.host,
+        docName
       });
       spinner.succeed(`Preview ready at ${cyan(`http://${server.host}:${server.port}/`)}`);
     } catch (err) {

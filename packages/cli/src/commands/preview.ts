@@ -6,8 +6,8 @@ import type { Server } from "node:http";
 import { dirname, join, sep } from "node:path";
 import { readFile } from "node:fs/promises";
 import { createRequire } from "node:module";
-import { buildProject, buildPalette, renderHelp } from "@tender/core";
-import type { BuildResult } from "@tender/core";
+import { buildProject, buildPalette, renderHelp, listDocuments } from "@tender/core";
+import type { BuildResult, ProjectDocument } from "@tender/core";
 import { createRenderSession } from "@tender/render";
 import type { RenderSession } from "@tender/render";
 
@@ -20,6 +20,8 @@ export interface PreviewOptions {
   projectDir: string;
   port: number;
   host?: string;
+  /** Doc the UI should load first (basename without .md). */
+  docName?: string;
 }
 
 export interface RunningServer {
@@ -29,23 +31,44 @@ export interface RunningServer {
 }
 
 type WsMessage =
-  | { kind: "content" }
+  | { kind: "content"; doc: string }
   | { kind: "project" }
   | { kind: "components" }
   | { kind: "styles" }
   | { kind: "help" }
   | { kind: "assets" }
+  | { kind: "docs" }
   | { kind: "error"; message: string };
 
-function classifyPath(path: string, projectDir: string): Exclude<WsMessage, { kind: "error" }>["kind"] {
+type ClassifiedKind =
+  | "content"
+  | "project"
+  | "styles"
+  | "help"
+  | "assets"
+  | "components"
+  | "skip";
+
+interface Classified {
+  kind: ClassifiedKind;
+  /** Set when kind === "content": the basename (without .md) of the doc. */
+  doc?: string;
+}
+
+function classifyPath(path: string, projectDir: string): Classified {
   const rel = path.startsWith(projectDir) ? path.slice(projectDir.length + 1) : path;
-  if (rel === "content.md") return "content";
-  if (rel === "project.yaml") return "project";
-  if (rel === "styles.css") return "styles";
-  if (rel === "docs/user-guide.md" || rel === "docs" + sep + "user-guide.md") return "help";
-  if (rel.startsWith("assets/") || rel.startsWith("assets" + sep)) return "assets";
-  if (rel.startsWith("components/") || rel.startsWith("components" + sep)) return "components";
-  return "content"; // default fallback
+  if (rel === "project.yaml") return { kind: "project" };
+  if (rel === "styles.css") return { kind: "styles" };
+  if (rel === "docs/user-guide.md" || rel === "docs" + sep + "user-guide.md") return { kind: "help" };
+  if (rel.startsWith("assets/") || rel.startsWith("assets" + sep)) return { kind: "assets" };
+  if (rel.startsWith("components/") || rel.startsWith("components" + sep)) return { kind: "components" };
+  // Root-level *.md (no path separator) is a document — provided it isn't
+  // reserved (README.md or `_*.md`). Anything else falls through to "skip".
+  if (!rel.includes("/") && !rel.includes(sep) && rel.endsWith(".md")) {
+    if (rel === "README.md" || rel.startsWith("_")) return { kind: "skip" };
+    return { kind: "content", doc: rel.slice(0, -3) };
+  }
+  return { kind: "skip" };
 }
 
 const RELOAD_SCRIPT = `<script>
@@ -115,36 +138,92 @@ function injectPreviewExtras(html: string): string {
   return html + inject;
 }
 
+const EMPTY_DOCS_HTML = `<!DOCTYPE html><html><body><pre>No documents in this project. Add a *.md file at the project root.</pre>${RELOAD_SCRIPT}</body></html>`;
+
 export async function startPreviewServer(opts: PreviewOptions): Promise<RunningServer> {
   const app = express();
-  let cachedHtml: string | null = null;
-  let cachedBuildResult: BuildResult | null = null;
+
+  // Per-document cache: one rendered HTML + the underlying BuildResult per
+  // root *.md document. Project-wide endpoints (palette, styles.css) read
+  // from whichever doc is the current "default" (see defaultBuild()).
+  const docCaches = new Map<string, { html: string; build: BuildResult }>();
+  let docs: ProjectDocument[] = [];
   let buildError: Error | null = null;
 
   // One Chromium for the lifetime of the server. Each rebuild creates a fresh
   // page on this browser instead of paying ~1-3s of cold-start every save.
   const renderSession: RenderSession = await createRenderSession();
 
-  async function rebuild(): Promise<void> {
+  async function discoverDocs(): Promise<void> {
+    docs = await listDocuments(opts.projectDir);
+  }
+
+  function defaultDocName(): string | null {
+    if (opts.docName && docCaches.has(opts.docName)) return opts.docName;
+    return docs[0]?.basename ?? null;
+  }
+
+  function defaultBuild(): BuildResult | null {
+    const name = defaultDocName();
+    return name ? docCaches.get(name)?.build ?? null : null;
+  }
+
+  async function rebuildOne(docName: string): Promise<void> {
     try {
-      cachedBuildResult = await buildProject(opts.projectDir);
-      const html = await renderSession.renderHtml(cachedBuildResult);
-      cachedHtml = injectPreviewExtras(html);
+      const build = await buildProject(opts.projectDir, { docName });
+      const html = await renderSession.renderHtml(build);
+      docCaches.set(docName, { html: injectPreviewExtras(html), build });
       if (buildError) console.log("preview: build recovered");
       buildError = null;
     } catch (err) {
       buildError = err instanceof Error ? err : new Error(String(err));
-      console.error(`preview: build error: ${buildError.message}`);
-      cachedHtml = `<!DOCTYPE html><html><body><pre>Build error: ${escapeHtml(buildError.message)}</pre>${RELOAD_SCRIPT}</body></html>`;
-      // Keep cachedBuildResult on error so endpoints can still serve last-good state.
+      console.error(`preview: build error (${docName}): ${buildError.message}`);
+      const errorHtml = `<!DOCTYPE html><html><body><pre>Build error: ${escapeHtml(buildError.message)}</pre>${RELOAD_SCRIPT}</body></html>`;
+      // Keep the previous BuildResult (if any) so project-wide endpoints can
+      // still serve last-good config/CSS while the doc itself shows the error.
+      const previous = docCaches.get(docName);
+      if (previous) {
+        docCaches.set(docName, { html: errorHtml, build: previous.build });
+      } else {
+        // No prior build — fabricate a stub BuildResult-less entry by
+        // skipping the cache write. Other endpoints will fall back to
+        // another doc via defaultBuild().
+        docCaches.delete(docName);
+        // But we still want /_preview?doc=<name> to show the error.
+        // Store an HTML-only sentinel under a parallel map? Simpler: keep
+        // a stand-alone error map.
+        errorOnlyCaches.set(docName, errorHtml);
+      }
     }
   }
 
-  await rebuild();
+  // Holds error HTML for docs that have never built successfully. Cleared on
+  // the next successful build of that doc.
+  const errorOnlyCaches = new Map<string, string>();
+
+  async function rebuildAll(): Promise<void> {
+    await discoverDocs();
+    // Drop caches for docs that no longer exist.
+    const live = new Set(docs.map(d => d.basename));
+    for (const name of [...docCaches.keys()]) if (!live.has(name)) docCaches.delete(name);
+    for (const name of [...errorOnlyCaches.keys()]) if (!live.has(name)) errorOnlyCaches.delete(name);
+    for (const d of docs) await rebuildOne(d.basename);
+  }
+
+  await rebuildAll();
 
   async function ensureBuildResult(): Promise<BuildResult> {
-    if (!cachedBuildResult) cachedBuildResult = await buildProject(opts.projectDir);
-    return cachedBuildResult;
+    const existing = defaultBuild();
+    if (existing) return existing;
+    const name = defaultDocName();
+    if (name) {
+      await rebuildOne(name);
+      const after = defaultBuild();
+      if (after) return after;
+    }
+    // No docs at all — fall back to a fresh content.md build so the
+    // project-wide endpoints can still surface a useful error.
+    return buildProject(opts.projectDir);
   }
 
   app.use("/assets", express.static(join(opts.projectDir, "assets")));
@@ -194,8 +273,35 @@ export async function startPreviewServer(opts: PreviewOptions): Promise<RunningS
     }
   });
 
-  app.get("/_preview", async (_req, res) => {
-    res.type("html").send(cachedHtml ?? "");
+  app.get("/_api/docs", (_req, res) => {
+    res.json({
+      docs: docs.map(d => ({
+        basename: d.basename,
+        filename: d.filename,
+        isContent: d.isContent
+      })),
+      default: defaultDocName()
+    });
+  });
+
+  app.get("/_preview", (req, res) => {
+    const requested = typeof req.query.doc === "string" ? req.query.doc : null;
+    const name = requested ?? defaultDocName();
+    if (!name) {
+      res.type("html").send(EMPTY_DOCS_HTML);
+      return;
+    }
+    const cached = docCaches.get(name);
+    if (cached) {
+      res.type("html").send(cached.html);
+      return;
+    }
+    const errorHtml = errorOnlyCaches.get(name);
+    if (errorHtml) {
+      res.type("html").send(errorHtml);
+      return;
+    }
+    res.type("html").send(`<!DOCTYPE html><html><body><pre>No document "${escapeHtml(name)}".</pre>${RELOAD_SCRIPT}</body></html>`);
   });
 
   // Serve preview-ui bundle assets
@@ -238,25 +344,75 @@ export async function startPreviewServer(opts: PreviewOptions): Promise<RunningS
   // Websocket for reload
   const wss = new WebSocketServer({ server, path: "/_tender" });
 
-  // File watcher
+  // File watcher. ignoreInitial:true means chokidar won't fire "add" for the
+  // files present when the watcher attaches — those were already built above.
+  // Only genuinely new files trigger the "add"-branch path below.
   const watcher: FSWatcher = chokidar.watch(opts.projectDir, {
     ignored: /node_modules|\.git|out|dist/,
     ignoreInitial: true
   });
 
-  watcher.on("all", async (_event, path) => {
+  function broadcast(msg: WsMessage): void {
+    const payload = JSON.stringify(msg);
+    for (const client of wss.clients) {
+      if (client.readyState === 1 /* OPEN */) client.send(payload);
+    }
+  }
+
+  watcher.on("all", async (event, path) => {
     try {
-      const kind = classifyPath(path, opts.projectDir);
-      // Help-only changes don't affect the rendered preview — skip rebuild.
-      if (kind !== "help") {
-        await rebuild();
+      const classified = classifyPath(path, opts.projectDir);
+      if (classified.kind === "skip") return;
+
+      if (classified.kind === "content") {
+        const doc = classified.doc!;
+        if (event === "unlink") {
+          docCaches.delete(doc);
+          errorOnlyCaches.delete(doc);
+          await discoverDocs();
+          broadcast({ kind: "docs" });
+          return;
+        }
+        if (event === "add") {
+          await discoverDocs();
+          await rebuildOne(doc);
+          if (buildError) {
+            broadcast({ kind: "error", message: buildError.message });
+          } else {
+            broadcast({ kind: "content", doc });
+          }
+          broadcast({ kind: "docs" });
+          return;
+        }
+        // change (or any other event with the file still present)
+        await rebuildOne(doc);
+        if (buildError) {
+          broadcast({ kind: "error", message: buildError.message });
+        } else {
+          broadcast({ kind: "content", doc });
+        }
+        return;
       }
-      const msg: WsMessage = buildError
-        ? { kind: "error", message: buildError.message }
-        : { kind };
-      const payload = JSON.stringify(msg);
-      for (const client of wss.clients) {
-        if (client.readyState === 1 /* OPEN */) client.send(payload);
+
+      if (classified.kind === "help") {
+        // Help-only changes don't affect rendered docs — no rebuild.
+        broadcast({ kind: "help" });
+        return;
+      }
+
+      if (classified.kind === "assets") {
+        // Assets are referenced by URL; the HTML doesn't need to be re-rendered
+        // for asset-only changes. The UI may still want to reload.
+        broadcast({ kind: "assets" });
+        return;
+      }
+
+      // project / styles / components: registry changed — rebuild every doc.
+      await rebuildAll();
+      if (buildError) {
+        broadcast({ kind: "error", message: buildError.message });
+      } else {
+        broadcast({ kind: classified.kind });
       }
     } catch (err) {
       console.error("preview rebuild failed:", err instanceof Error ? err.message : err);
