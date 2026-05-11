@@ -1,6 +1,7 @@
 import { readFile } from "node:fs/promises";
 import { join, basename } from "node:path";
 import { loadProjectRegistry } from "./parse/load-project-registry.js";
+import { listDocuments } from "./parse/list-documents.js";
 import { parseProject } from "./parse/project-parser.js";
 import { composeDocument } from "./compose/document.js";
 import { generateProjectCss } from "./compose/project-css.js";
@@ -71,4 +72,26 @@ export async function buildProject(
 
 function normaliseDocName(name: string): string {
   return name.endsWith(".md") ? name.slice(0, -3) : name;
+}
+
+/**
+ * Build every document at the project root. Returns one BuildResult per
+ * *.md file at the root, in `listDocuments` order (content.md first if
+ * present, then alphabetical). Returns [] when the project has no docs.
+ *
+ * Implementation note: this runs `buildProject` serially per doc. Each
+ * call re-loads the project registry from disk, which is wasted work
+ * for multi-doc projects. The optimisation (load registry once, thread
+ * it through `buildProject`) would touch `buildProject`'s signature and
+ * is deferred — see Task 5 notes. The fan-out is small in practice
+ * (a handful of docs per project) and concurrent disk I/O would
+ * compete anyway, so a serial loop is fine for now.
+ */
+export async function buildProjectAll(projectDir: string): Promise<BuildResult[]> {
+  const docs = await listDocuments(projectDir);
+  const results: BuildResult[] = [];
+  for (const d of docs) {
+    results.push(await buildProject(projectDir, { docName: d.basename }));
+  }
+  return results;
 }

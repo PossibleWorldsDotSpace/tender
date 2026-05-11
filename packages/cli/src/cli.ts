@@ -2,6 +2,7 @@
 import { Command } from "commander";
 import { resolve, join } from "node:path";
 import { build } from "./commands/build.js";
+import { listDocuments } from "@tender/core";
 import { lint, formatReport } from "./commands/lint.js";
 import { clean } from "./commands/clean.js";
 import { startPreviewServer } from "./commands/preview.js";
@@ -40,11 +41,21 @@ program
       console.error(`${red("error")}: --timeout must be a positive integer (got ${opts.timeout})`);
       process.exit(2);
     }
+    const projectDir = resolve(dir ?? ".");
+    if (opts.doc) {
+      const docs = await listDocuments(projectDir);
+      const requested = opts.doc.endsWith(".md") ? opts.doc.slice(0, -3) : opts.doc;
+      if (!docs.some(d => d.basename === requested)) {
+        const available = docs.map(d => d.basename).join(", ");
+        console.error(`${red("error")}: no document "${opts.doc}". Available: ${available || "(none)"}`);
+        process.exit(2);
+      }
+    }
     const what = opts.pdfOnly ? "PDF" : opts.htmlOnly ? "HTML" : "PDF + HTML";
-    const spinner = startSpinner(`Building ${what}...`);
+    const spinner = startSpinner(opts.doc ? `Building ${what} for ${opts.doc}...` : `Building ${what}...`);
     try {
       await build({
-        projectDir: resolve(dir ?? "."),
+        projectDir,
         outDir: resolve(opts.out),
         docName: opts.doc,
         pdfOnly: opts.pdfOnly,

@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { mkdtemp, mkdir, writeFile, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { buildProject } from "./build.js";
+import { buildProject, buildProjectAll } from "./build.js";
 import { cleanText } from "./clean/index.js";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
@@ -193,5 +193,26 @@ describe("buildProject", () => {
     // Create a directory where content.md should be — readFile will throw EISDIR.
     await mkdir(join(dir, "content.md"));
     await expect(buildProject(dir)).rejects.toThrow(/EISDIR|illegal operation/i);
+  });
+
+  it("buildProjectAll returns one result per document, sorted with content.md first", async () => {
+    const dir = await fixture({
+      "project.yaml": "page-templates:\n  default:\n    size: A4\n    margin: 0\n",
+      "styles.css": "",
+      "content.md": "# Default",
+      "resume.md": "# Resume",
+      "cover-letter.md": "# Cover"
+    });
+    const results = await buildProjectAll(dir);
+    expect(results.map(r => r.docBasename)).toEqual(["content", "cover-letter", "resume"]);
+  });
+
+  it("buildProjectAll returns [] when no documents exist", async () => {
+    const dir = await fixture({
+      "project.yaml": "page-templates:\n  default:\n    size: A4\n    margin: 0\n",
+      "styles.css": ""
+    });
+    const results = await buildProjectAll(dir);
+    expect(results).toEqual([]);
   });
 });

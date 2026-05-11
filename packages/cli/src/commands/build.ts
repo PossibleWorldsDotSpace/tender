@@ -1,6 +1,6 @@
 import { mkdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
-import { buildProject } from "@tender/core";
+import { buildProject, buildProjectAll } from "@tender/core";
 import { renderHtml, renderPdf } from "@tender/render";
 
 export interface BuildOptions {
@@ -15,17 +15,26 @@ export interface BuildOptions {
 }
 
 export async function build(opts: BuildOptions): Promise<void> {
-  const result = await buildProject(opts.projectDir, { docName: opts.docName });
-  // CLI override wins; otherwise inherit whatever buildProject pulled from project.yaml.
-  const renderInput = opts.timeoutMs ? { ...result, timeoutMs: opts.timeoutMs } : result;
   await mkdir(opts.outDir, { recursive: true });
-  const stem = result.docBasename;
-  if (!opts.pdfOnly) {
-    const html = await renderHtml(renderInput);
-    await writeFile(join(opts.outDir, `${stem}.html`), html);
+  const results = opts.docName
+    ? [await buildProject(opts.projectDir, { docName: opts.docName })]
+    : await buildProjectAll(opts.projectDir);
+
+  if (results.length === 0) {
+    throw new Error(`No documents found in ${opts.projectDir} (expected a *.md file at the project root).`);
   }
-  if (!opts.htmlOnly) {
-    const pdf = await renderPdf(renderInput);
-    await writeFile(join(opts.outDir, `${stem}.pdf`), pdf);
+
+  for (const result of results) {
+    // CLI override wins; otherwise inherit whatever buildProject pulled from project.yaml.
+    const renderInput = opts.timeoutMs ? { ...result, timeoutMs: opts.timeoutMs } : result;
+    const stem = result.docBasename;
+    if (!opts.pdfOnly) {
+      const html = await renderHtml(renderInput);
+      await writeFile(join(opts.outDir, `${stem}.html`), html);
+    }
+    if (!opts.htmlOnly) {
+      const pdf = await renderPdf(renderInput);
+      await writeFile(join(opts.outDir, `${stem}.pdf`), pdf);
+    }
   }
 }

@@ -82,4 +82,55 @@ describe("build command", () => {
       await rm(outDir, { recursive: true, force: true });
     }
   }, 120_000);
+
+  it("writes one output per doc when --doc is omitted in a multi-doc project", async () => {
+    const dir = await scaffold({
+      "project.yaml": "page-templates:\n  default:\n    size: A4\n    margin: 0\n",
+      "styles.css": "",
+      "content.md": "# Default",
+      "resume.md": "# Resume"
+    });
+    const outDir = await mkdtemp(join(tmpdir(), "tender-build-out-"));
+    try {
+      await build({ projectDir: dir, outDir, htmlOnly: true });
+      const files = await readdir(outDir);
+      expect(files.sort()).toEqual(["content.html", "resume.html"]);
+    } finally {
+      await rm(outDir, { recursive: true, force: true });
+      await rm(dir, { recursive: true, force: true });
+    }
+  }, 120_000);
+
+  it("throws a clear error when --doc names a non-existent document", async () => {
+    const dir = await scaffold({
+      "project.yaml": "page-templates:\n  default:\n    size: A4\n    margin: 0\n",
+      "styles.css": "",
+      "content.md": "# Hi"
+    });
+    const outDir = await mkdtemp(join(tmpdir(), "tender-build-out-"));
+    try {
+      await expect(
+        build({ projectDir: dir, outDir, docName: "bogus" })
+      ).rejects.toThrow(/no document.*bogus/i);
+    } finally {
+      await rm(outDir, { recursive: true, force: true });
+      await rm(dir, { recursive: true, force: true });
+    }
+  }, 120_000);
+
+  it("throws when the project has no documents at all", async () => {
+    const dir = await scaffold({
+      "project.yaml": "page-templates:\n  default:\n    size: A4\n    margin: 0\n",
+      "styles.css": ""
+    });
+    const outDir = await mkdtemp(join(tmpdir(), "tender-build-out-"));
+    try {
+      await expect(
+        build({ projectDir: dir, outDir })
+      ).rejects.toThrow(/no documents found/i);
+    } finally {
+      await rm(outDir, { recursive: true, force: true });
+      await rm(dir, { recursive: true, force: true });
+    }
+  }, 120_000);
 });
