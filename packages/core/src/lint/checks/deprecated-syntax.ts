@@ -3,32 +3,44 @@ import type { LintFinding } from "../report.js";
 
 /**
  * `tender/deprecated-syntax` — info-level findings for two forms in
- * content.md and component template bodies that have replacements:
+ * document bodies and component template bodies that have replacements:
  *
  *   - `:::name` directive form → suggest `<name>...</name>`.
  *   - `--- name ---` slot markers → suggest `@@ name`.
  *
- * The legacy YAML `templates:` block is also deprecated, but that
- * diagnostic surfaces from loadProjectRegistry directly and is forwarded
- * by the orchestrator (lint/index.ts) — no need to double-flag it here.
+ * Split into two entry points:
+ *
+ *   - `checkDeprecatedSyntaxInDoc` — scans a single document body. Runs once
+ *     per doc.
+ *   - `checkDeprecatedSyntaxInComponents` — scans every component template
+ *     body. Runs once per project; per-doc would produce N duplicates.
+ *
+ * The legacy YAML `templates:` block is also deprecated, but that diagnostic
+ * surfaces from loadProjectRegistry directly and is forwarded by the
+ * orchestrator (lint/index.ts) — no need to double-flag it here.
  */
 
 // `^` anchored: the marker must start at column 0.
 const DIRECTIVE_RE = /^:::([\w-]+)/gm;
 const LEGACY_SLOT_RE = /^---\s+([\w-]+)\s+---\s*$/gm;
 
-export interface DeprecatedSyntaxInput {
+export interface DeprecatedSyntaxInDocInput {
   projectDir: string;
   registry: ComponentRegistry;
   contentMd: string;
   contentPath: string;
 }
 
-export function checkDeprecatedSyntax(input: DeprecatedSyntaxInput): LintFinding[] {
+export interface DeprecatedSyntaxInComponentsInput {
+  projectDir: string;
+  registry: ComponentRegistry;
+}
+
+export function checkDeprecatedSyntaxInDoc(input: DeprecatedSyntaxInDocInput): LintFinding[] {
   const findings: LintFinding[] = [];
   const contentPath = input.contentPath;
 
-  // 1. :::name directives in content.md.
+  // :::name directives.
   for (const m of input.contentMd.matchAll(DIRECTIVE_RE)) {
     const offset = m.index ?? 0;
     findings.push({
@@ -41,7 +53,7 @@ export function checkDeprecatedSyntax(input: DeprecatedSyntaxInput): LintFinding
     });
   }
 
-  // 2. Legacy slot markers in content.md.
+  // Legacy slot markers.
   for (const m of input.contentMd.matchAll(LEGACY_SLOT_RE)) {
     const offset = m.index ?? 0;
     findings.push({
@@ -54,7 +66,14 @@ export function checkDeprecatedSyntax(input: DeprecatedSyntaxInput): LintFinding
     });
   }
 
-  // 3. Same scans across component template bodies.
+  return findings;
+}
+
+export function checkDeprecatedSyntaxInComponents(
+  input: DeprecatedSyntaxInComponentsInput
+): LintFinding[] {
+  const findings: LintFinding[] = [];
+
   for (const [name, entry] of input.registry.byName) {
     const body = entry.def.template ?? "";
     for (const m of body.matchAll(DIRECTIVE_RE)) {
