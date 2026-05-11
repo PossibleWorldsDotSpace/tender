@@ -16,6 +16,34 @@ When the user's prompt is about authoring components, tweaking styles, structuri
 
 This skill is **edit-first.** Don't propose changes and ask for permission — make them. The user will revert via git or ask you to undo if something's wrong. The exception is when intent is genuinely ambiguous: ask one clarifying question, not several.
 
+## Never change the prose
+
+**Tender is a layout tool. The author's words are not yours to edit.** You restructure, style, and wire up components around existing prose — you do not rewrite it. This rule overrides everything else in this skill.
+
+Concretely, unless the user **explicitly** asks you to change the text:
+
+- **Do not** rephrase, reword, "tighten," correct grammar, fix typos, expand abbreviations, normalise capitalisation, or "improve clarity" in `content.md` or anywhere else.
+- **Do not** translate, summarise, or shorten body text to fit a layout. If the prose overflows a page or column, the fix is CSS or structural — not trimming the author's words.
+- **Do not** drop sentences or paragraphs because they look like "scaffolding" or "notes to self," unless the user has told you they are. When in doubt, ask before deleting.
+- **Do not** insert new sentences, headings, captions, alt text, or placeholder copy. Empty slots stay empty until the author fills them.
+- **Do** freely change *markup around* the prose: wrap paragraphs in components, split a block into rows, add page markers, change a tag name, rewire slots. The bytes of the prose itself should pass through unchanged.
+
+The single legitimate exception during content structuring is dropping clearly pre-structuring annotations the user added as instructions to you (e.g. "A welcome paragraph from facilitator A." sitting above the paragraph to wrap). When in any doubt that a line is content rather than instruction, **leave it and ask**.
+
+If a task seems to require editing prose to succeed (e.g. "make this fit on one page" and the only way is to cut a sentence), stop and tell the user — propose CSS/structural options, or ask whether they want to do the cut themselves.
+
+## Never invent components, tokens, or styles unprompted
+
+The same principle applies to the project's *vocabulary*. Tender is a layout tool; the author decides what components, tokens, page templates, and inline shortcuts exist.
+
+- **Do not** create a `components/<name>.tender` file the user did not ask for. If a piece of content "would benefit from" being a callout/row/whatever, *suggest it in one sentence and ask* — don't write the file.
+- **Do not** seed a "starter set" of components when initialising or scaffolding. `tender init` ships a deliberately minimal template; don't add to it from your own taste.
+- **Do not** invent component names from memory of other Tender projects you've seen — especially anything from the `coastal-planet*` fixtures (`row`, `callout`, `ad-lib`, `cover-spiral`, `spanning-row`, `stage-direction`, etc.). Those are example-specific. A fresh project has no such components and shouldn't grow them by default.
+- **Do not** add new design tokens, page templates, inline shortcuts, or fonts the user didn't request. Vocabulary changes are explicit author decisions.
+- **Do** create exactly what was asked for, with the name and shape the user named (or one you proposed and they confirmed when intent was ambiguous).
+
+If you find yourself thinking "I'll also add a `<callout>` while I'm here, it's a common need," stop. That's the leak. Make the requested change, mention the optional follow-up in one line, and let the user decide.
+
 ## When this skill applies
 
 The user's working directory contains a `project.yaml` whose top-level keys include `page-templates:`. That's a Tender project. Verify cheaply:
@@ -80,7 +108,9 @@ Quick decision rule: if the user's request is "I want a class on a span/div/asid
 
 ### Component naming
 
-Component names should be **hyphenated** (`stage-direction`, `cover-spiral`, `ad-lib`, `spanning-row`). Single-word lowercase names like `row` or `callout` are acceptable but they collide with the editor's HTML grammar (TextMate's tag injection only highlights hyphenated names) and with author intuition (is `<aside>` a Tender component or raw HTML?). Prefer hyphenated names for new components, especially inline ones.
+Component names should be **hyphenated** (e.g. `pull-quote`, `side-note`, `figure-caption`). Single-word lowercase names like `row` or `callout` are acceptable but they collide with the editor's HTML grammar (TextMate's tag injection only highlights hyphenated names) and with author intuition (is `<aside>` a Tender component or raw HTML?). Prefer hyphenated names for new components, especially inline ones.
+
+These naming examples are *illustrations of the hyphenation convention only* — never create them unprompted because they appear here. Same goes for any component name you've seen in the `coastal-planet*` fixtures (`ad-lib`, `cover-spiral`, `spanning-row`, `stage-direction`, etc.): those exist for a specific worked example and are not a starter set. **Create only the component the user asked for, with the name the user named (or one they approve when you ask).**
 
 ## Design tokens
 
@@ -194,7 +224,7 @@ User says "narrow the left column." You change `3fr 5fr` → `2fr 6fr`. Rerun li
 1. **Read `content.md`.** Identify the prose to restructure.
 2. **Check what's available.** What components are declared? What inline shortcuts? Read `components/*.tender` filenames and `project.yaml`'s `inline-shortcuts:` block.
 3. **If the requested component doesn't exist**, ask the user whether to create it (don't assume; component creation is its own operation).
-4. **Make the edit.** Wrap or unwrap paragraphs as requested. For block components, wrap with blank lines around opener and closer (Markdown needs them). For inline components, use shortcut form when available, tag form when not.
+4. **Make the edit — markup only.** Wrap or unwrap paragraphs as requested. For block components, wrap with blank lines around opener and closer (Markdown needs them). For inline components, use shortcut form when available, tag form when not. **The author's prose passes through byte-for-byte.** Do not retype paragraphs you're wrapping — copy them exactly, including punctuation, capitalisation, line breaks, and any quirks. No "while I'm here" fixes.
 5. **Run `tender lint`** to catch unknown-component errors if you misspelled a tag.
 6. **Report which lines changed and how.**
 
@@ -219,7 +249,7 @@ And I'm here to make sure we have everything we need along the way.
 Notice:
 
 - Each row is on its own block, with blank lines around the opener and closer.
-- The descriptive sentence ("A welcome paragraph from facilitator A.") is dropped — that was the user's pre-structuring annotation, not content. Confirm with the user if uncertain.
+- The descriptive sentence ("A welcome paragraph from facilitator A.") is dropped — that was the user's pre-structuring annotation, not content. **Only drop a line when you are sure it's instruction-to-you rather than prose.** Confirm with the user if there's any doubt; leaving it in is always safer than deleting authored content.
 - `icon=speaker` and `no-break` are added because the row template's params support them and they're visually appropriate for dialogue.
 
 ### 4. Diagnosis
@@ -317,7 +347,7 @@ You can run `tender clean --check` (read-only) yourself to confirm there are pen
 - **Don't run `tender clean` in interactive mode.** Default mode prompts the user; let them run it. You can use `tender clean --check` to confirm there are pending paste artifacts before suggesting they run it.
 - **Don't `git commit`.** That's the user's call. Mention "Ready to commit?" only when a meaningful chunk of work is done.
 - **Don't pick fonts, colors, or page geometry from scratch.** Wire up an `@font-face` if the user names a file in `assets/fonts/`. Adjust an existing page template's margins. But don't recommend "use Garamond for body."
-- **Don't draft prose.** Authors do that. The skill structures and styles existing content.
+- **Don't draft prose, and don't edit existing prose.** Authors write the words. The skill structures and styles existing content; it never rewrites, tightens, corrects, or trims it. See "Never change the prose" above. If asked to "fix" content (typos, grammar, flow), confirm the request is specifically about text changes before touching a single character.
 - **Don't refactor across many files at once.** Single-file or tightly-coupled-pair edits per turn (e.g. `components/foo.tender` + `styles.css`). Multi-file refactors are a `tender migrate`-shaped concern; offer to break the work into smaller per-file turns instead.
 
 ## Honest reporting
