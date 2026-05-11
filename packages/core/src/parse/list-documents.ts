@@ -1,7 +1,7 @@
 import { readdir } from "node:fs/promises";
 import { join } from "node:path";
 
-export const RESERVED_DOC_NAMES = new Set<string>(["README.md"]);
+export const RESERVED_DOC_NAMES: ReadonlySet<string> = new Set(["README.md"]);
 
 export interface ProjectDocument {
   /** Filename, e.g. "resume.md". */
