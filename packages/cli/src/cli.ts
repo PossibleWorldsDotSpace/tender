@@ -26,6 +26,7 @@ program
   .command("build [dir]")
   .description("Build PDF and HTML from a project directory")
   .option("--out <path>", "output directory", "./out")
+  .option("--doc <name>", "build only the named document (basename without .md)")
   .option("--pdf-only", "produce only PDF")
   .option("--html-only", "produce only HTML")
   .option("--timeout <ms>", "max time (ms) for Paged.js pagination (default 60000)")
@@ -33,7 +34,7 @@ program
     "after",
     `\nExamples:\n  $ tender build\n  $ tender build my-doc --pdf-only\n  $ tender build . --out dist --timeout 120000\n`
   )
-  .action(async (dir: string | undefined, opts: { out: string; pdfOnly?: boolean; htmlOnly?: boolean; timeout?: string }) => {
+  .action(async (dir: string | undefined, opts: { out: string; doc?: string; pdfOnly?: boolean; htmlOnly?: boolean; timeout?: string }) => {
     const timeoutMs = opts.timeout ? parseInt(opts.timeout, 10) : undefined;
     if (opts.timeout && (!timeoutMs || timeoutMs <= 0)) {
       console.error(`${red("error")}: --timeout must be a positive integer (got ${opts.timeout})`);
@@ -45,6 +46,7 @@ program
       await build({
         projectDir: resolve(dir ?? "."),
         outDir: resolve(opts.out),
+        docName: opts.doc,
         pdfOnly: opts.pdfOnly,
         htmlOnly: opts.htmlOnly,
         timeoutMs
