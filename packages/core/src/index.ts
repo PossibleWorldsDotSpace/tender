@@ -7,6 +7,8 @@ export { loadComponentsDir } from "./parse/load-components-dir.js";
 export type { ComponentRegistry, RegistryEntry, Diagnostic } from "./parse/load-components-dir.js";
 export { loadProjectRegistry } from "./parse/load-project-registry.js";
 export type { ProjectRegistry } from "./parse/load-project-registry.js";
+export { listDocuments, RESERVED_DOC_NAMES } from "./parse/list-documents.js";
+export type { ProjectDocument } from "./parse/list-documents.js";
 export { buildPalette } from "./palette/build-palette.js";
 export type { PaletteResponse, PaletteEntry, Render, TypographySpecimen } from "./palette/build-palette.js";
 export { renderHelp } from "./help/render-help.js";
