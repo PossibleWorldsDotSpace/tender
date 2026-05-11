@@ -42,7 +42,11 @@ program
       process.exit(2);
     }
     const projectDir = resolve(dir ?? ".");
-    if (opts.doc) {
+    if (opts.doc !== undefined) {
+      if (opts.doc === "") {
+        console.error(`${red("error")}: --doc requires a document name`);
+        process.exit(2);
+      }
       const docs = await listDocuments(projectDir);
       const requested = opts.doc.endsWith(".md") ? opts.doc.slice(0, -3) : opts.doc;
       if (!docs.some(d => d.basename === requested)) {
