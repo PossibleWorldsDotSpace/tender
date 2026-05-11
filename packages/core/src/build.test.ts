@@ -173,6 +173,7 @@ describe("buildProject", () => {
     });
     const result = await buildProject(dir);
     expect(result.docBasename).toBe("content");
+    expect(result.html).toContain("Hi");
   });
 
   it("throws a clear error when the named doc doesn't exist", async () => {
@@ -182,5 +183,15 @@ describe("buildProject", () => {
       "content.md": "# Hi"
     });
     await expect(buildProject(dir, { docName: "missing" })).rejects.toThrow(/no document.*missing/i);
+  });
+
+  it("rethrows non-ENOENT read errors instead of wrapping them as missing-doc", async () => {
+    const dir = await fixture({
+      "project.yaml": "page-templates:\n  default:\n    size: A4\n    margin: 0\n",
+      "styles.css": ""
+    });
+    // Create a directory where content.md should be — readFile will throw EISDIR.
+    await mkdir(join(dir, "content.md"));
+    await expect(buildProject(dir)).rejects.toThrow(/EISDIR|illegal operation/i);
   });
 });

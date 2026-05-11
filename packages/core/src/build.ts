@@ -43,8 +43,11 @@ export async function buildProject(
 
   const docBasename = normaliseDocName(opts.docName ?? "content");
   const docFilename = `${docBasename}.md`;
-  const md = await readFile(join(projectDir, docFilename), "utf8").catch(() => {
-    throw new Error(`No document "${docBasename}" (looked for ${docFilename}) in ${projectDir}`);
+  const md = await readFile(join(projectDir, docFilename), "utf8").catch((err: NodeJS.ErrnoException) => {
+    if (err?.code === "ENOENT") {
+      throw new Error(`No document "${docBasename}" (looked for ${docFilename}) in ${projectDir}`);
+    }
+    throw err;
   });
   const stylesCss = await readFile(join(projectDir, "styles.css"), "utf8").catch(() => "");
   const { html: parsed, startsWithPage } = await parseProject(md, mergedConfig);
