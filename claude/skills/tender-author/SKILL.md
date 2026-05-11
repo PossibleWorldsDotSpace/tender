@@ -10,7 +10,7 @@ description: |
 
 # tender-author
 
-You are helping the user author a Tender project. Tender is a print-layout tool: Markdown content + project-defined components compile to a print-ready PDF via Paged.js + headless Chromium. A project is a directory with `project.yaml`, `styles.css`, `content.md`, `components/*.tender` files, and `assets/`.
+You are helping the user author a Tender project. Tender is a print-layout tool: Markdown content + project-defined components compile to a print-ready PDF via Paged.js + headless Chromium. A project is a directory with `project.yaml`, `styles.css`, one or more `*.md` documents at the root (conventionally `content.md`; any `*.md` other than `README.md` and `_*.md` counts), `components/*.tender` files, and `assets/`.
 
 When the user's prompt is about authoring components, tweaking styles, structuring content, or diagnosing lint/build issues in a Tender project, you do the work directly: read what's relevant, make the file edits, run `tender lint --json` to verify, and report what landed.
 
@@ -62,7 +62,7 @@ The reference fixture is `packages/core/test/fixtures/coastal-planet-tags/` in t
 my-doc/
   project.yaml          # globals: page-templates, typography, fonts, inline-shortcuts, design-tokens, clean, render
   styles.css            # presentation: layout, typography, design-token overrides
-  content.md            # prose with components invoked by name
+  *.md                  # one or more documents (content.md, resume.md, ...) — see "Multiple documents" below
   components/
     row.tender          # one .tender file per component
     callout.tender
@@ -76,10 +76,23 @@ Four-way split:
 
 - **`project.yaml`** declares vocabulary (page templates, inline shortcuts, design tokens) and global settings (page geometry, typography, hyphenation, fonts).
 - **`styles.css`** styles the elements — layout grids, base typography. Token *overrides* (the user-CSS-wins rule) and CSS-side indirection live here.
-- **`content.md`** is the prose, with components invoked via tag syntax: `<row label="x">…</row>`, `<callout variant="warning">…</callout>`.
+- **`content.md` (and any other root `*.md`)** is the prose, with components invoked via tag syntax: `<row label="x">…</row>`, `<callout variant="warning">…</callout>`. See "Multiple documents" below.
 - **`components/*.tender`** are single-file components: frontmatter (YAML) + Handlebars template + optional `<style>` block + optional `<palette>` block.
 
 For deep reference, see `docs/user-guide.md` in the repo. Don't reproduce it here; use it.
+
+### Multiple documents
+
+A project can carry more than one document. Any `*.md` at the project root is one (the conventional starter is `content.md`). `README.md` and `_*.md` are reserved and ignored. All documents share the project's components, styles, design tokens, and assets.
+
+CLI shape worth knowing:
+
+- `tender lint` runs per document; findings carry the document filename. `tender/unused-component` reachability is cross-document — a component referenced from any document counts as used.
+- `tender preview` discovers all documents; the UI shows a dropdown when there are 2+. `--doc <name>` preselects one.
+- `tender build` (don't run it yourself — too slow) builds every document by default; `--doc <name>` builds one. Outputs are named `out/<basename>.pdf` / `out/<basename>.html`.
+- `tender clean` requires an explicit path in a multi-document project.
+
+When the user references "the document" and there's more than one in the project, ask which one before editing. Never add a new root `*.md` file just because it would be tidy; see "What this skill does NOT do automatically" below.
 
 ## Critical rules — non-negotiable
 
@@ -349,6 +362,7 @@ You can run `tender clean --check` (read-only) yourself to confirm there are pen
 - **Don't pick fonts, colors, or page geometry from scratch.** Wire up an `@font-face` if the user names a file in `assets/fonts/`. Adjust an existing page template's margins. But don't recommend "use Garamond for body."
 - **Don't draft prose, and don't edit existing prose.** Authors write the words. The skill structures and styles existing content; it never rewrites, tightens, corrects, or trims it. See "Never change the prose" above. If asked to "fix" content (typos, grammar, flow), confirm the request is specifically about text changes before touching a single character.
 - **Don't refactor across many files at once.** Single-file or tightly-coupled-pair edits per turn (e.g. `components/foo.tender` + `styles.css`). Multi-file refactors are a `tender migrate`-shaped concern; offer to break the work into smaller per-file turns instead.
+- **Don't add a new root `*.md` file unless the user asked for a new document.** A root `*.md` is a build target — adding one silently means the next `tender build` produces an extra PDF the user didn't expect. If they ask for a new document, create it and verify with `tender lint` that the project still builds.
 
 ## Honest reporting
 

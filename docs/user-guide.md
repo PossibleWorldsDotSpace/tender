@@ -4,13 +4,13 @@ Tender turns a project directory of plain text and CSS into print-ready PDFs. Th
 
 ## Mental model
 
-A Tender project is a directory with three files, a components folder, and an assets folder:
+A Tender project is a directory with two files, one or more markdown documents, a components folder, and an assets folder:
 
 ```
 my-doc/
   project.yaml      # globals: page templates, typography, fonts, inline shortcuts, design tokens, clean, render
   styles.css        # presentation: layout, typography, design-token overrides
-  content.md        # the prose, with components invoked by name
+  content.md        # the prose, with components invoked by name (any *.md at the root is a document)
   components/
     row.tender      # one .tender file per component, frontmatter + template + style + palette
     callout.tender
@@ -24,7 +24,7 @@ The split is deliberate:
 
 - **`project.yaml`** declares your **vocabulary** (page templates, inline shortcuts, design tokens) and **global settings** (page geometry, typography, hyphenation, fonts). It's the "what".
 - **`styles.css`** styles the elements — layout grids, base typography, and token overrides. It's the "how it looks".
-- **`content.md`** is the prose, with named components invoked via tag syntax. It's the "what it says".
+- **`content.md`** (or any `*.md` at the project root) is the prose, with named components invoked via tag syntax. It's the "what it says". `content.md` is the conventional name for a single-document project; see [Multiple documents](#multiple-documents) for projects that carry several.
 - **`components/*.tender`** are single-file components — frontmatter declaring params/slots, a Handlebars template, optional `<style>` and `<palette>` blocks. Each component lives in one file alongside its CSS.
 
 Authoring loop: edit any of the four sources, watch the live preview update, build to PDF when ready.
@@ -902,7 +902,7 @@ Run `tender lint my-doc` before building or committing. v1 checks:
 |---|---|---|
 | `tender/project-config` | error | `project.yaml` failed schema validation — a malformed top-level key, an invalid design-token name, a missing `page-templates.default`, etc. |
 | `tender/unused-component` | warning | A `components/foo.tender` exists but no `<foo>` invocation in content. |
-| `tender/unknown-component` | error | `content.md` references a component name that's not declared. |
+| `tender/unknown-component` | error | A document references a component name that's not declared. |
 | `tender/missing-asset` | error | A relative `src=`/`href=` reference points at a file that doesn't exist. |
 | `tender/deprecated-syntax` | info | Old-style `:::name` directives or `--- slot ---` markers — suggests `<name>` and `@@ slot`. |
 | `tender/token-value-shape` | warning | A design-token value doesn't fit the category's expected shape. See [Design tokens → Lint codes](#lint-codes). |
@@ -918,10 +918,26 @@ Exit code is non-zero on errors (or any warnings under `--strict`).
 ```
 $ tender lint my-doc
 warning: components/yellow-tag.tender:1: Component "yellow-tag" is declared but never used. [tender/unused-component]
-error  : content.md:42:1: Unknown component "callout-warning". [tender/unknown-component]
+error  : cover-letter.md:42:1: Unknown component "callout-warning". [tender/unknown-component]
 
 1 errors, 1 warnings, 0 info.
 ```
+
+---
+
+## Multiple documents
+
+A project can carry more than one document. Any `*.md` file at the project root is a document — drop a `resume.md` next to your `content.md` and Tender treats it as a second one. `README.md` and any file matching `_*.md` are reserved (project notes, partials, drafts) and are ignored.
+
+One project, one set of components, styles, design tokens, and assets. Documents share all of it; they differ only in their prose and which components they invoke.
+
+CLI behaviour:
+
+- `tender build` with no flag renders every document. Outputs land at `out/<basename>.pdf` and `out/<basename>.html` — `content.md` produces `out/content.pdf`, `resume.md` produces `out/resume.pdf`.
+- `tender build --doc <name>` (with or without the `.md` suffix) renders one document.
+- `tender preview` discovers all documents. When there are two or more, the preview UI shows a dropdown to switch between them; the default selection is `content.md` if present, otherwise the alphabetically first document. `tender preview --doc <name>` preselects one.
+- `tender lint` runs per document, and findings carry the document's filename. Reachability for `tender/unused-component` is **cross-document** — a component referenced from any document counts as used, so warnings don't fire spuriously when components are shared across documents.
+- `tender clean` requires an explicit path in a multi-document project, since there's no single default.
 
 ---
 
@@ -955,10 +971,12 @@ Try: tender preview
 
 ### `tender build [dir]`
 
-Renders to `dir/out/` (or `--out <path>`). Default `dir` is `.`.
+Renders to `dir/out/` (or `--out <path>`). Default `dir` is `.`. With no `--doc` flag every document at the project root is rendered; outputs are named after the markdown basename (`content.md` → `out/content.pdf` and `out/content.html`).
 
 ```
 tender build my-doc
+tender build my-doc --doc resume         # build only resume.md
+tender build my-doc --doc resume.md      # equivalent
 tender build my-doc --out ~/Desktop
 tender build my-doc --pdf-only
 tender build my-doc --html-only
@@ -966,15 +984,16 @@ tender build my-doc --html-only
 
 ### `tender preview [dir]`
 
-Live-reloading HTML preview. Edits to `project.yaml`, `styles.css`, `content.md`, any `.tender` component, or any file in `assets/` trigger a rebuild and browser refresh.
+Live-reloading HTML preview. Edits to `project.yaml`, `styles.css`, any document, any `.tender` component, or any file in `assets/` trigger a rebuild and browser refresh.
 
 ```
 tender preview my-doc
+tender preview my-doc --doc resume            # preselect a document in the dropdown
 tender preview my-doc --port 3993
 tender preview my-doc --host 0.0.0.0          # expose on LAN/Tailscale
 ```
 
-The preview shows pages as printed sheets (white background, drop shadow, page numbers, margin guides). Build errors surface in the terminal and as a browser overlay; the server stays up and recovers when you fix the error. Stop with Ctrl-C.
+The preview shows pages as printed sheets (white background, drop shadow, page numbers, margin guides). In a multi-document project the UI carries a dropdown to switch between documents. Build errors surface in the terminal and as a browser overlay; the server stays up and recovers when you fix the error. Stop with Ctrl-C.
 
 ### `tender lint [dir]`
 
@@ -997,13 +1016,15 @@ tender clean --yes my-doc/content.md     # skip prompt
 tender clean --typography my-doc/content.md
 ```
 
+In a multi-document project an explicit path is required; calling `tender clean` with just the project directory errors out and lists the available documents. In a single-document project the path defaults to that document.
+
 Set `clean.typography: smart` in `project.yaml` to make `--typography` the default for that project.
 
 ---
 
 ## Authoring with Claude Code
 
-A Claude skill at [`claude/skills/tender-author/`](../claude/skills/tender-author/) turns natural-language conversation about your project into the right file edits. Claude reads `project.yaml`, your components, and `content.md`; makes the changes you describe; runs `tender lint` to verify; and reports what landed.
+A Claude skill at [`claude/skills/tender-author/`](../claude/skills/tender-author/) turns natural-language conversation about your project into the right file edits. Claude reads `project.yaml`, your components, and your document(s); makes the changes you describe; runs `tender lint` to verify; and reports what landed.
 
 The skill is scoped to five authoring concerns:
 
@@ -1033,7 +1054,7 @@ This is acceptable for the typical Tender use case — rendering local source fi
 
 ## What's not in v1
 
-- **Single content file.** Multi-file content (chapters across files, with cross-references and continuous numbering) is a v2 item.
+- **No cross-document references.** A project can carry multiple documents (any `*.md` at the project root) that share components, styles, and tokens, but Tender doesn't link them: no shared page numbering, no cross-references, no continuous flow between documents.
 - **No layout-warning system.** Bad column breaks, very-short last lines, orphans the engine couldn't fix — none flagged automatically. Your eye is the linter; the preview is the tool.
 - **No mixed token + literal in headers/footers.** `"Page {page}"` will throw an error; use either a single token or a single literal per region.
 - **RGB only.** No CMYK, PDF/X, or commercial prepress conformance.

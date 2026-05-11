@@ -38,13 +38,13 @@ Most of the day is in that *compose ↔ preview* loop. Set things up once at the
 
 ```mermaid
 flowchart LR
-    A[tender init] --> B[project.yaml<br/>styles.css<br/>content.md<br/>components/]
+    A[tender init] --> B[project.yaml<br/>styles.css<br/>&lt;doc&gt;.md<br/>components/]
     B --> C[tender tokens set<br/>edit project.yaml<br/>edit components]
     C --> D[tender preview<br/>live HTML reload]
     D --> C
     C --> E[tender lint]
     E --> F[tender build]
-    F --> G[document.pdf<br/>document.html]
+    F --> G[out/&lt;doc&gt;.pdf<br/>out/&lt;doc&gt;.html]
 ```
 
 The loop in the middle (edit → preview) is the day-to-day; `init` happens once, `build` happens when you ship.
@@ -66,9 +66,9 @@ flowchart TB
         LSP["@tender/language-server<br/>(LSP backend for VS Code)"]
     end
 
-    SRC[("project.yaml<br/>styles.css<br/>content.md<br/>components/*.tender")]
-    PDF[document.pdf]
-    HTML[document.html]
+    SRC[("project.yaml<br/>styles.css<br/>&lt;doc&gt;.md<br/>components/*.tender")]
+    PDF[out/&lt;doc&gt;.pdf]
+    HTML[out/&lt;doc&gt;.html]
 
     CLI --> SRC
     SKILL --> SRC
@@ -105,7 +105,7 @@ pnpm --filter @tender/cli link --global
 ```
 tender init my-doc
 tender build my-doc
-open my-doc/out/document.pdf
+open my-doc/out/content.pdf
 ```
 
 `tender preview my-doc` runs a live-reloading HTML preview at http://127.0.0.1:3993.
@@ -119,6 +119,8 @@ tender clean my-doc/content.md          # strips BOMs, NBSPs, soft hyphens, mixe
 tender clean --typography my-doc/content.md   # also: curly quotes, em-dashes, ellipses
 ```
 
+(In a multi-document project, `tender clean` requires an explicit path — the markdown file you want sanitised.)
+
 Then start authoring components in the live preview.
 
 ## Project structure
@@ -127,7 +129,7 @@ Then start authoring components in the live preview.
 my-doc/
   project.yaml      # page templates, typography, fonts, inline shortcuts, design tokens, clean, render
   styles.css        # presentation
-  content.md        # prose + component invocations
+  *.md              # one or more documents at the project root (e.g. content.md, resume.md)
   components/
     row.tender      # one .tender file per component
     callout.tender
@@ -170,10 +172,10 @@ Tender has two equal control surfaces — the CLI and the Claude skill. Both ope
 Six commands, all run from inside (or pointed at) a project directory.
 
 - **`tender init <dir>`** — scaffold a new project from the default starter (idempotent; preserves existing files).
-- **`tender build [dir]`** — produce `out/document.pdf` and `out/document.html`.
-- **`tender preview [dir]`** — live-reloading HTML preview server (`--port`, `--host`).
+- **`tender build [dir]`** — render every document at the project root to `out/<basename>.pdf` and `out/<basename>.html`. Pass `--doc <name>` to build a single document.
+- **`tender preview [dir]`** — live-reloading HTML preview server (`--port`, `--host`). In a multi-document project the preview UI shows a dropdown to switch between documents; `--doc <name>` preselects one.
 - **`tender lint [dir]`** — validate the project; surface unused/unknown components, missing assets, deprecated syntax, design-token issues (`--strict`, `--json`).
-- **`tender clean [path]`** — sanitise content.md: strip paste artifacts; optionally apply smart typography (`--check`, `--yes`, `--typography`).
+- **`tender clean [path]`** — sanitise a document: strip paste artifacts; optionally apply smart typography (`--check`, `--yes`, `--typography`). In a multi-document project the path is required.
 - **`tender tokens list|set|edit`** — inspect and edit design tokens (`--json` on `list`, AST round-trip on `set` so comments survive, raw-mode TUI on `edit`).
 
 Run `tender --help` (or `tender <command> --help`) for examples on every command.
@@ -201,7 +203,7 @@ The skill is scoped to five authoring concerns: components, styling tweaks, cont
 
 ## Editor support
 
-A VS Code extension lives in [`packages/vscode-extension/`](packages/vscode-extension/). It spawns the language server, registers `.tender` as a custom language with TextMate grammars and snippets, and provides completion, hover, diagnostics, and definition jumps for both `.tender` files and tag-syntax in `content.md`.
+A VS Code extension lives in [`packages/vscode-extension/`](packages/vscode-extension/). It spawns the language server, registers `.tender` as a custom language with TextMate grammars and snippets, and provides completion, hover, diagnostics, and definition jumps for both `.tender` files and tag-syntax in markdown documents.
 
 The extension isn't on the marketplace yet ([#2](https://github.com/joshajh/tender/issues/2)). The supported install path is to run it from a clone of the repo:
 
