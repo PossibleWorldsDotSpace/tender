@@ -14,11 +14,23 @@ export interface BuildResult {
   stylesCss: string;
   config: ProjectConfig;
   projectDir: string;
+  /** Basename without extension, e.g. "resume" or "content". */
+  docBasename: string;
+  /** Filename, e.g. "resume.md". */
+  docFilename: string;
   /** Carried through from project.yaml's `render.timeout-ms`, if set. */
   timeoutMs?: number;
 }
 
-export async function buildProject(projectDir: string): Promise<BuildResult> {
+export interface BuildProjectOptions {
+  /** Doc basename or filename (with or without .md). Defaults to "content". */
+  docName?: string;
+}
+
+export async function buildProject(
+  projectDir: string,
+  opts: BuildProjectOptions = {}
+): Promise<BuildResult> {
   const { config, registry } = await loadProjectRegistry(projectDir);
 
   // The parser consumes ProjectConfig; the registry replaces (or augments)
@@ -29,7 +41,11 @@ export async function buildProject(projectDir: string): Promise<BuildResult> {
   }
   const mergedConfig: ProjectConfig = { ...config, components: mergedComponents };
 
-  const md = await readFile(join(projectDir, "content.md"), "utf8");
+  const docBasename = normaliseDocName(opts.docName ?? "content");
+  const docFilename = `${docBasename}.md`;
+  const md = await readFile(join(projectDir, docFilename), "utf8").catch(() => {
+    throw new Error(`No document "${docBasename}" (looked for ${docFilename}) in ${projectDir}`);
+  });
   const stylesCss = await readFile(join(projectDir, "styles.css"), "utf8").catch(() => "");
   const { html: parsed, startsWithPage } = await parseProject(md, mergedConfig);
   const bodyHtml = startsWithPage ? parsed : `<div class="page">${parsed}</div>`;
@@ -44,6 +60,12 @@ export async function buildProject(projectDir: string): Promise<BuildResult> {
     stylesCss,
     config: mergedConfig,
     projectDir,
+    docBasename,
+    docFilename,
     timeoutMs
   };
+}
+
+function normaliseDocName(name: string): string {
+  return name.endsWith(".md") ? name.slice(0, -3) : name;
 }

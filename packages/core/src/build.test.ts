@@ -143,4 +143,44 @@ describe("buildProject", () => {
     // Sanity: the cleaner did meaningful work.
     expect(r.changes.length).toBeGreaterThanOrEqual(5);
   });
+
+  async function fixture(files: Record<string, string>): Promise<string> {
+    const dir = await mkdtemp(join(tmpdir(), "tender-build-"));
+    for (const [name, contents] of Object.entries(files)) {
+      await writeFile(join(dir, name), contents);
+    }
+    return dir;
+  }
+
+  it("builds the named document when opts.docName is given", async () => {
+    const dir = await fixture({
+      "project.yaml": "page-templates:\n  default:\n    size: A4\n    margin: 0\n",
+      "styles.css": "",
+      "content.md": "# Should not be picked",
+      "resume.md": "# Resume"
+    });
+    const result = await buildProject(dir, { docName: "resume" });
+    expect(result.html).toContain("Resume");
+    expect(result.docBasename).toBe("resume");
+    expect(result.docFilename).toBe("resume.md");
+  });
+
+  it("defaults to content.md when opts is omitted", async () => {
+    const dir = await fixture({
+      "project.yaml": "page-templates:\n  default:\n    size: A4\n    margin: 0\n",
+      "styles.css": "",
+      "content.md": "# Hi"
+    });
+    const result = await buildProject(dir);
+    expect(result.docBasename).toBe("content");
+  });
+
+  it("throws a clear error when the named doc doesn't exist", async () => {
+    const dir = await fixture({
+      "project.yaml": "page-templates:\n  default:\n    size: A4\n    margin: 0\n",
+      "styles.css": "",
+      "content.md": "# Hi"
+    });
+    await expect(buildProject(dir, { docName: "missing" })).rejects.toThrow(/no document.*missing/i);
+  });
 });
