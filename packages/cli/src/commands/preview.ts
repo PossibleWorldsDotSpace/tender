@@ -140,13 +140,26 @@ function injectPreviewExtras(html: string): string {
 
 const EMPTY_DOCS_HTML = `<!DOCTYPE html><html><body><pre>No documents in this project. Add a *.md file at the project root.</pre>${RELOAD_SCRIPT}</body></html>`;
 
+/**
+ * Per-document cache entry. Discriminated by `kind` so that a single map can
+ * hold both successfully-built docs and docs that are currently in error
+ * (with optional last-good build retained for project-wide endpoints).
+ *
+ * Storing both states in one map means a recovered doc atomically overwrites
+ * its error state via a single `docCaches.set` — no risk of the same doc
+ * lingering in a parallel error map.
+ */
+type DocCache =
+  | { kind: "ok"; html: string; build: BuildResult }
+  | { kind: "error"; html: string; build: BuildResult | null };
+
 export async function startPreviewServer(opts: PreviewOptions): Promise<RunningServer> {
   const app = express();
 
-  // Per-document cache: one rendered HTML + the underlying BuildResult per
-  // root *.md document. Project-wide endpoints (palette, styles.css) read
-  // from whichever doc is the current "default" (see defaultBuild()).
-  const docCaches = new Map<string, { html: string; build: BuildResult }>();
+  // Per-document cache: one entry per root *.md document, ok or error.
+  // Project-wide endpoints (palette, styles.css) read from whichever doc is
+  // the current "default" (see defaultBuild()).
+  const docCaches = new Map<string, DocCache>();
   let docs: ProjectDocument[] = [];
   let buildError: Error | null = null;
 
@@ -159,54 +172,53 @@ export async function startPreviewServer(opts: PreviewOptions): Promise<RunningS
   }
 
   function defaultDocName(): string | null {
+    // Honour --doc even when the requested doc failed to build: as long as
+    // it has *any* entry (ok or error), it stays the default. Otherwise the
+    // user would silently see content.md instead of the broken doc they
+    // asked for, with no indication their doc is failing.
     if (opts.docName && docCaches.has(opts.docName)) return opts.docName;
     return docs[0]?.basename ?? null;
   }
 
   function defaultBuild(): BuildResult | null {
+    // Project-wide endpoints need a BuildResult; an error-only entry may
+    // still carry a last-good build, so prefer that. Otherwise scan for any
+    // cached entry that has a build.
     const name = defaultDocName();
-    return name ? docCaches.get(name)?.build ?? null : null;
+    if (name) {
+      const entry = docCaches.get(name);
+      if (entry?.build) return entry.build;
+    }
+    for (const entry of docCaches.values()) {
+      if (entry.build) return entry.build;
+    }
+    return null;
   }
 
   async function rebuildOne(docName: string): Promise<void> {
+    const previous = docCaches.get(docName);
     try {
       const build = await buildProject(opts.projectDir, { docName });
       const html = await renderSession.renderHtml(build);
-      docCaches.set(docName, { html: injectPreviewExtras(html), build });
+      // Single set: any prior error entry for this doc is replaced atomically.
+      docCaches.set(docName, { kind: "ok", html: injectPreviewExtras(html), build });
       if (buildError) console.log("preview: build recovered");
       buildError = null;
     } catch (err) {
       buildError = err instanceof Error ? err : new Error(String(err));
       console.error(`preview: build error (${docName}): ${buildError.message}`);
       const errorHtml = `<!DOCTYPE html><html><body><pre>Build error: ${escapeHtml(buildError.message)}</pre>${RELOAD_SCRIPT}</body></html>`;
-      // Keep the previous BuildResult (if any) so project-wide endpoints can
-      // still serve last-good config/CSS while the doc itself shows the error.
-      const previous = docCaches.get(docName);
-      if (previous) {
-        docCaches.set(docName, { html: errorHtml, build: previous.build });
-      } else {
-        // No prior build — fabricate a stub BuildResult-less entry by
-        // skipping the cache write. Other endpoints will fall back to
-        // another doc via defaultBuild().
-        docCaches.delete(docName);
-        // But we still want /_preview?doc=<name> to show the error.
-        // Store an HTML-only sentinel under a parallel map? Simpler: keep
-        // a stand-alone error map.
-        errorOnlyCaches.set(docName, errorHtml);
-      }
+      // Preserve the last-good BuildResult (if any) so project-wide endpoints
+      // can still serve config/CSS while the doc itself shows the error.
+      docCaches.set(docName, { kind: "error", html: errorHtml, build: previous?.build ?? null });
     }
   }
-
-  // Holds error HTML for docs that have never built successfully. Cleared on
-  // the next successful build of that doc.
-  const errorOnlyCaches = new Map<string, string>();
 
   async function rebuildAll(): Promise<void> {
     await discoverDocs();
     // Drop caches for docs that no longer exist.
     const live = new Set(docs.map(d => d.basename));
     for (const name of [...docCaches.keys()]) if (!live.has(name)) docCaches.delete(name);
-    for (const name of [...errorOnlyCaches.keys()]) if (!live.has(name)) errorOnlyCaches.delete(name);
     for (const d of docs) await rebuildOne(d.basename);
   }
 
@@ -296,11 +308,6 @@ export async function startPreviewServer(opts: PreviewOptions): Promise<RunningS
       res.type("html").send(cached.html);
       return;
     }
-    const errorHtml = errorOnlyCaches.get(name);
-    if (errorHtml) {
-      res.type("html").send(errorHtml);
-      return;
-    }
     res.type("html").send(`<!DOCTYPE html><html><body><pre>No document "${escapeHtml(name)}".</pre>${RELOAD_SCRIPT}</body></html>`);
   });
 
@@ -347,9 +354,17 @@ export async function startPreviewServer(opts: PreviewOptions): Promise<RunningS
   // File watcher. ignoreInitial:true means chokidar won't fire "add" for the
   // files present when the watcher attaches — those were already built above.
   // Only genuinely new files trigger the "add"-branch path below.
+  //
+  // awaitWriteFinish guards against editors (vim with nowritebackup, shell
+  // redirections, some IDE save flows) that truncate the file before flushing
+  // the new contents. Without it chokidar fires "add" on the empty file,
+  // which parses into a build error, followed by "change" once the real
+  // contents land — producing spurious error broadcasts on every save. The
+  // 100ms stability window is negligible against a Paged.js render.
   const watcher: FSWatcher = chokidar.watch(opts.projectDir, {
     ignored: /node_modules|\.git|out|dist/,
-    ignoreInitial: true
+    ignoreInitial: true,
+    awaitWriteFinish: { stabilityThreshold: 100, pollInterval: 50 }
   });
 
   function broadcast(msg: WsMessage): void {
@@ -368,7 +383,6 @@ export async function startPreviewServer(opts: PreviewOptions): Promise<RunningS
         const doc = classified.doc!;
         if (event === "unlink") {
           docCaches.delete(doc);
-          errorOnlyCaches.delete(doc);
           await discoverDocs();
           broadcast({ kind: "docs" });
           return;

@@ -366,6 +366,167 @@ describe("preview server", () => {
     }
   }, 30_000);
 
+  it("--doc <name> wins as default even when the doc fails to build", async () => {
+    // Provoke a deterministic build error: a closing HTML-style tag with no
+    // matching opener trips preprocess-tags' "no matching opener" throw,
+    // which surfaces through buildProject as a thrown Error.
+    const tmp = await mkdtemp(join(tmpdir(), "tender-doc-err-default-"));
+    try {
+      await writeFile(join(tmp, "project.yaml"), `page-templates:\n  default: { size: A5, margin: 0 }\n`);
+      await writeFile(join(tmp, "styles.css"), `body{}`);
+      await writeFile(join(tmp, "content.md"), `# Hello`);
+      // `:::unknown-thing` is parsed as a directive; resolveComponents
+      // throws "Unknown component" when the name isn't in the registry,
+      // which surfaces through buildProject as a build error.
+      await writeFile(join(tmp, "resume.md"), `:::unknown-thing\nbody\n:::\n`);
+
+      const server = await startPreviewServer({ projectDir: tmp, port: 0, docName: "resume" });
+      try {
+        const docsRes = await fetch(`http://127.0.0.1:${server.port}/_api/docs`);
+        const docsBody = await docsRes.json();
+        // Even though resume.md threw during the initial build, --doc must
+        // still pin the default to resume (otherwise the user silently sees
+        // content with no indication their requested doc is broken).
+        expect(docsBody.default).toBe("resume");
+
+        // /_preview (no ?doc=) honours the default and shows the error page.
+        const previewRes = await fetch(`http://127.0.0.1:${server.port}/_preview`);
+        expect(previewRes.status).toBe(200);
+        const previewHtml = await previewRes.text();
+        expect(previewHtml).toContain("Build error:");
+      } finally {
+        await server.close();
+      }
+    } finally {
+      await rm(tmp, { recursive: true, force: true });
+    }
+  }, 60_000);
+
+  it("a previously-erroring doc becomes serveable once corrected", async () => {
+    const tmp = await mkdtemp(join(tmpdir(), "tender-doc-recover-"));
+    try {
+      await writeFile(join(tmp, "project.yaml"), `page-templates:\n  default: { size: A5, margin: 0 }\n`);
+      await writeFile(join(tmp, "styles.css"), `body{}`);
+      await writeFile(join(tmp, "content.md"), `# Hello`);
+      // `:::unknown-thing` is parsed as a directive; resolveComponents
+      // throws "Unknown component" when the name isn't in the registry,
+      // which surfaces through buildProject as a build error.
+      await writeFile(join(tmp, "resume.md"), `:::unknown-thing\nbody\n:::\n`);
+
+      const server = await startPreviewServer({ projectDir: tmp, port: 0 });
+      try {
+        // Confirm it starts in the error state.
+        const errRes = await fetch(`http://127.0.0.1:${server.port}/_preview?doc=resume`);
+        expect(await errRes.text()).toContain("Build error:");
+
+        // Fix it via a WS-observed rewrite so we know the rebuild settled.
+        const ws = new WebSocket(`ws://127.0.0.1:${server.port}/_tender`);
+        await new Promise<void>((resolve, reject) => {
+          ws.on("open", async () => {
+            await new Promise(r => setTimeout(r, 250));
+            await writeFile(join(tmp, "resume.md"), `# Fixed Resume`);
+          });
+          ws.on("message", (data) => {
+            const parsed = JSON.parse(data.toString());
+            if (parsed.kind === "content" && parsed.doc === "resume") resolve();
+          });
+          ws.on("error", reject);
+          setTimeout(() => reject(new Error("timeout waiting for recovery")), 15_000);
+        });
+        ws.close();
+
+        const okRes = await fetch(`http://127.0.0.1:${server.port}/_preview?doc=resume`);
+        const okHtml = await okRes.text();
+        expect(okHtml).not.toContain("Build error:");
+        expect(okHtml).toMatch(/Fixed Resume/);
+      } finally {
+        await server.close();
+      }
+    } finally {
+      await rm(tmp, { recursive: true, force: true });
+    }
+  }, 30_000);
+
+  it("/_preview?doc=<deleted> falls back to the no-document HTML and /_api/docs drops it", async () => {
+    const tmp = await mkdtemp(join(tmpdir(), "tender-doc-unlink-"));
+    try {
+      await writeFile(join(tmp, "project.yaml"), `page-templates:\n  default: { size: A5, margin: 0 }\n`);
+      await writeFile(join(tmp, "styles.css"), `body{}`);
+      await writeFile(join(tmp, "content.md"), `# Hi`);
+      await writeFile(join(tmp, "resume.md"), `# Resume`);
+
+      const server = await startPreviewServer({ projectDir: tmp, port: 0 });
+      try {
+        // Drive an unlink via a WS observer so we know discoverDocs ran.
+        const ws = new WebSocket(`ws://127.0.0.1:${server.port}/_tender`);
+        await new Promise<void>((resolve, reject) => {
+          ws.on("open", async () => {
+            await new Promise(r => setTimeout(r, 250));
+            await rm(join(tmp, "resume.md"));
+          });
+          ws.on("message", (data) => {
+            const parsed = JSON.parse(data.toString());
+            if (parsed.kind === "docs") resolve();
+          });
+          ws.on("error", reject);
+          setTimeout(() => reject(new Error("timeout waiting for docs event")), 15_000);
+        });
+        ws.close();
+
+        const docsRes = await fetch(`http://127.0.0.1:${server.port}/_api/docs`);
+        const docsBody = await docsRes.json();
+        const names = docsBody.docs.map((d: { basename: string }) => d.basename);
+        expect(names).not.toContain("resume");
+
+        const previewRes = await fetch(`http://127.0.0.1:${server.port}/_preview?doc=resume`);
+        expect(previewRes.status).toBe(200);
+        const previewHtml = await previewRes.text();
+        // Falls through to the "No document" sentinel (the cached error/ok
+        // entry was cleared by the unlink handler).
+        expect(previewHtml).toContain(`No document "resume"`);
+      } finally {
+        await server.close();
+      }
+    } finally {
+      await rm(tmp, { recursive: true, force: true });
+    }
+  }, 30_000);
+
+  it("README.md changes do NOT trigger a WS broadcast", async () => {
+    const tmp = await mkdtemp(join(tmpdir(), "tender-readme-skip-"));
+    try {
+      await writeFile(join(tmp, "project.yaml"), `page-templates:\n  default: { size: A5, margin: 0 }\n`);
+      await writeFile(join(tmp, "styles.css"), `body{}`);
+      await writeFile(join(tmp, "content.md"), `# Hi`);
+      await writeFile(join(tmp, "README.md"), `# README initial`);
+
+      const server = await startPreviewServer({ projectDir: tmp, port: 0 });
+      try {
+        const ws = new WebSocket(`ws://127.0.0.1:${server.port}/_tender`);
+        let messageReceived = false;
+        await new Promise<void>((resolve, reject) => {
+          ws.on("open", async () => {
+            await new Promise(r => setTimeout(r, 250));
+            await writeFile(join(tmp, "README.md"), `# README updated`);
+          });
+          ws.on("message", () => {
+            messageReceived = true;
+          });
+          ws.on("error", reject);
+          // Wait long enough that the awaitWriteFinish stability window
+          // (100ms) and chokidar's event loop both have time to fire.
+          setTimeout(resolve, 1500);
+        });
+        ws.close();
+        expect(messageReceived).toBe(false);
+      } finally {
+        await server.close();
+      }
+    } finally {
+      await rm(tmp, { recursive: true, force: true });
+    }
+  }, 30_000);
+
   it("binds to a custom host when --host is supplied", async () => {
     const server = await startPreviewServer({
       projectDir: join(fixturesDir, "hello"),
