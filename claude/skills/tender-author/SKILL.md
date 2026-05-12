@@ -241,6 +241,8 @@ User says "narrow the left column." You change `3fr 5fr` → `2fr 6fr`. Rerun li
 5. **Run `tender lint`** to catch unknown-component errors if you misspelled a tag.
 6. **Report which lines changed and how.**
 
+> **Tabular data?** Documents are GFM, so a `| a | b |` pipe table parses to a real `<table>` — at the top level and inside component bodies/slots. For genuinely tabular content prefer a markdown table over restructuring into the row grid (`<row>`/`<spanning-row>`); reach for the row grid only when you need per-row layout control the table can't give. Don't add `text-align` to `th`/`td` in `styles.css` — GFM column alignment rides on the cells' `align` attribute and a stylesheet rule overrides it. The starter `styles.css` already carries a modest table style.
+
 **Canonical example.** `examples/content-restructure-before.md` is prose with two speaker paragraphs. The user says "wrap them as `<row speaker="…">`." The output is `examples/content-restructure-after.md`:
 
 ```

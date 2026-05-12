@@ -139,6 +139,8 @@ my-doc/
   .gitignore        # written by `tender init`; ignores out/, node_modules/, dist/
 ```
 
+Documents are CommonMark plus the GitHub-flavoured extensions: pipe tables, `~~strikethrough~~`, task lists, autolinks, and `[^footnote]` references — see the [user guide](docs/user-guide.md#headings-lists-paragraphs-emphasis).
+
 ## Design tokens
 
 Define your project's design vocabulary in `project.yaml` under `design-tokens:`:

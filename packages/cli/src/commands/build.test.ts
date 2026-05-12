@@ -47,6 +47,32 @@ describe("build command", () => {
     }
   }, 120_000);
 
+  it("renders a GFM table in a document to <table> markup", async () => {
+    const dir = await scaffold({
+      "project.yaml": "page-templates:\n  default:\n    size: A4\n    margin: 0\n",
+      "styles.css": "",
+      "content.md":
+        "# Mechanisms\n\n" +
+        "| Mechanism | Purpose |\n" +
+        "| ---- | ----: |\n" +
+        "| Timeline | Linking past to present |\n"
+    });
+    const outDir = await mkdtemp(join(tmpdir(), "tender-build-out-"));
+    try {
+      await build({ projectDir: dir, outDir, htmlOnly: true });
+      const html = await readFile(join(outDir, "content.html"), "utf8");
+      // Paged.js decorates every element with data-ref, so match loosely.
+      expect(html).toMatch(/<table[^>]*>/);
+      expect(html).toMatch(/<th[^>]*>Mechanism<\/th>/);
+      expect(html).toMatch(/<td[^>]*>Timeline<\/td>/);
+      // Literal pipes must not survive into the rendered output.
+      expect(html).not.toContain("| Mechanism | Purpose |");
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+      await rm(outDir, { recursive: true, force: true });
+    }
+  }, 120_000);
+
   it("passes --doc through to buildProject and writes basename-named output", async () => {
     const dir = await scaffold({
       "project.yaml": "page-templates:\n  default:\n    size: A4\n    margin: 0\n",

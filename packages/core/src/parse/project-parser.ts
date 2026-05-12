@@ -1,5 +1,6 @@
 import { unified } from "unified";
 import remarkParse from "remark-parse";
+import remarkGfm from "remark-gfm";
 import remarkDirective from "remark-directive";
 import remarkRehype from "remark-rehype";
 import rehypeStringify from "rehype-stringify";
@@ -77,6 +78,11 @@ export async function parseProject(source: string, config: ProjectConfig): Promi
 
   const file = await unified()
     .use(remarkParse)
+    // GFM (tables, strikethrough, task lists, autolinks, footnotes). Runs
+    // before remarkDirective so table/footnote nodes are in the mdast tree
+    // when resolveComponents walks it — that's what makes GFM work inside
+    // component bodies and slots too (their children are this same tree).
+    .use(remarkGfm)
     .use(remarkDirective)
     .use(detectStartsWithPage)
     .use(resolveComponents, config)

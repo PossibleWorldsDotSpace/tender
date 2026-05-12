@@ -9,6 +9,23 @@ h2 { font-size: 18pt; margin: 0 0 0.5em; }
 h3 { font-size: 14pt; margin: 0 0 0.4em; }
 p  { margin: 0 0 0.6em; }
 
+/* Markdown tables (GFM `| a | b |` syntax → <table>/<th>/<td>).
+   No `text-align` here: GFM column alignment rides on the cells'
+   presentational `align` attribute, which a stylesheet rule would clobber. */
+table {
+  border-collapse: collapse;
+  width: 100%;
+  margin: 0 0 0.8em;
+  font-size: 0.95em;
+}
+th, td {
+  padding: 0.3em 0.6em;
+  vertical-align: top;
+  border-bottom: 0.5pt solid #ccc;
+}
+thead th { border-bottom-width: 1pt; }
+caption { margin-bottom: 0.3em; font-style: italic; }
+
 /* Running-head bookkeeping: lets `{chapter}` in project.yaml's
    header config resolve to the most recent <h1>. */
 .margin-label, h1, h2, h3 {

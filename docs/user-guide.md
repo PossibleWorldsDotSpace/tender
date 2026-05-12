@@ -263,7 +263,7 @@ Tender passes raw HTML through. Reach for it sparingly — anything you find you
 
 ### Headings, lists, paragraphs, emphasis
 
-These are vanilla CommonMark:
+CommonMark plus the GitHub-flavoured extensions (GFM):
 
 ```
 # H1
@@ -271,11 +271,13 @@ These are vanilla CommonMark:
 ### H3
 #### H4
 
-A paragraph with *emphasis*, **strong**, `code`, and a [link](https://example.com).
+A paragraph with *emphasis*, **strong**, `code`, ~~strikethrough~~, and a [link](https://example.com).
 
 - List item one
 - List item two
   - Nested
+- [x] a done task
+- [ ] a pending task
 
 1. Ordered list
 2. Second item
@@ -284,6 +286,33 @@ A paragraph with *emphasis*, **strong**, `code`, and a [link](https://example.co
 ```
 
 These render to standard HTML elements; you style them in `styles.css`.
+
+### Tables
+
+GFM pipe tables parse to real `<table>` / `<thead>` / `<th>` / `<td>` markup:
+
+```
+| Mechanism | Purpose                 | Page |
+| --------- | ----------------------- | ---: |
+| Timeline  | Linking past to present |   12 |
+| Map       | Where things are        |      |
+```
+
+Column alignment comes from the delimiter row: `:---` (left), `:--:` (centre), `---:` (right). An aligned column rides on the cell's `align` attribute, so **don't put `text-align` on `th`/`td` in `styles.css`** — a stylesheet rule overrides the attribute and flattens the alignment. The starter `styles.css` ships a modest table style (border-collapse, padded cells, a header rule) that you can tweak or replace.
+
+For a large table you'd rather not hand-format, any markdown editor with table support works; or, if you want per-row layout control, restructure into the row grid (`<row>`/`<spanning-row>`) — but for tabular data a real table is simpler. Tables work at the document top level and inside component bodies and slots.
+
+### Footnotes
+
+GFM footnotes:
+
+```
+A claim that needs support.[^src]
+
+[^src]: The supporting note. Markdown works here too — *emphasis*, links, etc.
+```
+
+The reference renders as a superscript link; the definitions collect into a `<section class="footnotes">` at the end of the document. Style that section (and `.footnotes ol`, `.footnotes li`) in `styles.css` if you want it to look different.
 
 ---
 
