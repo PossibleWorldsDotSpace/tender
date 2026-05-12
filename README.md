@@ -38,7 +38,7 @@ Most of the day is in that *compose ↔ preview* loop. Set things up once at the
 
 ```mermaid
 flowchart LR
-    A[tender init] --> B[project.yaml<br/>styles.css<br/>&lt;doc&gt;.md<br/>components/]
+    A[tender init<br/>+ git init] --> B[project.yaml<br/>styles.css<br/>&lt;doc&gt;.md<br/>components/<br/>.gitignore]
     B --> C[tender tokens set<br/>edit project.yaml<br/>edit components]
     C --> D[tender preview<br/>live HTML reload]
     D --> C
@@ -136,6 +136,7 @@ my-doc/
   assets/
     images/
     fonts/
+  .gitignore        # written by `tender init`; ignores out/, node_modules/, dist/
 ```
 
 ## Design tokens
@@ -171,7 +172,7 @@ Tender has two equal control surfaces — the CLI and the Claude skill. Both ope
 
 Six commands, all run from inside (or pointed at) a project directory.
 
-- **`tender init <dir>`** — scaffold a new project from the default starter (idempotent; preserves existing files).
+- **`tender init [dir]`** — scaffold a new project from the default starter (idempotent; preserves existing files), write a `.gitignore`, and `git init` unless the directory is already a repo. On a terminal it offers to make an initial commit; `--no-commit` skips that.
 - **`tender build [dir]`** — render every document at the project root to `out/<basename>.pdf` and `out/<basename>.html`. Pass `--doc <name>` to build a single document.
 - **`tender preview [dir]`** — live-reloading HTML preview server (`--port`, `--host`). In a multi-document project the preview UI shows a dropdown to switch between documents; `--doc <name>` preselects one.
 - **`tender lint [dir]`** — validate the project; surface unused/unknown components, missing assets, deprecated syntax, design-token issues (`--strict`, `--json`).

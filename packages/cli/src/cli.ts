@@ -6,7 +6,7 @@ import { listDocuments } from "@tender/core";
 import { lint, formatReport } from "./commands/lint.js";
 import { clean } from "./commands/clean.js";
 import { startPreviewServer } from "./commands/preview.js";
-import { init, formatInitResult } from "./commands/init.js";
+import { init, formatInitResult, gitInitialCommit } from "./commands/init.js";
 import { listTokens, formatTokensList, setToken, editTokens } from "./commands/tokens.js";
 import { renderBanner, shouldShowBanner } from "./ui/banner.js";
 import { startSpinner } from "./ui/spinner.js";
@@ -184,19 +184,39 @@ program
 
 program
   .command("init [dir]")
-  .description("Scaffold a Tender project (idempotent; preserves existing files)")
+  .description("Scaffold a Tender project (idempotent; preserves existing files; git init)")
   .option("--force", "overwrite existing files instead of preserving them")
+  .option("--no-commit", "don't offer to make an initial git commit")
   .addHelpText(
     "after",
-    `\nExamples:\n  $ tender init                        # scaffold here\n  $ tender init my-doc                 # scaffold into ./my-doc\n  $ tender init --force                # overwrite (careful)\n`
+    `\nExamples:\n  $ tender init                        # scaffold here, git init, prompt for first commit\n  $ tender init my-doc                 # scaffold into ./my-doc\n  $ tender init --force                # overwrite (careful)\n  $ tender init --no-commit            # skip the initial-commit prompt\n`
   )
-  .action(async (dir: string | undefined, opts: { force?: boolean }) => {
+  .action(async (dir: string | undefined, opts: { force?: boolean; commit?: boolean }) => {
     const target = resolve(dir ?? ".");
     if (shouldShowBanner()) {
       process.stdout.write(renderBanner());
     }
     const result = await init(target, opts);
     console.log(formatInitResult(result));
+
+    // Offer an initial commit only when we just created the repo, the user
+    // didn't pass --no-commit, and we're on an interactive terminal (no point
+    // prompting a script — and a scripted caller can run `git commit` itself).
+    if (result.git.action === "created" && opts.commit !== false && process.stdin.isTTY) {
+      process.stdout.write("Make an initial commit? [y/N] ");
+      const answer = await new Promise<string>(res => {
+        process.stdin.once("data", chunk => res(chunk.toString()));
+      });
+      if (/^\s*y(es)?\s*$/i.test(answer)) {
+        try {
+          await gitInitialCommit(target);
+          console.log(dim("  Committed."));
+        } catch (err) {
+          console.error(`${red("git commit failed")}: ${err instanceof Error ? err.message : String(err)}`);
+          console.error(dim("  Configure git (git config user.name / user.email) and commit when ready."));
+        }
+      }
+    }
   });
 
 const tokensCmd = program

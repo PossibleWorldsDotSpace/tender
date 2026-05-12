@@ -753,7 +753,7 @@ tender clean                        # sanitise paste artifacts in content.md
 tender preview                      # see it live; start authoring
 ```
 
-`tender init` is **idempotent**: it preserves any existing files and only creates the missing scaffolding. Your pasted `content.md` is left untouched.
+`tender init` is **idempotent**: it preserves any existing files and only creates the missing scaffolding. Your pasted `content.md` is left untouched. It also runs `git init` (unless the directory is already a repo) and offers to make a first commit — pass `--no-commit` to skip that.
 
 `tender clean` strips the dirty bits a paste typically introduces: BOMs, zero-width spaces, soft hyphens, NBSPs in prose, mixed line endings, trailing whitespace, runs of blank lines. Optionally with `--typography`, it also converts straight quotes to curly, `--` to em-dashes, and `...` to ellipses.
 
@@ -945,29 +945,36 @@ CLI behaviour:
 
 ### `tender init [dir]`
 
-Scaffolds a Tender project. Idempotent: every template file is *created* if absent, *preserved* if present. Default `dir` is the current directory.
+Scaffolds a Tender project. Idempotent: every scaffolded file (`project.yaml`, `styles.css`, `content.md`, `components/README.md`, `.gitignore`) is *created* if absent, *preserved* if present. Default `dir` is the current directory.
+
+It also sets up version control: unless the directory is already inside a git repository, it runs `git init`. If git isn't installed it says so and carries on — scaffolding still succeeds. On an interactive terminal it then asks whether to make an initial commit (`y` → `git add -A && git commit`). Pass `--no-commit` to skip that prompt; the prompt is also skipped when stdin isn't a TTY (scripts, CI).
 
 ```
-tender init                  # scaffold around the cwd; preserves existing files
+tender init                  # scaffold around the cwd; git init; prompt for first commit
 tender init my-doc           # scaffold a new project in my-doc/
 tender init my-doc --force   # overwrite existing files (rarely needed)
+tender init --no-commit      # don't offer to make an initial commit
 ```
 
-The most common flow is "user has a directory with their content.md already in it, runs `tender init` there, ends up with a working project." The existing `content.md` is preserved verbatim; `project.yaml`, `styles.css`, and `components/` get filled in. The output reports exactly which files were created vs preserved.
+The most common flow is "user has a directory with their content.md already in it, runs `tender init` there, ends up with a working project." The existing `content.md` is preserved verbatim; `project.yaml`, `styles.css`, `components/`, and `.gitignore` get filled in. The output reports exactly which files were created vs preserved.
 
 ```
 $ tender init
-Created 2 files:
+Created 4 files:
+  + .gitignore
+  + components/README.md
   + project.yaml
   + styles.css
 Preserved 1 existing file:
   = content.md
+Initialized a git repository.
 
 Project ready at /home/me/manuscripts/script.
 Try: tender preview
+Make an initial commit? [y/N]
 ```
 
-`--force` overwrites existing files. Re-running without `--force` is always safe — every file is reported as preserved and nothing changes.
+`--force` overwrites existing scaffolded files (it does not touch git). Re-running without `--force` is always safe — every file is reported as preserved and nothing changes; a directory that's already a repo is left as-is.
 
 ### `tender build [dir]`
 
