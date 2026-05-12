@@ -47,6 +47,31 @@ describe("build command", () => {
     }
   }, 120_000);
 
+  it("PDF page box matches the @page size (A4), not Chromium's Letter default", async () => {
+    const dir = await scaffold({
+      "project.yaml":
+        "page-templates:\n  default:\n    size: A4\n    margin: { top: 12mm, bottom: 12mm, inner: 12mm, outer: 12mm }\n",
+      "styles.css": "",
+      "content.md": "# Heading\n\nA paragraph.\n"
+    });
+    const outDir = await mkdtemp(join(tmpdir(), "tender-build-out-"));
+    try {
+      await build({ projectDir: dir, outDir, pdfOnly: true });
+      const pdf = await readFile(join(outDir, "content.pdf"));
+      const m = /\/MediaBox\s*\[\s*([\d.]+)\s+([\d.]+)\s+([\d.]+)\s+([\d.]+)\s*\]/.exec(pdf.toString("latin1"));
+      expect(m).not.toBeNull();
+      const w = Number(m![3]);
+      const h = Number(m![4]);
+      // A4 is 210mm × 297mm = 595.28pt × 841.89pt. Chromium rounds mm→pt at
+      // 96 DPI so allow ~1pt of slack; Letter (612 × 792) is way outside it.
+      expect(Math.abs(w - 595.28)).toBeLessThan(2);
+      expect(Math.abs(h - 841.89)).toBeLessThan(2);
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+      await rm(outDir, { recursive: true, force: true });
+    }
+  }, 120_000);
+
   it("renders a GFM table in a document to <table> markup", async () => {
     const dir = await scaffold({
       "project.yaml": "page-templates:\n  default:\n    size: A4\n    margin: 0\n",

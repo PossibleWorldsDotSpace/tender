@@ -312,7 +312,7 @@ export function generateProjectCss(config: ProjectConfig, opts: ProjectCssOption
   for (const [name, tplRaw] of Object.entries(config["page-templates"])) {
     if (!tplRaw) continue;
     const t = tplRaw as PageTemplateLike;
-    const [w, h] = sizeToWidthHeight(t.size);
+    const [w, h] = pageSizeToWidthHeight(t.size);
     parts.push(
       `.pagedjs_page.pagedjs_named_page.pagedjs_${name}_page { ` +
         `--pagedjs-width: ${w}; --pagedjs-height: ${h}; ` +
@@ -333,11 +333,16 @@ const NAMED_PAGE_SIZES: Record<string, [string, string]> = {
   Legal: ["8.5in", "14in"]
 };
 
-function sizeToWidthHeight(size: string | [string, string]): [string, string] {
+/**
+ * Resolve a `@page size` value (a named size like `A4`, or an explicit
+ * `[width, height]` pair) to a concrete `[width, height]` CSS-dimension pair.
+ * Unknown names pass through unchanged in both slots — Paged.js / Chromium
+ * then fall back to their own handling.
+ */
+export function pageSizeToWidthHeight(size: string | [string, string]): [string, string] {
   if (Array.isArray(size)) return size;
   const named = NAMED_PAGE_SIZES[size];
   if (named) return named;
-  // Unknown name — pass through as both dimensions; Paged.js will fall back.
   return [size, size];
 }
 

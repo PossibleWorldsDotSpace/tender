@@ -4,7 +4,7 @@ import { loadProjectRegistry } from "./parse/load-project-registry.js";
 import { listDocuments } from "./parse/list-documents.js";
 import { parseProject } from "./parse/project-parser.js";
 import { composeDocument } from "./compose/document.js";
-import { generateProjectCss } from "./compose/project-css.js";
+import { generateProjectCss, pageSizeToWidthHeight } from "./compose/project-css.js";
 import type { ProjectConfig } from "./config/schema.js";
 
 export interface BuildResult {
@@ -21,6 +21,20 @@ export interface BuildResult {
   docFilename: string;
   /** Carried through from project.yaml's `render.timeout-ms`, if set. */
   timeoutMs?: number;
+  /**
+   * Page-box dimensions for this document, as CSS-dimension strings (e.g.
+   * "210mm", "297mm"), resolved from the `default` page template's `size`.
+   * The renderer hands these straight to Chromium's `page.pdf()` — Paged.js
+   * consumes the `@page { size }` rule into its own `--pagedjs-*` properties,
+   * so `preferCSSPageSize` no longer sees a size to honour and the PDF would
+   * otherwise come out at Chromium's Letter default.
+   *
+   * Multi-template projects: a single PDF has one page size, so we use the
+   * `default` template (always present per the schema). A document that mixes
+   * templates of different sizes still gets one size here.
+   */
+  pageWidth: string;
+  pageHeight: string;
 }
 
 export interface BuildProjectOptions {
@@ -57,6 +71,7 @@ export async function buildProject(
   const html = composeDocument({ bodyHtml, lang, title: basename(projectDir) });
   const projectCss = generateProjectCss(mergedConfig, { docTitle: basename(projectDir) });
   const timeoutMs = mergedConfig.render?.["timeout-ms"];
+  const [pageWidth, pageHeight] = pageSizeToWidthHeight(mergedConfig["page-templates"].default!.size);
   return {
     html,
     projectCss,
@@ -66,7 +81,9 @@ export async function buildProject(
     projectDir,
     docBasename,
     docFilename,
-    timeoutMs
+    timeoutMs,
+    pageWidth,
+    pageHeight
   };
 }
 

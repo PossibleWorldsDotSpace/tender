@@ -28,6 +28,19 @@ export interface RenderInput {
    * 60_000. Long documents on slower hardware may legitimately need more.
    */
   timeoutMs?: number;
+  /**
+   * Page-box dimensions as CSS-dimension strings (e.g. "210mm", "297mm"),
+   * passed straight to Chromium's `page.pdf()`. Required for correct PDF page
+   * size: Paged.js consumes the `@page { size }` rule into its own
+   * `--pagedjs-*` properties, so Chromium's `preferCSSPageSize` has nothing
+   * left to read and the PDF would otherwise default to US Letter.
+   *
+   * When omitted, `renderPdf` falls back to `preferCSSPageSize: true` (the
+   * old behaviour) — fine for tests that don't care about exact page size.
+   * `buildProject` always sets these.
+   */
+  pageWidth?: string;
+  pageHeight?: string;
 }
 
 const DEFAULT_TIMEOUT_MS = 60_000;
@@ -120,6 +133,26 @@ async function setupPage(input: RenderInput, browser: Browser): Promise<Page> {
   return page;
 }
 
+/**
+ * Build the `page.pdf()` options. When the caller supplied explicit page
+ * dimensions (always, from `buildProject`), pass them through with zero
+ * margins — Paged.js has already baked the page margin into the
+ * `.pagedjs_pagebox` as internal whitespace, so a non-zero `page.pdf({ margin })`
+ * would double it. When dimensions are absent, fall back to Chromium's
+ * `preferCSSPageSize` (the historical behaviour).
+ */
+function pdfOptions(input: RenderInput): Parameters<Page["pdf"]>[0] {
+  if (input.pageWidth && input.pageHeight) {
+    return {
+      printBackground: true,
+      width: input.pageWidth,
+      height: input.pageHeight,
+      margin: { top: 0, right: 0, bottom: 0, left: 0 }
+    };
+  }
+  return { printBackground: true, preferCSSPageSize: true };
+}
+
 // Paged.js was injected and run server-side to paginate the content. The
 // resulting HTML contains the (very large) Paged.js source as an inline
 // <script>. Without removal, that script auto-runs again when the HTML is
@@ -183,7 +216,7 @@ export async function createRenderSession(): Promise<RenderSession> {
       const b = await ensureBrowser();
       const page = await setupPage(input, b);
       try {
-        const pdf = await page.pdf({ printBackground: true, preferCSSPageSize: true });
+        const pdf = await page.pdf(pdfOptions(input));
         return Buffer.from(pdf);
       } finally {
         await page.close().catch(() => { /* see above */ });
