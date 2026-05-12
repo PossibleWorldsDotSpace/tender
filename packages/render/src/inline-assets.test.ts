@@ -1,7 +1,9 @@
-import { describe, it, expect } from "vitest";
-import { inlineAssets } from "./inline-assets.js";
+import { describe, it, expect, beforeAll, afterAll } from "vitest";
+import { inlineAssets, inlineFonts } from "./inline-assets.js";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
+import { mkdtemp, mkdir, writeFile, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
 
 const here = dirname(fileURLToPath(import.meta.url));
 // Walk up to repo root then into the core fixture
@@ -93,5 +95,72 @@ describe("inlineAssets", () => {
     expect(inlined).toContain("alt=\"d\"");
     // The img got its src rewritten.
     expect(inlined).toMatch(/src="data:image\/png;base64,/);
+  });
+});
+
+describe("inlineFonts", () => {
+  let dir: string;
+  const FONT_BYTES = "fake-woff2-bytes"; // inlineFonts never parses the file
+
+  beforeAll(async () => {
+    dir = await mkdtemp(join(tmpdir(), "tender-fonts-"));
+    await mkdir(join(dir, "assets", "fonts"), { recursive: true });
+    await writeFile(join(dir, "assets", "fonts", "Inter.woff2"), FONT_BYTES);
+  });
+  afterAll(async () => {
+    await rm(dir, { recursive: true, force: true });
+  });
+
+  const dataUri = `data:font/woff2;base64,${Buffer.from(FONT_BYTES).toString("base64")}`;
+
+  it("rewrites a relative url('assets/fonts/...') to a data URI", async () => {
+    const css = `@font-face { font-family: 'Inter'; src: url('assets/fonts/Inter.woff2') format('woff2'); }`;
+    const out = await inlineFonts(css, dir);
+    expect(out).not.toContain("assets/fonts/Inter.woff2");
+    expect(out).toContain(`url('${dataUri}')`);
+  });
+
+  it("rewrites an absolute file:// url (as Paged.js' polisher emits it)", async () => {
+    const css = `@font-face { src: url(file://${dir}/assets/fonts/Inter.woff2) format('woff2'); }`;
+    const out = await inlineFonts(css, dir);
+    expect(out).toContain(`url(${dataUri})`);
+  });
+
+  it("preserves the original quoting style", async () => {
+    expect(await inlineFonts(`x { src: url("assets/fonts/Inter.woff2"); }`, dir)).toContain(`url("${dataUri}")`);
+    expect(await inlineFonts(`x { src: url(assets/fonts/Inter.woff2); }`, dir)).toContain(`url(${dataUri})`);
+  });
+
+  it("leaves non-font url()s untouched", async () => {
+    const css = `body { background: url('assets/images/dot.png'); }`;
+    expect(await inlineFonts(css, dir)).toBe(css);
+  });
+
+  it("leaves remote and data url()s untouched", async () => {
+    const css = `@font-face { src: url(https://fonts.example/Inter.woff2), url(data:font/woff2;base64,abc); }`;
+    expect(await inlineFonts(css, dir)).toBe(css);
+  });
+
+  it("leaves a missing font file untouched", async () => {
+    const css = `@font-face { src: url('assets/fonts/Nope.woff2'); }`;
+    expect(await inlineFonts(css, dir)).toBe(css);
+  });
+
+  it("does not read a font outside the project directory (traversal guard)", async () => {
+    const css = `@font-face { src: url('../../../etc/hostname.woff2'); }`;
+    expect(await inlineFonts(css, dir)).toBe(css);
+    const abs = `@font-face { src: url(file:///etc/hostname.woff2); }`;
+    expect(await inlineFonts(abs, dir)).toBe(abs);
+  });
+
+  it("inlines every reference to the same font", async () => {
+    const css = `a{src:url('assets/fonts/Inter.woff2')} b{src:url('assets/fonts/Inter.woff2')}`;
+    const out = await inlineFonts(css, dir);
+    expect((out.match(/data:font\/woff2;base64,/g) ?? []).length).toBe(2);
+  });
+
+  it("returns the input unchanged when there is nothing to inline", async () => {
+    const css = `body { color: red; }`;
+    expect(await inlineFonts(css, dir)).toBe(css);
   });
 });

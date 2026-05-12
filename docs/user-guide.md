@@ -737,7 +737,7 @@ PNG, JPEG, GIF, SVG, WebP all work. In the standalone HTML output, images get ba
 
 ### Fonts
 
-WOFF2, in `assets/fonts/`. Declare in `project.yaml`'s `fonts:` block — that emits the `@font-face` rules. You then use the font family in `styles.css` like any other.
+WOFF2, in `assets/fonts/`. Declare in `project.yaml`'s `fonts:` block — that emits the `@font-face` rules. You then use the font family in `styles.css` like any other. Like images, declared fonts are base64-inlined into the rendered HTML and PDF, so the output is self-contained and they load identically in `tender preview` and `tender build`.
 
 ---
 

@@ -1,5 +1,9 @@
 import { describe, it, expect } from "vitest";
 import { renderHtml, renderPdf, createRenderSession } from "./render.js";
+import { fileURLToPath } from "node:url";
+import { dirname, join } from "node:path";
+
+const here = dirname(fileURLToPath(import.meta.url));
 
 const FIXTURE = {
   html: `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>T</title>
@@ -19,6 +23,23 @@ describe("renderHtml", () => {
     expect(html).toMatch(/<h1[^>]*>Hello<\/h1>/);
     // Paged.js wraps content in pagedjs page elements after rendering
     expect(html).toMatch(/pagedjs/);
+  }, 120_000);
+
+  it("embeds @font-face files as data URIs (not file:// paths) in the output", async () => {
+    // Regression: Paged.js' polisher rewrites a relative url(assets/fonts/x.woff2)
+    // to an absolute file:// path, which 404s when `tender preview` serves the
+    // rendered HTML over http. inlineFonts() must turn it into a data: URI first.
+    const fixtureDir = join(here, "../../core/test/fixtures/with-image");
+    const html = await renderHtml({
+      ...FIXTURE,
+      projectDir: fixtureDir,
+      projectCss:
+        `@page default { size: A5; margin: 12mm; }\n.page { page: default; }\n` +
+        `@font-face { font-family: 'Dummy'; src: url('assets/fonts/dummy.woff2') format('woff2'); }`
+    });
+    expect(html).toContain("data:font/woff2;base64,");
+    expect(html).not.toContain("assets/fonts/dummy.woff2");
+    expect(html).not.toMatch(/url\(\s*['"]?file:\/\//);
   }, 120_000);
 });
 

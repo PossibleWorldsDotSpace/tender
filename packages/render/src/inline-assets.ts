@@ -1,5 +1,6 @@
 import { readFile } from "node:fs/promises";
 import { extname, resolve, sep } from "node:path";
+import { fileURLToPath } from "node:url";
 import { Parser } from "htmlparser2";
 
 const MIME_TYPES: Record<string, string> = {
@@ -9,6 +10,13 @@ const MIME_TYPES: Record<string, string> = {
   ".gif": "image/gif",
   ".svg": "image/svg+xml",
   ".webp": "image/webp"
+};
+
+const FONT_MIME_TYPES: Record<string, string> = {
+  ".woff2": "font/woff2",
+  ".woff": "font/woff",
+  ".ttf": "font/ttf",
+  ".otf": "font/otf"
 };
 
 interface ImgMatch {
@@ -136,4 +144,92 @@ export async function inlineAssets(html: string, projectDir: string): Promise<st
     out = out.slice(0, start) + replaced + out.slice(end);
   }
   return out;
+}
+
+/**
+ * Resolve a CSS `url(...)` token's target to an absolute filesystem path,
+ * given the base directory the stylesheet is conceptually located in.
+ *
+ * Returns null for values we must not (or cannot) inline: remote URLs, data
+ * URIs, and anything that resolves outside `projectRoot` (directory-traversal
+ * guard, mirroring the <img> path checks).
+ *
+ * Paged.js' polisher rewrites relative `url()`s in injected stylesheets to
+ * absolute `file://` URLs (resolved against the render page's location), so in
+ * practice the font references we see here are `file://…/assets/fonts/x.woff2`.
+ * We also accept still-relative paths in case that ever changes.
+ */
+function resolveCssUrlTarget(rawValue: string, projectRoot: string): string | null {
+  const value = rawValue.trim();
+  if (value === "") return null;
+  if (value.startsWith("data:")) return null;
+  if (value.startsWith("http://") || value.startsWith("https://")) return null;
+  let candidate: string;
+  if (value.startsWith("file://")) {
+    try {
+      candidate = fileURLToPath(value);
+    } catch {
+      return null;
+    }
+  } else {
+    // Strip a leading "/" so a root-absolute URL is still treated as
+    // project-relative — the only filesystem we can read from here.
+    candidate = resolve(projectRoot, value.replace(/^\/+/, ""));
+  }
+  const target = resolve(candidate);
+  if (!isInsideProjectDir(target, projectRoot)) return null;
+  return target;
+}
+
+/**
+ * Embed font files referenced by `@font-face { src: url(...) }` (and any other
+ * `url()` pointing at a font file) as `data:` URIs.
+ *
+ * Run on the CSS *before* it goes to Paged.js so the rendered output is
+ * self-contained: a relative `assets/fonts/x.woff2` otherwise survives into the
+ * HTML as an absolute `file://` path (works only when the file is opened from
+ * disk on the same machine) and 404s when `tender preview` serves the page over
+ * http. Mirrors the <img> → data-URI inlining above.
+ *
+ * `cssDir` is the directory relative `url()`s resolve against — for Tender's
+ * generated/user stylesheets that is the project root.
+ */
+export async function inlineFonts(css: string, cssDir: string): Promise<string> {
+  const projectRoot = resolve(cssDir);
+  // url( optional-quote  VALUE  optional-quote ) — capture quote so we can
+  // re-emit it, and the value so we can resolve it.
+  const re = /url\(\s*(['"]?)([^'")]+)\1\s*\)/g;
+  const cache = new Map<string, string | null>();
+  let out = "";
+  let lastIndex = 0;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(css)) !== null) {
+    const whole = m[0];
+    const quote = m[1] ?? "";
+    // Drop any ?query / #fragment before treating the value as a path.
+    const value = m[2]!.split(/[?#]/)[0]!;
+    const ext = extname(value).toLowerCase();
+    const mime = FONT_MIME_TYPES[ext];
+    if (!mime) continue;
+    let dataUri = cache.get(value);
+    if (dataUri === undefined) {
+      const target = resolveCssUrlTarget(value, projectRoot);
+      if (target === null) {
+        dataUri = null;
+      } else {
+        try {
+          const buf = await readFile(target);
+          dataUri = `data:${mime};base64,${buf.toString("base64")}`;
+        } catch {
+          dataUri = null;
+        }
+      }
+      cache.set(value, dataUri);
+    }
+    if (dataUri === null) continue;
+    out += css.slice(lastIndex, m.index) + `url(${quote}${dataUri}${quote})`;
+    lastIndex = m.index + whole.length;
+  }
+  if (lastIndex === 0) return css;
+  return out + css.slice(lastIndex);
 }

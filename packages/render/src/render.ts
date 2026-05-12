@@ -3,7 +3,7 @@ import type { Browser, Page } from "puppeteer";
 import { readFile } from "node:fs/promises";
 import { createRequire } from "node:module";
 import { dirname, join } from "node:path";
-import { inlineAssets } from "./inline-assets.js";
+import { inlineAssets, inlineFonts } from "./inline-assets.js";
 
 const require = createRequire(import.meta.url);
 // pagedjs's package.json exports field doesn't expose dist/, so we resolve the
@@ -34,13 +34,21 @@ const DEFAULT_TIMEOUT_MS = 60_000;
 
 async function setupPage(input: RenderInput, browser: Browser): Promise<Page> {
   const timeoutMs = input.timeoutMs ?? DEFAULT_TIMEOUT_MS;
-  const componentsCss = input.componentsCss ?? "";
+  // Embed @font-face files as data URIs before Paged.js sees the CSS. Paged.js'
+  // polisher otherwise rewrites a relative `url(assets/fonts/x.woff2)` to an
+  // absolute `file://` path, which works only when the rendered HTML is opened
+  // from disk on the same machine and 404s when `tender preview` serves the
+  // page over http. Done here (not in compose) because resolving the bytes
+  // needs filesystem access.
+  const projectCss = await inlineFonts(input.projectCss, input.projectDir);
+  const componentsCss = await inlineFonts(input.componentsCss ?? "", input.projectDir);
+  const stylesCss = await inlineFonts(input.stylesCss, input.projectDir);
   const page = await browser.newPage();
   await page.setRequestInterception(true);
   page.on("request", req => {
     const url = req.url();
     if (url.endsWith("/_project.css")) {
-      req.respond({ status: 200, contentType: "text/css", body: input.projectCss });
+      req.respond({ status: 200, contentType: "text/css", body: projectCss });
       return;
     }
     if (url.endsWith("/_components.css")) {
@@ -48,7 +56,7 @@ async function setupPage(input: RenderInput, browser: Browser): Promise<Page> {
       return;
     }
     if (url.endsWith("/styles.css")) {
-      req.respond({ status: 200, contentType: "text/css", body: input.stylesCss });
+      req.respond({ status: 200, contentType: "text/css", body: stylesCss });
       return;
     }
     req.continue();
@@ -104,9 +112,9 @@ async function setupPage(input: RenderInput, browser: Browser): Promise<Page> {
       }
     }),
     pagedJsSrc,
-    input.projectCss,
+    projectCss,
     componentsCss,
-    input.stylesCss,
+    stylesCss,
     timeoutMs
   );
   return page;
