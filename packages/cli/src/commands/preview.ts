@@ -91,6 +91,13 @@ const RELOAD_SCRIPT = `<script>
 const PREVIEW_CHROME = `<style>
   html { background: #030305; }
   body { background: #030305; padding: 16px 0; }
+  /* Match the preview-ui chrome scrollbar — see preview-ui/src/styles.css. */
+  html { scrollbar-width: thin; scrollbar-color: #30363d #030305; }
+  ::-webkit-scrollbar { width: 8px; height: 8px; }
+  ::-webkit-scrollbar-track { background: #030305; }
+  ::-webkit-scrollbar-thumb { background: #30363d; border-radius: 8px; }
+  ::-webkit-scrollbar-thumb:hover { background: #8b949e; }
+  ::-webkit-scrollbar-corner { background: #030305; }
   .pagedjs_pages {
     display: flex;
     flex-direction: column;
