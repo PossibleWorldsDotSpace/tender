@@ -28,9 +28,8 @@
   padding: 4px 6px;
 }
 .tender-wordmark {
-  font: 12px var(--font-mono);
-  font-weight: 700;
-  letter-spacing: 0.22em;
+  font: 700 16px var(--font-headline);
+  letter-spacing: 0.18em;
   color: var(--text);
   transition: color 0.2s;
 }

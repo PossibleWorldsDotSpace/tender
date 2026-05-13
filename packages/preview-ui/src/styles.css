@@ -3,6 +3,58 @@
    The accent is ANSI-magenta — the same colour the `tender` CLI banner uses
    and the accent on the /tools/tender page on possibleworlds.space. */
 
+/* ─── self-hosted fonts (matched to possibleworlds.space) ─────────────── */
+
+@font-face {
+  font-family: 'JetBrains Mono';
+  src: url('./fonts/JetBrainsMono-Regular.woff2') format('woff2');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'JetBrains Mono';
+  src: url('./fonts/JetBrainsMono-Medium.woff2') format('woff2');
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'JetBrains Mono';
+  src: url('./fonts/JetBrainsMono-Bold.woff2') format('woff2');
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Reglo';
+  src: url('./fonts/Reglo-Bold.otf') format('opentype');
+  font-weight: 400 700;     /* one weight — map across the range */
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Libre Baskerville';
+  src: url('./fonts/LibreBaskerville-Regular.woff2') format('woff2');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Libre Baskerville';
+  src: url('./fonts/LibreBaskerville-Bold.woff2') format('woff2');
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Libre Baskerville';
+  src: url('./fonts/LibreBaskerville-Italic.woff2') format('woff2');
+  font-weight: 400;
+  font-style: italic;
+  font-display: swap;
+}
+
 :root {
   /* surfaces */
   --bg: #030305;
@@ -32,10 +84,11 @@
   --danger: #f85149;
   --danger-dim: rgba(248, 81, 73, 0.12);
 
-  /* type */
+  /* type — self-hosted, matched to possibleworlds.space */
   --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, monospace;
+  --font-headline: 'Reglo', 'JetBrains Mono', ui-monospace, monospace;
   --font-body: 'Libre Baskerville', Georgia, 'Times New Roman', serif;
-  --font-ui: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  --font-ui: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, ui-sans-serif, system-ui, sans-serif;
 
   /* shape */
   --radius: 8px;

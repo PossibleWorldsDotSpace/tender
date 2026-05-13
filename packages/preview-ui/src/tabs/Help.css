@@ -88,32 +88,35 @@
 .help-content > :first-child { margin-top: 0; }
 
 .help-content h1 {
-  font: 400 1.9em var(--font-mono);
-  line-height: 1.2;
+  font: 700 2em var(--font-headline);
+  line-height: 1.15;
   color: var(--text);
-  margin: 0 0 0.6em;
-  letter-spacing: -0.01em;
+  margin: 0 0 0.5em;
+  letter-spacing: 0.01em;
 }
 .help-content h2 {
-  font: 400 1.5em var(--font-mono);
-  line-height: 1.25;
+  font: 700 1.55em var(--font-headline);
+  line-height: 1.2;
   color: var(--text);
   margin: 2.2em 0 0.7em;
   padding-bottom: 0.3em;
   border-bottom: 1px solid var(--border);
+  letter-spacing: 0.01em;
   scroll-margin-top: calc(var(--topnav-clearance) + 12px);
 }
 .help-content h3 {
-  font: 700 0.92em var(--font-mono);
+  font: 700 0.85em var(--font-mono);
   line-height: 1.35;
   color: var(--text);
   text-transform: uppercase;
-  letter-spacing: 0.07em;
+  letter-spacing: 0.08em;
   margin: 2em 0 0.6em;
   scroll-margin-top: calc(var(--topnav-clearance) + 12px);
 }
 .help-content h4 {
-  font: 700 0.95em var(--font-mono);
+  font: 700 0.85em var(--font-mono);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
   color: var(--text);
   margin: 1.6em 0 0.5em;
   scroll-margin-top: calc(var(--topnav-clearance) + 12px);

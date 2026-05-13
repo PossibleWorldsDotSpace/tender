@@ -4,7 +4,8 @@
   padding: 36px 32px 80px;
 }
 .palette-section {
-  font: 400 1.4em var(--font-mono);
+  font: 700 1.5em var(--font-headline);
+  letter-spacing: 0.01em;
   color: var(--text);
   margin: 40px 0 18px;
   padding-bottom: 0.35em;
