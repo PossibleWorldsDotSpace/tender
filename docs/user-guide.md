@@ -18,6 +18,8 @@ my-doc/
   assets/
     images/
     fonts/
+  .gitignore        # written by `tender init`; ignores out/, node_modules/, dist/
+  out/              # build output (created by `tender build`; gitignored)
 ```
 
 The split is deliberate:
@@ -762,7 +764,7 @@ params: [icon]
 <img src="assets/images/{{icon}}.png">
 ```
 
-PNG, JPEG, GIF, SVG, WebP all work. In the standalone HTML output, images get base64-inlined; in the PDF, Chromium reads them off disk.
+PNG, JPEG, GIF, SVG, WebP all work. Images are base64-inlined into the HTML before Paged.js paginates it, so the same rendered output drives both `tender build`'s standalone HTML and its PDF — nothing is read off disk at render time, and the HTML can move between machines without breaking. Fonts (see below) follow the same inlining path.
 
 ### Fonts
 
@@ -1020,7 +1022,10 @@ tender build my-doc --doc resume.md      # equivalent
 tender build my-doc --out ~/Desktop
 tender build my-doc --pdf-only
 tender build my-doc --html-only
+tender build my-doc --timeout 180000     # raise the Paged.js pagination cap (default 60_000 ms)
 ```
+
+`--timeout <ms>` overrides `render.timeout-ms` from `project.yaml` for a single build; long documents on slower hardware occasionally need it.
 
 ### `tender preview [dir]`
 
@@ -1033,7 +1038,7 @@ tender preview my-doc --port 3993
 tender preview my-doc --host 0.0.0.0          # expose on LAN/Tailscale
 ```
 
-The preview shows pages as printed sheets (white background, drop shadow, page numbers, margin guides). In a multi-document project the UI carries a dropdown to switch between documents. Build errors surface in the terminal and as a browser overlay; the server stays up and recovers when you fix the error. Stop with Ctrl-C.
+The preview shows pages as printed sheets — white sheets with a soft drop shadow, page numbers, and margin guides, floating on the preview UI's dark workspace background. In a multi-document project the UI carries a dropdown to switch between documents. Build errors surface in the terminal and as a browser overlay; the server stays up and recovers when you fix the error. Stop with Ctrl-C.
 
 The UI has four tabs: **Preview** (the rendered output), **Palette** (component and typography gallery — see "Palette" above), **Help** (this guide, with a "Load example" panel for installing a worked example into the current project), and **Export**. The Export tab builds PDFs into the project's `out/` directory — one "Build PDF" button per document, plus "Build all PDFs" when the project has more than one — and offers a download link for each freshly-built file. It produces PDF only; for the standalone HTML mirror run `tender build`. Per-document build errors are shown inline on the Export tab without aborting the rest of a "build all". The Help tab's "Load example" panel installs a worked-example project (today: `open-circle`) into the current directory; the install refuses on conflict by default and asks for a single confirm before overwriting.
 
@@ -1062,6 +1067,19 @@ In a multi-document project an explicit path is required; calling `tender clean`
 
 Set `clean.typography: smart` in `project.yaml` to make `--typography` the default for that project.
 
+### `tender tokens list|set|edit`
+
+Inspect and modify the `design-tokens:` block in `project.yaml` without opening the file. The full reference is in [Design tokens → The `tender tokens` CLI](#the-tender-tokens-cli); a quick reminder of the subcommands:
+
+```
+tender tokens list                          # human-readable listing, grouped by category
+tender tokens list --json                   # machine-readable, for editor tooling
+tender tokens set color.accent '#FF6600'    # creates the token if not present; updates if it is
+tender tokens edit                          # opens an interactive picker on the design-tokens block (TTY required)
+```
+
+`tender tokens set` round-trips the YAML through an AST edit, so existing comments, key ordering, and formatting in `project.yaml` survive the write. Unknown categories and names are allowed (the schema treats categories as open-ended); the lint pass flags suspicious value shapes separately — see [Validation](#validation).
+
 ---
 
 ## Authoring with Claude Code
@@ -1076,7 +1094,7 @@ The skill is scoped to five authoring concerns:
 - **Design-token edits**: "Change the accent colour to red. Add a brand colour."
 - **Diagnosis**: "Why is this lint warning firing?"
 
-It deliberately doesn't run `tender build` (slow), restart `tender preview` (auto-reloads), pick fonts, or draft prose — those stay with you.
+It deliberately doesn't run `tender build` (slow), restart `tender preview` (auto-reloads), pick fonts, or draft prose — those stay with you. When you're ready to produce a PDF, build from the terminal (`tender build`) or use the **Export** tab in the preview UI (per-document and "Build all PDFs" buttons; PDFs land in `out/` and the tab offers download links). Worked examples can be installed into a fresh directory with `tender init --example` or from the preview UI's **Help** tab "Load example" panel.
 
 Install via symlink:
 
