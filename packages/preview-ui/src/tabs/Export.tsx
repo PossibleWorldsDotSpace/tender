@@ -81,7 +81,7 @@ export function Export() {
           <code>tender&nbsp;build</code> for that.
         </p>
         <Show when={(docs() ?? []).length > 1}>
-          <button class="export-build-all" disabled={anyBuilding()} onClick={() => void buildAll()}>
+          <button class="btn btn--primary export-build-all" disabled={anyBuilding()} onClick={() => void buildAll()}>
             {buildingAll() ? "Building all…" : "Build all PDFs"}
           </button>
         </Show>
@@ -102,7 +102,7 @@ export function Export() {
                     }}>
                       <span class="export-doc">{d.filename}</span>
                       <button
-                        class="export-build-one"
+                        class="btn btn--sm export-build-one"
                         disabled={s().state === "building" || buildingAll()}
                         onClick={() => void buildOne(d.basename)}
                       >

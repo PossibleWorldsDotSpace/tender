@@ -29,14 +29,13 @@ const makeLayout = (lp: LayoutProps) => (props: { children?: any }) => {
   // iframe lives in the layout so it survives tab switches.
   return (
     <div class="app">
+      <TabBar>
+        <DocSwitcher docs={lp.docs()} current={lp.currentDoc()} onChange={lp.onDocChange} />
+      </TabBar>
       <Show when={lp.errorMessage()}>
         <ErrorBanner message={lp.errorMessage()!} onDismiss={lp.onDismissError} />
       </Show>
-      <header class="app-header">
-        <TabBar />
-        <DocSwitcher docs={lp.docs()} current={lp.currentDoc()} onChange={lp.onDocChange} />
-      </header>
-      <main class="content">
+      <main class="content" classList={{ "content--preview": isPreview() }}>
         <PreviewIframe visible={isPreview()} doc={lp.currentDoc()} />
         <div class="tab-content" classList={{ hidden: isPreview() }}>
           {props.children}

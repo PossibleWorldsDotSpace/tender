@@ -1,75 +1,63 @@
 .export {
-  padding: 24px 32px;
-  max-width: 760px;
+  max-width: 780px;
   margin: 0 auto;
-  font: 11pt system-ui, sans-serif;
+  padding: 36px 32px 80px;
+  font: 13px var(--font-ui);
+  color: var(--text-muted);
 }
 
 .export-header h2 {
-  font: 600 16pt system-ui, sans-serif;
-  margin: 0 0 6px;
+  font: 400 1.5em var(--font-mono);
+  color: var(--text);
+  margin: 0 0 0.5em;
 }
 .export-blurb {
-  color: #666;
-  line-height: 1.5;
-  margin: 0 0 16px;
+  color: var(--text-faint);
+  line-height: 1.6;
+  margin: 0 0 18px;
+  max-width: 60ch;
 }
 .export-blurb code {
-  font: 10pt monospace;
-  background: #f0f0f0;
-  padding: 1px 4px;
-  border-radius: 2px;
+  font: 0.88em var(--font-mono);
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  padding: 0.1em 0.35em;
+  border-radius: var(--radius-xs);
+  color: var(--text);
 }
 
 .export-build-all {
-  font: 600 11pt system-ui, sans-serif;
-  padding: 8px 16px;
-  border: 1px solid #0366d6;
-  background: #0366d6;
-  color: white;
-  border-radius: 4px;
-  cursor: pointer;
-  margin-bottom: 20px;
+  /* extends .btn .btn--primary — applied in markup */
+  margin-bottom: 22px;
 }
-.export-build-all:hover:not(:disabled) { background: #0257b8; }
-.export-build-all:disabled { opacity: 0.6; cursor: default; }
 
 .export-loading,
 .export-empty {
-  color: #888;
-  padding: 24px 0;
+  color: var(--text-faint);
+  font: 12px var(--font-mono);
+  letter-spacing: 0.06em;
+  padding: 28px 0;
 }
 
 .export-list {
   list-style: none;
   margin: 0;
   padding: 0;
-  border-top: 1px solid #eee;
+  border-top: 1px solid var(--border);
 }
 .export-row {
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 10px 0;
-  border-bottom: 1px solid #eee;
+  gap: 14px;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--border);
 }
 .export-doc {
-  font: 11pt monospace;
-  min-width: 160px;
+  font: 12px var(--font-mono);
+  color: var(--text);
+  min-width: 170px;
   flex-shrink: 0;
 }
-
-.export-build-one {
-  font: 11pt system-ui, sans-serif;
-  padding: 5px 12px;
-  border: 1px solid #ccc;
-  background: #fafafa;
-  border-radius: 4px;
-  cursor: pointer;
-  flex-shrink: 0;
-}
-.export-build-one:hover:not(:disabled) { background: #f0f0f0; }
-.export-build-one:disabled { opacity: 0.6; cursor: default; }
 
 .export-result {
   display: flex;
@@ -78,27 +66,37 @@
   min-width: 0;
   flex: 1;
 }
-.export-arrow { color: #888; }
+.export-arrow { color: var(--text-ghost); }
 .export-path {
-  font: 10pt monospace;
-  background: #f0f0f0;
-  padding: 1px 5px;
-  border-radius: 2px;
+  font: 11px var(--font-mono);
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  padding: 0.15em 0.45em;
+  border-radius: var(--radius-xs);
+  color: var(--text-muted);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
-.export-size { color: #888; white-space: nowrap; }
-.export-download {
-  color: #0366d6;
-  text-decoration: none;
+.export-size {
+  font: 11px var(--font-mono);
+  color: var(--text-faint);
   white-space: nowrap;
 }
-.export-download:hover { text-decoration: underline; }
-
-.export-row.is-done .export-arrow { color: #1a7f37; }
-.export-row.is-error .export-error-msg {
-  color: #b91c1c;
-  font-size: 10.5pt;
+.export-download {
+  font: 11px var(--font-mono);
+  letter-spacing: 0.04em;
+  color: var(--accent);
+  text-decoration: none;
+  border-bottom: 1px solid transparent;
+  white-space: nowrap;
+  transition: border-color 0.2s;
 }
-.export-row.is-building .export-build-one { opacity: 0.6; }
+.export-download:hover { border-bottom-color: var(--accent); }
+
+.export-row.is-done .export-arrow { color: var(--success); }
+.export-row.is-error .export-error-msg {
+  font: 11px var(--font-mono);
+  color: var(--danger);
+  line-height: 1.5;
+}

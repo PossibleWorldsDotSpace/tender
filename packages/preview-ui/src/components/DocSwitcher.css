@@ -2,18 +2,22 @@
   display: flex;
   align-items: center;
   gap: 6px;
-  margin-left: auto;
-  padding: 0 12px;
-  font: 13px system-ui, sans-serif;
-  color: #333;
+  font: 10px var(--font-mono);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-faint);
 }
-.doc-switcher-label {
-  color: #666;
-}
+.doc-switcher-label { color: var(--text-faint); }
 .doc-switcher-select {
-  font: inherit;
-  padding: 4px 6px;
-  border: 1px solid #ccc;
-  border-radius: 4px;
-  background: white;
+  font: 10px var(--font-mono);
+  letter-spacing: 0.04em;
+  padding: 5px 8px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius);
+  background: var(--bg-elevated);
+  color: var(--text);
+  cursor: pointer;
+  transition: border-color 0.2s;
 }
+.doc-switcher-select:hover { border-color: var(--text-faint); }
+.doc-switcher-select:focus-visible { outline: 1px solid var(--accent); outline-offset: 1px; }

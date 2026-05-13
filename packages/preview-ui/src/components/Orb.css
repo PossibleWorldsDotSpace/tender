@@ -1,0 +1,84 @@
+/* Orb motif — blurred gradient circles behind the wordmark.
+   Mirrors `.nav__logo-orbs` from the Possible Worlds topnav. */
+
+.orb-cluster {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 180%;
+  height: 320%;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+  z-index: -1;
+}
+
+.orb {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  border-radius: 50%;
+  opacity: 0;                 /* hidden by default — only the wordmark shows */
+  transition: opacity 0.45s ease, transform 0.6s ease, filter 0.6s ease, width 0.6s ease, height 0.6s ease;
+}
+
+.orb--magenta {
+  width: 70px;
+  height: 70px;
+  background: var(--orb-magenta);
+  transform: translate(-50%, -50%);
+  filter: blur(14px);
+}
+.orb--lime {
+  width: 46px;
+  height: 46px;
+  background: var(--orb-lime);
+  transform: translate(-120%, -32%);
+  filter: blur(12px);
+}
+.orb--cyan {
+  width: 46px;
+  height: 46px;
+  background: var(--orb-cyan);
+  transform: translate(24%, -68%);
+  filter: blur(12px);
+}
+
+/* hover: the cluster fades in, blooms and drifts */
+.tender-logo:hover .orb--magenta {
+  opacity: 0.55;
+  width: 80px;
+  height: 80px;
+  filter: blur(20px);
+  animation: orb-drift-1 4s ease-in-out infinite;
+}
+.tender-logo:hover .orb--lime {
+  opacity: 0.42;
+  filter: blur(16px);
+  animation: orb-drift-2 5s ease-in-out infinite;
+}
+.tender-logo:hover .orb--cyan {
+  opacity: 0.42;
+  filter: blur(16px);
+  animation: orb-drift-3 4.5s ease-in-out infinite;
+}
+
+@keyframes orb-drift-1 {
+  0%, 100% { transform: translate(-50%, -50%); }
+  50% { transform: translate(-50%, -58%); }
+}
+@keyframes orb-drift-2 {
+  0%, 100% { transform: translate(-118%, -32%); }
+  50% { transform: translate(-128%, -24%); }
+}
+@keyframes orb-drift-3 {
+  0%, 100% { transform: translate(24%, -68%); }
+  50% { transform: translate(34%, -76%); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tender-logo:hover .orb { animation: none; }
+}
+
+:root[data-theme="light"] .tender-logo:hover .orb--magenta { opacity: 0.4; }
+:root[data-theme="light"] .tender-logo:hover .orb--lime,
+:root[data-theme="light"] .tender-logo:hover .orb--cyan { opacity: 0.3; }

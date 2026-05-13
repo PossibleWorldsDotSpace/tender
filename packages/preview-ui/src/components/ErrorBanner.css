@@ -2,21 +2,30 @@
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 8px 14px;
-  background: #fef0f0;
-  border-bottom: 1px solid #f0b0b0;
-  color: #7a1a1a;
-  font: 12pt system-ui, sans-serif;
+  margin: 0 var(--nav-gutter) 12px;
+  padding: 10px 14px;
+  background: var(--danger-dim);
+  border: 1px solid var(--danger);
+  border-radius: var(--radius);
+  color: var(--text);
+  font: 12px var(--font-ui);
 }
-.error-banner-icon { font-size: 14pt; }
-.error-banner-message { flex: 1; font-family: monospace; font-size: 11pt; }
+.error-banner-icon { color: var(--danger); font-size: 14px; }
+.error-banner-message {
+  flex: 1;
+  font: 11px var(--font-mono);
+  line-height: 1.5;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
 .error-banner-dismiss {
   background: none;
   border: 0;
-  font-size: 18pt;
+  font-size: 18px;
   line-height: 1;
   cursor: pointer;
-  color: #7a1a1a;
-  padding: 0 6px;
+  color: var(--text-faint);
+  padding: 0 4px;
+  transition: color 0.2s;
 }
-.error-banner-dismiss:hover { background: #f0b0b0; border-radius: 3px; }
+.error-banner-dismiss:hover { color: var(--text); }

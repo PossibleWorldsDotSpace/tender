@@ -1,15 +1,26 @@
-.app { display: flex; flex-direction: column; height: 100vh; }
-.app-header {
+/* App shell. The topnav floats (fixed, inset 10px), so the content area
+   gets a top inset to clear it: nav-gutter + nav-height + nav-gutter. */
+
+:root { --topnav-clearance: calc(var(--nav-gutter) + var(--nav-height) + var(--nav-gutter)); }
+
+.app {
   display: flex;
-  align-items: stretch;
-  border-bottom: 1px solid #ccc;
-  background: #f6f6f6;
+  flex-direction: column;
+  height: 100%;
+  padding-top: var(--topnav-clearance);
 }
-.app-header .tabbar {
+
+.content {
   flex: 1;
-  border-bottom: 0;
-  background: transparent;
+  min-height: 0;
+  overflow: auto;
 }
-.content { flex: 1; overflow: hidden; }
-.tab-content { height: 100%; overflow: auto; }
+
+/* Preview iframe wants the whole pane, no scroll container of its own. */
+.content--preview { overflow: hidden; }
+
+.tab-content {
+  height: 100%;
+  overflow: auto;
+}
 .tab-content.hidden { display: none; }

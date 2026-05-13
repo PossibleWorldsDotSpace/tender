@@ -1,2 +1,171 @@
-:root { font-family: system-ui, sans-serif; }
-body { margin: 0; }
+/* Tender preview — design tokens, ported from the Possible Worlds web design
+   system (vanilla CSS custom properties, dark default, light override).
+   The accent is ANSI-magenta — the same colour the `tender` CLI banner uses
+   and the accent on the /tools/tender page on possibleworlds.space. */
+
+:root {
+  /* surfaces */
+  --bg: #030305;
+  --bg-elevated: #0d1117;
+  --bg-card: #161b22;
+  --bg-card-2: #1c2230;
+
+  /* text */
+  --text: #e6edf3;
+  --text-muted: #a8b2bd;
+  --text-faint: #8b949e;
+  --text-ghost: #3d444d;
+
+  /* accent — ANSI-magenta (matches the `tender` CLI banner) */
+  --accent: #d670d6;
+  --accent-strong: #e596e5;
+  --accent-dim: rgba(214, 112, 214, 0.18);
+  --accent-faint: rgba(214, 112, 214, 0.08);
+
+  /* borders */
+  --border: #21262d;
+  --border-strong: #30363d;
+
+  /* status */
+  --success: #3fb950;
+  --warning: #d29922;
+  --danger: #f85149;
+  --danger-dim: rgba(248, 81, 73, 0.12);
+
+  /* type */
+  --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, monospace;
+  --font-body: 'Libre Baskerville', Georgia, 'Times New Roman', serif;
+  --font-ui: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+
+  /* shape */
+  --radius: 8px;
+  --radius-sm: 6px;
+  --radius-xs: 4px;
+
+  /* layout */
+  --nav-height: 50px;
+  --nav-gutter: 10px;
+
+  /* orb palette (topnav motif) */
+  --orb-magenta: #e879f9;
+  --orb-lime: #a3e635;
+  --orb-cyan: #22d3ee;
+
+  color-scheme: dark;
+  font-family: var(--font-ui);
+}
+
+:root[data-theme="light"] {
+  --bg: #fafafa;
+  --bg-elevated: #ffffff;
+  --bg-card: #f5f5f5;
+  --bg-card-2: #ececec;
+
+  --text: #1a1a1a;
+  --text-muted: #525252;
+  --text-faint: #737373;
+  --text-ghost: #d4d4d4;
+
+  --accent: #b048b0;          /* darkened ANSI-magenta for light-mode contrast */
+  --accent-strong: #8f3a8f;
+  --accent-dim: rgba(176, 72, 176, 0.15);
+  --accent-faint: rgba(176, 72, 176, 0.07);
+
+  --border: #e5e5e5;
+  --border-strong: #d4d4d4;
+
+  --danger: #d1242f;
+  --danger-dim: rgba(209, 36, 47, 0.1);
+
+  color-scheme: light;
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  height: 100%;
+}
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-ui);
+  -webkit-font-smoothing: antialiased;
+}
+
+#root { height: 100%; }
+
+::selection {
+  background: var(--accent-dim);
+  color: var(--text);
+}
+
+/* Custom scrollbar — ported from the Possible Worlds site. */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--border-strong) var(--bg);
+}
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-track { background: var(--bg); }
+::-webkit-scrollbar-thumb {
+  background: var(--border-strong);
+  border-radius: var(--radius);
+}
+::-webkit-scrollbar-thumb:hover { background: var(--text-faint); }
+::-webkit-scrollbar-corner { background: var(--bg); }
+
+/* ─────────────────────────  shared button system  ───────────────────────── */
+/* Ported from the PW Button component: outlined by default, filled primary,
+   ghost variant. Monospace, uppercase-ish, small. */
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 8px 16px;
+  font: 11px var(--font-mono);
+  letter-spacing: 0.04em;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius);
+  background: transparent;
+  color: var(--text);
+  text-decoration: none;
+  cursor: pointer;
+  transition: background 0.2s, border-color 0.2s, color 0.2s;
+}
+.btn:hover:not(:disabled) {
+  border-color: var(--text-faint);
+  background: var(--bg-elevated);
+}
+.btn:disabled { opacity: 0.5; cursor: default; }
+
+.btn--primary {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+.btn--primary:hover:not(:disabled) {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--bg);
+}
+
+.btn--ghost {
+  border-color: transparent;
+}
+.btn--ghost:hover:not(:disabled) {
+  border-color: var(--border-strong);
+  background: var(--bg-elevated);
+}
+
+.btn--sm { padding: 5px 12px; font-size: 10px; }
+
+/* shared inline-code chip */
+.code-chip {
+  font: 0.85em var(--font-mono);
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  padding: 0.1em 0.4em;
+  border-radius: var(--radius-xs);
+}

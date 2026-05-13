@@ -35,7 +35,7 @@ export function Tile(props: TileProps) {
                 <div class="snippet">
                   {r.label ? <span class="snippet-label">{r.label}</span> : null}
                   <pre><code>{r.snippet}</code></pre>
-                  <button onClick={() => navigator.clipboard.writeText(r.snippet)}>Copy</button>
+                  <button class="btn btn--sm" onClick={() => navigator.clipboard.writeText(r.snippet)}>Copy</button>
                 </div>
               </Show>
             )}

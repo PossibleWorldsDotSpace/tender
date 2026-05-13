@@ -85,11 +85,12 @@ const RELOAD_SCRIPT = `<script>
 </script>`;
 
 // Visual chrome that makes the rendered Paged.js DOM look like printed sheets:
-// grey workspace, white pages with a soft drop-shadow, page numbers, optional
-// margin guides. Injected only in the preview server — not in PDF/HTML output.
+// dark workspace (matches the preview-ui app background — see styles.css --bg),
+// white pages with a soft drop-shadow, page numbers, optional margin guides.
+// Injected only in the preview server — not in PDF/HTML output.
 const PREVIEW_CHROME = `<style>
-  html { background: #d8d8d8; }
-  body { background: #d8d8d8; padding: 16px 0; }
+  html { background: #030305; }
+  body { background: #030305; padding: 16px 0; }
   .pagedjs_pages {
     display: flex;
     flex-direction: column;
@@ -98,7 +99,7 @@ const PREVIEW_CHROME = `<style>
   }
   .pagedjs_page {
     background: white;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.18);
+    box-shadow: 0 2px 16px rgba(0,0,0,0.5);
     counter-increment: page;
     position: relative;
   }
@@ -109,7 +110,7 @@ const PREVIEW_CHROME = `<style>
     left: 50%;
     transform: translateX(-50%);
     font: 11px/1 system-ui, sans-serif;
-    color: #666;
+    color: #8b949e;
   }
   /*
     Margin guide: faint dashed rectangle showing the printable area on each

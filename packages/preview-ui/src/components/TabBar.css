@@ -1,18 +1,78 @@
-.tabbar {
+/* Floating topnav — ported from the Possible Worlds site nav. */
+
+.topnav {
+  position: fixed;
+  top: var(--nav-gutter);
+  left: var(--nav-gutter);
+  right: var(--nav-gutter);
+  height: var(--nav-height);
+  z-index: 1000;
   display: flex;
-  gap: 0;
-  border-bottom: 1px solid #ccc;
-  background: #f6f6f6;
-  padding: 0 12px;
+  align-items: center;
+  gap: 16px;
+  padding: 0 14px 0 18px;
+  background: color-mix(in srgb, var(--bg) 88%, transparent);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border: 1px dotted var(--border-strong);
+  border-radius: var(--radius);
 }
-.tab {
-  padding: 10px 16px;
+
+/* logo + orb cluster */
+.tender-logo {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
   text-decoration: none;
-  color: #333;
-  border-bottom: 2px solid transparent;
-  font: 14px system-ui, sans-serif;
+  isolation: isolate;
+  padding: 4px 6px;
 }
-.tab[aria-current="page"] {
-  border-bottom-color: #1a1a1a;
-  font-weight: 600;
+.tender-wordmark {
+  font: 12px var(--font-mono);
+  font-weight: 700;
+  letter-spacing: 0.22em;
+  color: var(--text);
+  transition: color 0.2s;
+}
+.tender-logo:hover .tender-wordmark { color: var(--accent); }
+
+/* tab links */
+.topnav-links {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: 4px;
+}
+.topnav-link {
+  font: 10px var(--font-mono);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  text-decoration: none;
+  padding: 6px 12px;
+  border: 1px solid transparent;
+  border-radius: var(--radius);
+  transition: color 0.2s, border-color 0.2s, background 0.2s;
+}
+.topnav-link:hover {
+  color: var(--accent);
+  border-color: var(--border-strong);
+}
+.topnav-link[aria-current="page"] {
+  color: var(--accent);
+  border-color: var(--accent);
+  background: var(--accent-faint);
+}
+
+/* trailing slot (doc switcher) */
+.topnav-trailing {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+}
+
+@media (max-width: 720px) {
+  .topnav { gap: 8px; padding: 0 8px 0 12px; }
+  .topnav-link { padding: 5px 8px; }
+  .tender-wordmark { letter-spacing: 0.14em; }
 }

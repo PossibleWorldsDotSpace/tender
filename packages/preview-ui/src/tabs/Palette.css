@@ -1,9 +1,20 @@
-.palette { padding: 20px; max-width: 900px; margin: 0 auto; }
+.palette {
+  max-width: 920px;
+  margin: 0 auto;
+  padding: 36px 32px 80px;
+}
 .palette-section {
-  font: 700 18pt system-ui, sans-serif;
-  margin: 28px 0 14px;
-  border-bottom: 1px solid #ddd;
-  padding-bottom: 6px;
+  font: 400 1.4em var(--font-mono);
+  color: var(--text);
+  margin: 40px 0 18px;
+  padding-bottom: 0.35em;
+  border-bottom: 1px solid var(--border);
 }
 .palette-section:first-child { margin-top: 0; }
-.palette-loading { padding: 40px; text-align: center; color: #888; }
+.palette-loading {
+  padding: 60px;
+  text-align: center;
+  color: var(--text-faint);
+  font: 12px var(--font-mono);
+  letter-spacing: 0.08em;
+}
