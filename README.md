@@ -232,3 +232,7 @@ VS Code opens with the extension live; the language server spawns from the works
 Tender is built by [Possible Worlds](https://possibleworlds.space) — a small studio working on tools and texts for thinking about better futures. We use Tender ourselves to ship workshop playbooks, research reports, and other documents that live more comfortably as PDFs than as web pages.
 
 If Tender is useful to you, we'd love to hear what you're using it for. File an issue, open a discussion, or get in touch via the website.
+
+## License
+
+[MIT](LICENSE). Copyright © Possible Worlds.

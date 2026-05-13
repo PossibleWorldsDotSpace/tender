@@ -4,6 +4,7 @@
   "description": "Authoring support for Tender — layout-as-code for print PDFs.",
   "version": "0.0.0",
   "private": true,
+  "license": "MIT",
   "publisher": "tender",
   "engines": {
     "vscode": "^1.85.0"
