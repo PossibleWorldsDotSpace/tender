@@ -1,4 +1,5 @@
 import { readFile } from "node:fs/promises";
+import { existsSync } from "node:fs";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { unified } from "unified";
@@ -10,13 +11,23 @@ import rehypeStringify from "rehype-stringify";
 const here = dirname(fileURLToPath(import.meta.url));
 
 /**
- * The user guide bundled with the CLI. At build time `packages/core/assets/`
- * receives a copy of `docs/user-guide.md` from the repo root (see the
- * `prebuild` script in `packages/core/package.json`), so what ships in npm
- * is always the current canonical guide. The Help tab reads this file
- * directly — there is no project-local override.
+ * The user guide bundled with the CLI. Two locations need to resolve:
+ *   - dev (unbundled): here = packages/core/dist/help → ../../assets/...
+ *   - published CLI bundle: here = packages/cli/dist → ../assets/... (copied
+ *     in by tsup's onSuccess step; see packages/cli/tsup.config.ts)
+ * At build time `packages/core/assets/builtin-user-guide.md` is regenerated
+ * from `docs/user-guide.md` (see core's `prebuild` script) so what ships in
+ * npm is always the current canonical guide.
  */
-const helpPath = join(here, "../../assets/builtin-user-guide.md");
+function resolveHelpPath(): string {
+  const candidates = [
+    join(here, "../assets/builtin-user-guide.md"),
+    join(here, "../../assets/builtin-user-guide.md")
+  ];
+  for (const p of candidates) if (existsSync(p)) return p;
+  return candidates[candidates.length - 1]!;
+}
+const helpPath = resolveHelpPath();
 
 export interface HelpResponse {
   html: string;

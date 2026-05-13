@@ -10,5 +10,8 @@ out/
 # packages/core/scripts/copy-help.mjs. Do not hand-edit.
 packages/core/assets/builtin-user-guide.md
 
+# Generated at build time by tsup (copies from packages/core/assets/).
+packages/cli/assets/
+
 # Local scratch / test files (not part of the project)
 PlanetScript.md

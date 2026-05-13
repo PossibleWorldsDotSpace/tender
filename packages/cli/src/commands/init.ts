@@ -1,4 +1,5 @@
 import { mkdir, readdir, copyFile, stat, writeFile } from "node:fs/promises";
+import { existsSync } from "node:fs";
 import { join, dirname, resolve, relative } from "node:path";
 import { fileURLToPath } from "node:url";
 import { execFile } from "node:child_process";
@@ -21,11 +22,16 @@ dist/
 `;
 
 // Templates directory is bundled adjacent to the dist/ dir at publish time.
-// At dev/test time, resolve relative to the source location.
-// The CLI package layout: packages/cli/{src,dist}/commands/init.{ts,js}
-// From here (.../commands/), package root is two levels up.
+// Two layouts to support:
+//   - dev (tsc): here = packages/cli/dist/commands → ../../templates
+//   - bundled (tsup): here = packages/cli/dist → ../templates
 function templatesDir(name = "default"): string {
-  return resolve(here, "..", "..", "templates", name);
+  const candidates = [
+    resolve(here, "..", "templates", name),
+    resolve(here, "..", "..", "templates", name)
+  ];
+  for (const p of candidates) if (existsSync(p)) return p;
+  return candidates[candidates.length - 1]!;
 }
 
 /**

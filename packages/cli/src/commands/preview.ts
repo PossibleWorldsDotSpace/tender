@@ -5,14 +5,22 @@ import type { FSWatcher } from "chokidar";
 import type { Server } from "node:http";
 import { dirname, join, sep, basename } from "node:path";
 import { readFile, mkdir, writeFile } from "node:fs/promises";
+import { existsSync } from "node:fs";
 import { createRequire } from "node:module";
+import { fileURLToPath } from "node:url";
 import { buildProject, buildPalette, renderHelp, listDocuments } from "@tender/core";
 import type { BuildResult, ProjectDocument } from "@tender/core";
 import { createRenderSession } from "@tender/render";
 import type { RenderSession } from "@tender/render";
 import { init, KNOWN_EXAMPLES, type ExampleName } from "./init.js";
 
+// Preview UI built bundle. Two layouts to support:
+//   - bundled (tsup): copied to packages/cli/dist/preview-ui/ at build time
+//   - dev (tsc/vitest): resolve through the workspace link
 const previewUiDist = (() => {
+  const here = dirname(fileURLToPath(import.meta.url));
+  const bundled = join(here, "preview-ui");
+  if (existsSync(bundled)) return bundled;
   const pkg = createRequire(import.meta.url).resolve("@tender/preview-ui/package.json");
   return join(dirname(pkg), "dist");
 })();

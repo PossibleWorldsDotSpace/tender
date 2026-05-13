@@ -1,43 +1,54 @@
 {
-  "name": "@tender/cli",
-  "version": "0.0.0",
+  "name": "@possibleworlds/tender",
+  "version": "0.1.0",
   "license": "MIT",
   "type": "module",
-  "main": "./dist/index.js",
-  "types": "./dist/index.d.ts",
-  "exports": {
-    ".": {
-      "types": "./dist/index.d.ts",
-      "default": "./dist/index.js"
-    }
-  },
   "bin": {
     "tender": "./dist/cli.js"
   },
   "files": [
     "dist",
-    "templates"
+    "templates",
+    "assets"
   ],
   "scripts": {
-    "build": "tsc -p tsconfig.json && chmod +x dist/cli.js",
+    "build": "pnpm --filter @tender/core --filter @tender/render --filter @tender/preview-ui build && tsup && chmod +x dist/cli.js",
+    "build:tsc": "tsc -p tsconfig.json && chmod +x dist/cli.js",
     "test": "vitest run --passWithNoTests",
     "test:watch": "vitest",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
-    "@tender/core": "workspace:*",
-    "@tender/preview-ui": "workspace:^",
-    "@tender/render": "workspace:*",
     "chokidar": "^5.0.0",
     "commander": "^12.0.0",
     "express": "^5.2.1",
+    "handlebars": "^4.7.9",
+    "htmlparser2": "^12.0.0",
+    "js-yaml": "^4.1.1",
+    "pagedjs": "^0.4.3",
+    "puppeteer": "^24.43.0",
+    "rehype-stringify": "^10.0.1",
+    "remark-directive": "^4.0.0",
+    "remark-gfm": "^4.0.1",
+    "remark-parse": "^11.0.0",
+    "remark-rehype": "^11.1.2",
+    "retext": "^9.0.0",
+    "retext-english": "^5.0.0",
+    "retext-smartypants": "^6.2.0",
+    "retext-stringify": "^4.0.0",
+    "unified": "^11.0.5",
+    "unist-util-visit": "^5.1.0",
     "ws": "^8.20.0",
-    "yaml": "^2.6.0"
+    "yaml": "^2.6.0",
+    "zod": "^4.4.3"
   },
   "devDependencies": {
+    "@tender/core": "workspace:*",
+    "@tender/preview-ui": "workspace:^",
+    "@tender/render": "workspace:*",
     "@types/express": "^5.0.6",
     "@types/ws": "^8.18.1",
-    "puppeteer": "^24.43.0",
+    "tsup": "^8.5.1",
     "typescript": "^5.4.0",
     "vitest": "^1.6.0"
   }

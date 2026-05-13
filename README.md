@@ -54,7 +54,7 @@ The loop in the middle (edit → preview) is the day-to-day; `init` happens once
 ```mermaid
 flowchart TB
     subgraph surfaces["Authoring surfaces"]
-        CLI["@tender/cli<br/>(init / tokens / preview / build / lint / clean)"]
+        CLI["@possibleworlds/tender<br/>(init / tokens / preview / build / lint / clean)"]
         SKILL["claude/skills/tender-author<br/>(natural-language authoring)"]
         VSC["@tender/vscode-extension<br/>(syntax, completion, diagnostics)"]
     end
@@ -85,19 +85,24 @@ The CLI and the Claude skill are peer **control surfaces** — both speak direct
 
 ## Install
 
-Requires Node 20+ and pnpm.
+Requires Node 20+.
+
+```
+npm install -g @possibleworlds/tender
+```
+
+Then `tender` is on your `$PATH`.
+
+### From source
+
+For contributors, or to track `trunk`:
 
 ```
 git clone https://github.com/joshajh/tender.git
 cd tender
 pnpm install
 pnpm -r build
-```
-
-For a global `tender` command:
-
-```
-pnpm --filter @tender/cli link --global
+pnpm --filter @possibleworlds/tender link --global
 ```
 
 ## Quick start

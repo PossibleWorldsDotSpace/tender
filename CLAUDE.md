@@ -63,7 +63,7 @@ Treat docs as part of the change, not a follow-up.
 - **Branch:** active work happens on `trunk`. `main` is the published branch.
 - **Tests:** `pnpm test` runs the whole workspace; `pnpm --filter @tender/<pkg> test` for a single package.
 - **Typecheck:** `pnpm typecheck` runs across all packages.
-- **Build the CLI before manually smoke-testing:** `pnpm --filter @tender/cli build`. The shipped `node dist/cli.js` is what users get.
+- **Build the CLI before manually smoke-testing:** `pnpm --filter @possibleworlds/tender build`. The shipped `node dist/cli.js` is a single bundled file that pulls in `@tender/core` and `@tender/render` at build time (see `packages/cli/tsup.config.ts`); the script builds the siblings first.
 - **Don't run `tender build` repeatedly during dev** — Paged.js cold-starts at ~30s each. `tender preview` keeps Chromium hot.
 - **Commit per task in plans;** small, reviewable commits beat one big one. Conventional commits (`feat(...)`, `fix(...)`, `docs(...)`, `chore(...)`).
 
