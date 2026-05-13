@@ -97,10 +97,6 @@ Welcome, everyone. We're glad you're here. We're going to spend the next three h
 
 :::
 
-::::
-
-::::page
-
 :::ad-lib
 
 @@ suggested
