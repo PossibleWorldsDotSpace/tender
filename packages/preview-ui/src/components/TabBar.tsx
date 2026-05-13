@@ -7,6 +7,7 @@ export function TabBar() {
       <A href="/" end class="tab">Preview</A>
       <A href="/palette" class="tab">Palette</A>
       <A href="/help" class="tab">Help</A>
+      <A href="/export" class="tab">Export</A>
     </nav>
   );
 }

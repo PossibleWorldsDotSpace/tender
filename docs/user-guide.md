@@ -1031,6 +1031,8 @@ tender preview my-doc --host 0.0.0.0          # expose on LAN/Tailscale
 
 The preview shows pages as printed sheets (white background, drop shadow, page numbers, margin guides). In a multi-document project the UI carries a dropdown to switch between documents. Build errors surface in the terminal and as a browser overlay; the server stays up and recovers when you fix the error. Stop with Ctrl-C.
 
+The UI has four tabs: **Preview** (the rendered output), **Palette** (component and typography gallery — see "Palette" above), **Help** (this guide), and **Export**. The Export tab builds PDFs into the project's `out/` directory — one "Build PDF" button per document, plus "Build all PDFs" when the project has more than one — and offers a download link for each freshly-built file. It produces PDF only; for the standalone HTML mirror run `tender build`. Per-document build errors are shown inline on the Export tab without aborting the rest of a "build all".
+
 ### `tender lint [dir]`
 
 Validates a project and surfaces structural issues. See "Validation" above.

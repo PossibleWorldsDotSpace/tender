@@ -2,7 +2,7 @@ import { describe, it, expect } from "vitest";
 import { startPreviewServer } from "./preview.js";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
-import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import WebSocket from "ws";
 
@@ -242,6 +242,120 @@ describe("preview server", () => {
         const content = body.docs.find((d: { basename: string }) => d.basename === "content");
         expect(content.isContent).toBe(true);
         expect(content.filename).toBe("content.md");
+      } finally {
+        await server.close();
+      }
+    } finally {
+      await rm(tmp, { recursive: true, force: true });
+    }
+  }, 60_000);
+
+  it("POST /_api/build builds every doc to out/<doc>.pdf and serves them for download", async () => {
+    const tmp = await mkdtemp(join(tmpdir(), "tender-build-pdf-"));
+    try {
+      await writeFile(join(tmp, "project.yaml"), `page-templates:\n  default: { size: A5, margin: 0 }\n`);
+      await writeFile(join(tmp, "styles.css"), `body{}`);
+      await writeFile(join(tmp, "content.md"), `# Hello`);
+      await writeFile(join(tmp, "resume.md"), `# Resume`);
+
+      const server = await startPreviewServer({ projectDir: tmp, port: 0 });
+      try {
+        const res = await fetch(`http://127.0.0.1:${server.port}/_api/build`, { method: "POST" });
+        expect(res.status).toBe(200);
+        const body = await res.json();
+        expect(body.results.map((r: { doc: string }) => r.doc).sort()).toEqual(["content", "resume"]);
+        for (const r of body.results) {
+          expect(r.ok).toBe(true);
+          expect(r.bytes).toBeGreaterThan(1000);
+          expect(r.downloadUrl).toBe(`/_api/out/${r.doc}.pdf`);
+        }
+        // Files actually on disk under out/.
+        const pdf = await readFile(join(tmp, "out", "content.pdf"));
+        expect(pdf.subarray(0, 4).toString()).toBe("%PDF");
+        // Downloadable through the server.
+        const dl = await fetch(`http://127.0.0.1:${server.port}/_api/out/resume.pdf`);
+        expect(dl.status).toBe(200);
+        expect(dl.headers.get("content-type")).toMatch(/application\/pdf/);
+        const dlBuf = Buffer.from(await dl.arrayBuffer());
+        expect(dlBuf.subarray(0, 4).toString()).toBe("%PDF");
+      } finally {
+        await server.close();
+      }
+    } finally {
+      await rm(tmp, { recursive: true, force: true });
+    }
+  }, 120_000);
+
+  it("POST /_api/build?doc=<name> builds just that doc; ?doc=missing 404s", async () => {
+    const tmp = await mkdtemp(join(tmpdir(), "tender-build-one-"));
+    try {
+      await writeFile(join(tmp, "project.yaml"), `page-templates:\n  default: { size: A5, margin: 0 }\n`);
+      await writeFile(join(tmp, "styles.css"), `body{}`);
+      await writeFile(join(tmp, "content.md"), `# Hello`);
+      await writeFile(join(tmp, "resume.md"), `# Resume`);
+
+      const server = await startPreviewServer({ projectDir: tmp, port: 0 });
+      try {
+        const one = await fetch(`http://127.0.0.1:${server.port}/_api/build?doc=resume`, { method: "POST" });
+        expect(one.status).toBe(200);
+        const oneBody = await one.json();
+        expect(oneBody.results).toHaveLength(1);
+        expect(oneBody.results[0]).toMatchObject({ doc: "resume", ok: true });
+        // content.pdf was NOT built (only resume was asked for).
+        await expect(readFile(join(tmp, "out", "content.pdf"))).rejects.toThrow();
+
+        const missing = await fetch(`http://127.0.0.1:${server.port}/_api/build?doc=nope`, { method: "POST" });
+        expect(missing.status).toBe(404);
+        const missingBody = await missing.json();
+        expect(missingBody.error).toMatch(/nope/);
+      } finally {
+        await server.close();
+      }
+    } finally {
+      await rm(tmp, { recursive: true, force: true });
+    }
+  }, 120_000);
+
+  it("POST /_api/build reports a per-doc error without failing the whole build", async () => {
+    const tmp = await mkdtemp(join(tmpdir(), "tender-build-err-"));
+    try {
+      await writeFile(join(tmp, "project.yaml"), `page-templates:\n  default: { size: A5, margin: 0 }\n`);
+      await writeFile(join(tmp, "styles.css"), `body{}`);
+      await writeFile(join(tmp, "content.md"), `# Hello`);
+      await writeFile(join(tmp, "broken.md"), `:::definitely-not-real\noops\n:::\n`);
+
+      const server = await startPreviewServer({ projectDir: tmp, port: 0 });
+      try {
+        const res = await fetch(`http://127.0.0.1:${server.port}/_api/build`, { method: "POST" });
+        expect(res.status).toBe(200);
+        const body = await res.json();
+        const byDoc = Object.fromEntries(body.results.map((r: { doc: string }) => [r.doc, r]));
+        expect(byDoc.content.ok).toBe(true);
+        expect(byDoc.broken.ok).toBe(false);
+        expect(byDoc.broken.error).toMatch(/Unknown component/i);
+        // The good doc's PDF still landed.
+        const pdf = await readFile(join(tmp, "out", "content.pdf"));
+        expect(pdf.subarray(0, 4).toString()).toBe("%PDF");
+      } finally {
+        await server.close();
+      }
+    } finally {
+      await rm(tmp, { recursive: true, force: true });
+    }
+  }, 120_000);
+
+  it("GET /_api/out/<bad> rejects non-pdf and traversal", async () => {
+    const tmp = await mkdtemp(join(tmpdir(), "tender-out-guard-"));
+    try {
+      await writeFile(join(tmp, "project.yaml"), `page-templates:\n  default: { size: A5, margin: 0 }\n`);
+      await writeFile(join(tmp, "styles.css"), `body{}`);
+      await writeFile(join(tmp, "content.md"), `# Hello`);
+      const server = await startPreviewServer({ projectDir: tmp, port: 0 });
+      try {
+        expect((await fetch(`http://127.0.0.1:${server.port}/_api/out/notes.txt`)).status).toBe(400);
+        expect((await fetch(`http://127.0.0.1:${server.port}/_api/out/${encodeURIComponent("../project.yaml")}`)).status).toBe(400);
+        // A .pdf that was never built — well-formed name, but 404.
+        expect((await fetch(`http://127.0.0.1:${server.port}/_api/out/nope.pdf`)).status).toBe(404);
       } finally {
         await server.close();
       }

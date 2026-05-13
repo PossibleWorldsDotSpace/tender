@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
-import { fetchPalette, fetchHelp, fetchDocs } from "./api.ts";
+import { fetchPalette, fetchHelp, fetchDocs, buildPdfs } from "./api.ts";
 
 describe("api client", () => {
   it("fetchPalette parses JSON from /_api/palette", async () => {
@@ -32,6 +32,28 @@ describe("api client", () => {
     expect(res.docs).toHaveLength(1);
     expect(res.docs[0]?.basename).toBe("content");
     expect(mock).toHaveBeenCalledWith("/_api/docs");
+    vi.unstubAllGlobals();
+  });
+
+  it("buildPdfs POSTs to /_api/build (all docs) or /_api/build?doc=x (one)", async () => {
+    const mock = vi.fn((_url: string, _init?: RequestInit) =>
+      Promise.resolve(new Response(JSON.stringify({ outDir: "/p/out", results: [] }), { status: 200 }))
+    );
+    vi.stubGlobal("fetch", mock);
+    await buildPdfs();
+    expect(mock).toHaveBeenLastCalledWith("/_api/build", { method: "POST" });
+    await buildPdfs("resume");
+    expect(mock).toHaveBeenLastCalledWith("/_api/build?doc=resume", { method: "POST" });
+    vi.unstubAllGlobals();
+  });
+
+  it("buildPdfs surfaces the server's error message on a non-2xx", async () => {
+    vi.stubGlobal("fetch", vi.fn(() =>
+      Promise.resolve(new Response(JSON.stringify({ error: "No document \"nope\"" }), {
+        status: 404, headers: { "content-type": "application/json" }
+      }))
+    ));
+    await expect(buildPdfs("nope")).rejects.toThrow(/No document/);
     vi.unstubAllGlobals();
   });
 });

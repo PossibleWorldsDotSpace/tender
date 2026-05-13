@@ -6,6 +6,7 @@ import { DocSwitcher } from "./components/DocSwitcher.tsx";
 import { PreviewIframe } from "./tabs/Preview.tsx";
 import { Palette } from "./tabs/Palette.tsx";
 import { Help } from "./tabs/Help.tsx";
+import { Export } from "./tabs/Export.tsx";
 import { connectReloadSocket, fetchDocs, type DocsResponse } from "./api.ts";
 import { ReloadContext } from "./reload-context.ts";
 import "./App.css";
@@ -48,6 +49,7 @@ const makeLayout = (lp: LayoutProps) => (props: { children?: any }) => {
 export function App() {
   const [paletteVersion, setPaletteVersion] = createSignal(0);
   const [helpVersion, setHelpVersion] = createSignal(0);
+  const [docsVersion, setDocsVersion] = createSignal(0);
   const [errorMessage, setErrorMessage] = createSignal<string | null>(null);
   const [docs, setDocs] = createSignal<DocsResponse["docs"]>([]);
   const [currentDoc, setCurrentDoc] = createSignal<string | null>(null);
@@ -87,6 +89,7 @@ export function App() {
 
     if (msg.kind === "docs") {
       refreshDocs();
+      setDocsVersion(v => v + 1);
       return;
     }
 
@@ -120,11 +123,12 @@ export function App() {
   });
 
   return (
-    <ReloadContext.Provider value={{ paletteVersion, helpVersion }}>
+    <ReloadContext.Provider value={{ paletteVersion, helpVersion, docsVersion }}>
       <Router root={Layout}>
         <Route path="/" component={() => null} />
         <Route path="/palette" component={Palette} />
         <Route path="/help" component={Help} />
+        <Route path="/export" component={Export} />
       </Router>
     </ReloadContext.Provider>
   );

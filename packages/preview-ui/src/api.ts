@@ -47,6 +47,40 @@ export async function fetchDocs(): Promise<DocsResponse> {
   return res.json();
 }
 
+export interface BuildPdfDocResult {
+  doc: string;
+  ok: boolean;
+  /** Absolute path of the written PDF (on success). */
+  path?: string;
+  /** Download URL relative to the server root (on success). */
+  downloadUrl?: string;
+  /** Byte size of the written PDF (on success). */
+  bytes?: number;
+  /** Error message (on failure). */
+  error?: string;
+}
+
+export interface BuildPdfResponse {
+  /** Absolute path of the project's out/ directory. */
+  outDir: string;
+  results: BuildPdfDocResult[];
+}
+
+/**
+ * Build PDF(s) and write them to the project's out/ directory. Pass a doc
+ * basename to build just that document; omit it to build every document.
+ */
+export async function buildPdfs(doc?: string): Promise<BuildPdfResponse> {
+  const url = doc ? `/_api/build?doc=${encodeURIComponent(doc)}` : "/_api/build";
+  const res = await fetch(url, { method: "POST" });
+  if (!res.ok) {
+    let detail = "";
+    try { detail = ((await res.json()) as { error?: string }).error ?? ""; } catch { /* non-JSON body */ }
+    throw new Error(detail || `build failed: ${res.status}`);
+  }
+  return res.json();
+}
+
 export async function fetchPalette(): Promise<PaletteResponse> {
   const res = await fetch("/_api/palette");
   if (!res.ok) throw new Error(`palette fetch failed: ${res.status}`);

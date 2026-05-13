@@ -1,0 +1,104 @@
+.export {
+  padding: 24px 32px;
+  max-width: 760px;
+  margin: 0 auto;
+  font: 11pt system-ui, sans-serif;
+}
+
+.export-header h2 {
+  font: 600 16pt system-ui, sans-serif;
+  margin: 0 0 6px;
+}
+.export-blurb {
+  color: #666;
+  line-height: 1.5;
+  margin: 0 0 16px;
+}
+.export-blurb code {
+  font: 10pt monospace;
+  background: #f0f0f0;
+  padding: 1px 4px;
+  border-radius: 2px;
+}
+
+.export-build-all {
+  font: 600 11pt system-ui, sans-serif;
+  padding: 8px 16px;
+  border: 1px solid #0366d6;
+  background: #0366d6;
+  color: white;
+  border-radius: 4px;
+  cursor: pointer;
+  margin-bottom: 20px;
+}
+.export-build-all:hover:not(:disabled) { background: #0257b8; }
+.export-build-all:disabled { opacity: 0.6; cursor: default; }
+
+.export-loading,
+.export-empty {
+  color: #888;
+  padding: 24px 0;
+}
+
+.export-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  border-top: 1px solid #eee;
+}
+.export-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 0;
+  border-bottom: 1px solid #eee;
+}
+.export-doc {
+  font: 11pt monospace;
+  min-width: 160px;
+  flex-shrink: 0;
+}
+
+.export-build-one {
+  font: 11pt system-ui, sans-serif;
+  padding: 5px 12px;
+  border: 1px solid #ccc;
+  background: #fafafa;
+  border-radius: 4px;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+.export-build-one:hover:not(:disabled) { background: #f0f0f0; }
+.export-build-one:disabled { opacity: 0.6; cursor: default; }
+
+.export-result {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  flex: 1;
+}
+.export-arrow { color: #888; }
+.export-path {
+  font: 10pt monospace;
+  background: #f0f0f0;
+  padding: 1px 5px;
+  border-radius: 2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.export-size { color: #888; white-space: nowrap; }
+.export-download {
+  color: #0366d6;
+  text-decoration: none;
+  white-space: nowrap;
+}
+.export-download:hover { text-decoration: underline; }
+
+.export-row.is-done .export-arrow { color: #1a7f37; }
+.export-row.is-error .export-error-msg {
+  color: #b91c1c;
+  font-size: 10.5pt;
+}
+.export-row.is-building .export-build-one { opacity: 0.6; }

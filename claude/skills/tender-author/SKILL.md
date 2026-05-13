@@ -357,7 +357,7 @@ You can run `tender clean --check` (read-only) yourself to confirm there are pen
 
 ## What this skill does NOT do automatically
 
-- **Don't run `tender build`.** Slow (~30s per build). Suggest "Run `tender build` when you're ready to produce a PDF" only when the user signals they're done iterating.
+- **Don't run `tender build`.** Slow (~30s per build). When the user signals they're done iterating, suggest producing a PDF — either `tender build` from the terminal, or the **Export** tab in `tender preview` (per-document "Build PDF", or "Build all PDFs"; writes to `out/`). Don't trigger either yourself.
 - **Don't restart `tender preview`.** It auto-reloads on file changes. If the user reports the preview isn't updating, suggest checking the terminal where preview is running for errors — but don't try to start preview yourself.
 - **Don't run `tender clean` in interactive mode.** Default mode prompts the user; let them run it. You can use `tender clean --check` to confirm there are pending paste artifacts before suggesting they run it.
 - **Don't `git commit`.** That's the user's call. Mention "Ready to commit?" only when a meaningful chunk of work is done.

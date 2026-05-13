@@ -163,8 +163,9 @@ These compile to CSS custom properties (`--color-ink`, `--size-body`, …) your 
 - **Preview** — the live-reloading rendered output.
 - **Palette** — gallery of components and typography in this project, each rendered with project styles.
 - **Help** — the user guide.
+- **Export** — build PDFs into the project's `out/` directory: one button per document, plus "Build all PDFs"; each result links to a download. Same output as `tender build` (PDF only — no HTML mirror).
 
-All three update automatically when you edit project files.
+Preview, Palette, and Help update automatically when you edit project files.
 
 ## Control surfaces
 

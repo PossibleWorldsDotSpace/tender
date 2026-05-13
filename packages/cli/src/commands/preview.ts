@@ -3,8 +3,8 @@ import { WebSocketServer } from "ws";
 import chokidar from "chokidar";
 import type { FSWatcher } from "chokidar";
 import type { Server } from "node:http";
-import { dirname, join, sep } from "node:path";
-import { readFile } from "node:fs/promises";
+import { dirname, join, sep, basename } from "node:path";
+import { readFile, mkdir, writeFile } from "node:fs/promises";
 import { createRequire } from "node:module";
 import { buildProject, buildPalette, renderHelp, listDocuments } from "@tender/core";
 import type { BuildResult, ProjectDocument } from "@tender/core";
@@ -293,6 +293,109 @@ export async function startPreviewServer(opts: PreviewOptions): Promise<RunningS
         isContent: d.isContent
       })),
       default: defaultDocName()
+    });
+  });
+
+  // --- PDF export -----------------------------------------------------------
+  //
+  // The Export tab calls POST /_api/build (all docs) or POST /_api/build?doc=x
+  // (one). PDFs are written to <projectDir>/out/<doc>.pdf — the same place
+  // `tender build` puts them, and a path the file watcher already ignores, so
+  // writing there doesn't trigger a rebuild loop. The response carries a
+  // per-doc result; freshly-built PDFs are downloadable via GET /_api/out/...
+
+  const outDir = join(opts.projectDir, "out");
+  // Serialize builds: a build-all loops over docs reusing the one Chromium,
+  // and two overlapping build-alls would interleave page renders pointlessly.
+  let buildInFlight: Promise<void> | null = null;
+
+  interface DocPdfResult {
+    doc: string;
+    ok: boolean;
+    /** Absolute path of the written PDF (on success). */
+    path?: string;
+    /** Download URL relative to the server root (on success). */
+    downloadUrl?: string;
+    /** Byte size of the written PDF (on success). */
+    bytes?: number;
+    /** Error message (on failure). */
+    error?: string;
+  }
+
+  /**
+   * Build one document to PDF and write it to out/. Uses the cached BuildResult
+   * when the doc is currently in a good state; otherwise rebuilds it fresh
+   * (which also refreshes the cache and preview HTML). Never throws — a build
+   * error is reported in the returned result.
+   */
+  async function buildDocPdf(docName: string): Promise<DocPdfResult> {
+    try {
+      let entry = docCaches.get(docName);
+      if (!entry || entry.kind !== "ok") {
+        await rebuildOne(docName);
+        entry = docCaches.get(docName);
+      }
+      if (!entry || entry.kind !== "ok") {
+        return { doc: docName, ok: false, error: buildError?.message ?? `Build failed for "${docName}"` };
+      }
+      const pdf = await renderSession.renderPdf(entry.build);
+      await mkdir(outDir, { recursive: true });
+      const filename = `${docName}.pdf`;
+      const path = join(outDir, filename);
+      await writeFile(path, pdf);
+      return {
+        doc: docName,
+        ok: true,
+        path,
+        downloadUrl: `/_api/out/${encodeURIComponent(filename)}`,
+        bytes: pdf.length
+      };
+    } catch (err) {
+      return { doc: docName, ok: false, error: err instanceof Error ? err.message : String(err) };
+    }
+  }
+
+  app.post("/_api/build", express.json(), async (req, res, next) => {
+    try {
+      const requested = typeof req.query.doc === "string" ? req.query.doc : null;
+      // Wait for any in-flight build to finish before starting another.
+      while (buildInFlight) await buildInFlight.catch(() => { /* ignore; we re-run */ });
+      let resolveDone!: () => void;
+      buildInFlight = new Promise<void>(r => { resolveDone = r; });
+      try {
+        await discoverDocs();
+        let targets: string[];
+        if (requested !== null) {
+          if (!docs.some(d => d.basename === requested)) {
+            res.status(404).json({ error: `No document "${requested}"`, results: [] });
+            return;
+          }
+          targets = [requested];
+        } else {
+          targets = docs.map(d => d.basename);
+        }
+        const results: DocPdfResult[] = [];
+        for (const name of targets) results.push(await buildDocPdf(name));
+        res.json({ outDir, results });
+      } finally {
+        resolveDone();
+        buildInFlight = null;
+      }
+    } catch (err) {
+      next(err);
+    }
+  });
+
+  // Serve a freshly-built PDF for download. Constrained to out/ and to .pdf
+  // basenames so this can't be turned into an arbitrary-file read.
+  app.get("/_api/out/:file", (req, res) => {
+    const file = basename(req.params.file);
+    if (!file.endsWith(".pdf") || file.includes(sep) || file.includes("/")) {
+      res.status(400).send("bad filename");
+      return;
+    }
+    res.download(join(outDir, file), file, err => {
+      if (err && !res.headersSent) res.status(404).send("not built yet");
     });
   });
 
