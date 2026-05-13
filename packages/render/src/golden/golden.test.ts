@@ -12,15 +12,15 @@ const FIXTURES = [
   "components",
   "page-templates",
   "with-image",
-  "coastal-planet",
-  "coastal-planet-tender",
+  "open-circle",
+  "open-circle-tender",
   // Authored with <row>…</row> tag syntax (the new default). Its golden is
-  // byte-identical to coastal-planet-tender.json — proof that the
+  // byte-identical to open-circle-tender.json — proof that the
   // preprocessor produces the same output as the legacy `:::row` path.
-  "coastal-planet-tags",
-  // Mirrors coastal-planet-tags but exercises item 6's inline-shortcuts:
+  "open-circle-tags",
+  // Mirrors open-circle-tags but exercises item 6's inline-shortcuts:
   // declares `|`: stage-direction and rewrites a few inline span uses.
-  "coastal-planet-shortcuts"
+  "open-circle-shortcuts"
 ];
 
 describe("PDF golden tests", () => {

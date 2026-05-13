@@ -5,7 +5,7 @@ import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 
 const here = dirname(fileURLToPath(import.meta.url));
-const fixture = join(here, "../../../core/test/fixtures/coastal-planet");
+const fixture = join(here, "../../../core/test/fixtures/open-circle");
 
 describe("preview e2e", () => {
   it("loads all three tabs", async () => {

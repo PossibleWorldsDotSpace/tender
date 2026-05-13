@@ -254,8 +254,8 @@ Sometimes Markdown can't express what you need — a `<br>` inside a span, a CSS
 
 ```
 <div class="cover-tags">
-  <div><span class="yellow-tag">A time-travel playbook for<br>inspiring coastal communities</span></div>
-  <div><span class="yellow-tag">By Ruth Catlow and Ann Light</span></div>
+  <div><span class="yellow-tag">A facilitator's playbook for<br>community story workshops</span></div>
+  <div><span class="yellow-tag">By Mara Ellison and Devin Park</span></div>
 </div>
 ```
 
@@ -564,7 +564,7 @@ Your design vocabulary — colours, type sizes, leading, spacing — belongs in 
 
 ### The shape
 
-`design-tokens:` is a two-level map of `category → name → value`. Categories are open-ended — pick what fits your project. The set used by the `coastal-planet-tags` fixture is a good starting shape:
+`design-tokens:` is a two-level map of `category → name → value`. Categories are open-ended — pick what fits your project. The set used by the `open-circle-tags` fixture is a good starting shape:
 
 ```yaml
 design-tokens:
@@ -796,7 +796,7 @@ Once content is sanitised, the authoring loop is regular Tender: edit `content.m
 
 ### A two-column layout (margin column + body)
 
-The pattern from the `coastal-planet-tags` reference fixture. Margin column carries labels, icons, speaker names; body column has the prose.
+The pattern from the `open-circle-tags` reference fixture. Margin column carries labels, icons, speaker names; body column has the prose.
 
 `components/row.tender`:
 ```
@@ -865,7 +865,7 @@ page-templates:
 ```
 === page{template=cover}
 
-# This Coastal Planet
+# Open Circle
 
 …cover content…
 

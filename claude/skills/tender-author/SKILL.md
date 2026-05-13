@@ -38,7 +38,7 @@ The same principle applies to the project's *vocabulary*. Tender is a layout too
 
 - **Do not** create a `components/<name>.tender` file the user did not ask for. If a piece of content "would benefit from" being a callout/row/whatever, *suggest it in one sentence and ask* — don't write the file.
 - **Do not** seed a "starter set" of components when initialising or scaffolding. `tender init` ships a deliberately minimal template; don't add to it from your own taste.
-- **Do not** invent component names from memory of other Tender projects you've seen — especially anything from the `coastal-planet*` fixtures (`row`, `callout`, `ad-lib`, `cover-spiral`, `spanning-row`, `stage-direction`, etc.). Those are example-specific. A fresh project has no such components and shouldn't grow them by default.
+- **Do not** invent component names from memory of other Tender projects you've seen — especially anything from the `open-circle*` fixtures (`row`, `callout`, `ad-lib`, `cover-spiral`, `spanning-row`, `stage-direction`, etc.). Those are example-specific. A fresh project has no such components and shouldn't grow them by default.
 - **Do not** add new design tokens, page templates, inline shortcuts, or fonts the user didn't request. Vocabulary changes are explicit author decisions.
 - **Do** create exactly what was asked for, with the name and shape the user named (or one you proposed and they confirmed when intent was ambiguous).
 
@@ -54,7 +54,7 @@ grep -l "^page-templates:" project.yaml
 
 If `project.yaml` is missing or doesn't declare `page-templates:`, this is not a Tender project and this skill doesn't apply.
 
-The reference fixture is `packages/core/test/fixtures/coastal-planet-tags/` in this repo — read it whenever you need a worked example.
+The reference fixture is `packages/core/test/fixtures/open-circle-tags/` in this repo — read it whenever you need a worked example.
 
 ## Project shape recap
 
@@ -123,7 +123,7 @@ Quick decision rule: if the user's request is "I want a class on a span/div/asid
 
 Component names should be **hyphenated** (e.g. `pull-quote`, `side-note`, `figure-caption`). Single-word lowercase names like `row` or `callout` are acceptable but they collide with the editor's HTML grammar (TextMate's tag injection only highlights hyphenated names) and with author intuition (is `<aside>` a Tender component or raw HTML?). Prefer hyphenated names for new components, especially inline ones.
 
-These naming examples are *illustrations of the hyphenation convention only* — never create them unprompted because they appear here. Same goes for any component name you've seen in the `coastal-planet*` fixtures (`ad-lib`, `cover-spiral`, `spanning-row`, `stage-direction`, etc.): those exist for a specific worked example and are not a starter set. **Create only the component the user asked for, with the name the user named (or one they approve when you ask).**
+These naming examples are *illustrations of the hyphenation convention only* — never create them unprompted because they appear here. Same goes for any component name you've seen in the `open-circle*` fixtures (`ad-lib`, `cover-spiral`, `spanning-row`, `stage-direction`, etc.): those exist for a specific worked example and are not a starter set. **Create only the component the user asked for, with the name the user named (or one they approve when you ask).**
 
 ## Design tokens
 
@@ -135,7 +135,7 @@ Tender's design vocabulary (colours, fonts, sizes, leadings, spaces) lives in `p
 
 **CLI.** The user can drive token edits with `tender tokens list`, `tender tokens set color.accent '#c33'`, or `tender tokens edit` (opens `$EDITOR` on the block). You can call the CLI or edit `project.yaml` directly — your judgment. Don't change tokens without being asked; they're vocabulary, not implementation detail.
 
-For the canonical worked example, see `packages/core/test/fixtures/coastal-planet-tags/project.yaml` (6 categories, 17 tokens). For the full reference, see the "Design tokens" section of `docs/user-guide.md`.
+For the canonical worked example, see `packages/core/test/fixtures/open-circle-tags/project.yaml` (6 categories, 17 tokens). For the full reference, see the "Design tokens" section of `docs/user-guide.md`.
 
 ## Authoring tasks
 
@@ -190,7 +190,7 @@ Notice:
 - The `<style>` block uses CSS attribute selectors `[data-variant="warning"]` because wrapper-component params land as `data-NAME` attributes on the rendered element.
 - A CSS variable `var(--color-rule, #888)` with a fallback. Authors define design tokens in `project.yaml`'s `design-tokens:` block — they compile to CSS custom properties (`color.rule` → `--color-rule`). Component CSS references them so themes change in one place.
 
-For a block-template component example, see `examples/row.tender` (verbatim from `coastal-planet-tags`):
+For a block-template component example, see `examples/row.tender` (verbatim from `open-circle-tags`):
 
 - Declares `params: [label, icon, speaker, no-break]`.
 - Body uses `{{#if param}}…{{/if}}` conditionals so optional params don't render empty markup.
@@ -407,7 +407,7 @@ If the user's request is ambiguous, missing context, or runs into a non-goal, **
 
 Examples:
 
-- "Make a row component" — ambiguous; ask whether they want a wrapper (just a div with a class) or a block template (params/slots/conditionals like `coastal-planet-tags`'s row).
+- "Make a row component" — ambiguous; ask whether they want a wrapper (just a div with a class) or a block template (params/slots/conditionals like `open-circle-tags`'s row).
 - "Style my dialogue" — ambiguous; ask what the dialogue looks like in `content.md` and what they want it to look like rendered.
 - "Make my pages look better" — too broad; ask which specific element or page-template they're unhappy with.
 - "Pick a font for me" — out of scope; mention you can wire up `@font-face` if they name a file under `assets/fonts/`.
@@ -433,7 +433,7 @@ If you're editing a file that already uses legacy syntax (e.g. an old project), 
 When in doubt, consult:
 
 - `docs/user-guide.md` — authoring conventions, full schema reference.
-- `packages/core/test/fixtures/coastal-planet-tags/` — the canonical worked example.
+- `packages/core/test/fixtures/open-circle-tags/` — the canonical worked example.
 - `examples/` (in this skill's directory) — verbatim canonical fixtures.
 - `tender lint --json` — structural findings; the source of truth for "what's wrong."
 

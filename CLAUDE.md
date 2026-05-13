@@ -56,7 +56,7 @@ Treat docs as part of the change, not a follow-up.
 - `claude/skills/tender-author/` — the Claude skill (symlinked from `~/.claude/skills/`)
 - `docs/user-guide.md` — author reference
 - `docs/plans/` — design and implementation plans, dated
-- `packages/core/test/fixtures/coastal-planet-tags/` — the canonical worked example
+- `packages/core/test/fixtures/open-circle-tags/` — the canonical worked example
 
 ## Working defaults
 

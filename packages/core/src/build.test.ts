@@ -70,8 +70,8 @@ describe("buildProject", () => {
     expect(result.componentsCss).toBe("");
   });
 
-  it("coastal-planet fixture: HTML output is structurally stable", async () => {
-    const result = await buildProject(join(fixturesDir, "coastal-planet"));
+  it("open-circle fixture: HTML output is structurally stable", async () => {
+    const result = await buildProject(join(fixturesDir, "open-circle"));
     expect(result.html).toContain('class="row"');
     expect(result.html).toContain('class="spanning-row"');
     expect(result.html).toContain('class="ad-lib');
@@ -83,8 +83,8 @@ describe("buildProject", () => {
     expect(result.html).not.toContain("--- suggested ---");
   });
 
-  it("coastal-planet-tender fixture: same structural markers via the .tender pipeline", async () => {
-    const result = await buildProject(join(fixturesDir, "coastal-planet-tender"));
+  it("open-circle-tender fixture: same structural markers via the .tender pipeline", async () => {
+    const result = await buildProject(join(fixturesDir, "open-circle-tender"));
     expect(result.html).toContain('class="row"');
     expect(result.html).toContain('class="spanning-row"');
     expect(result.html).toContain('class="ad-lib');
@@ -95,8 +95,8 @@ describe("buildProject", () => {
     expect(result.html).not.toContain("--- suggested ---");
   });
 
-  it("coastal-planet-tags fixture: same structural markers via tag-syntax invocation", async () => {
-    const result = await buildProject(join(fixturesDir, "coastal-planet-tags"));
+  it("open-circle-tags fixture: same structural markers via tag-syntax invocation", async () => {
+    const result = await buildProject(join(fixturesDir, "open-circle-tags"));
     expect(result.html).toContain('class="row"');
     expect(result.html).toContain('class="spanning-row"');
     expect(result.html).toContain('class="ad-lib');
@@ -107,14 +107,14 @@ describe("buildProject", () => {
     expect(result.html).not.toContain("--- suggested ---");
   });
 
-  it("coastal-planet-shortcuts fixture: inline shortcuts expand into component tags", async () => {
-    const result = await buildProject(join(fixturesDir, "coastal-planet-shortcuts"));
+  it("open-circle-shortcuts fixture: inline shortcuts expand into component tags", async () => {
+    const result = await buildProject(join(fixturesDir, "open-circle-shortcuts"));
     // The | shortcut should expand into <span class="stage-direction">…</span>.
     expect(result.html).toContain('class="stage-direction"');
     // The literal | character should not appear adjacent to its content
     // (i.e. the shortcut got fully expanded).
     expect(result.html).not.toContain("|Facilitator A stands");
-    expect(result.html).not.toContain("|Holds up the snack");
+    expect(result.html).not.toContain("|Holds up the small stone");
     // Sanity: structural markers still present.
     expect(result.html).toContain('class="row"');
     expect(result.html).toContain('data-page-template="cover"');
@@ -129,13 +129,13 @@ describe("buildProject", () => {
     expect(result.stylesCss).toContain("var(--color-ink)");
   });
 
-  it("coastal-planet-paste-artifact: cleanText restores paste-artifact content to expected", async () => {
-    // The fixture's content.md is a copy of coastal-planet-tags' content.md
+  it("open-circle-paste-artifact: cleanText restores paste-artifact content to expected", async () => {
+    // The fixture's content.md is a copy of open-circle-tags' content.md
     // with deliberately-introduced paste artifacts (BOM, NBSP, soft hyphen,
     // zero-width space, trailing whitespace, CRLF line endings). After
     // cleaning, the output should be byte-identical to the hand-saved
     // expected file (which is the original, clean version).
-    const dir = join(fixturesDir, "coastal-planet-paste-artifact");
+    const dir = join(fixturesDir, "open-circle-paste-artifact");
     const dirty = await readFile(join(dir, "content.md"), "utf8");
     const expected = await readFile(join(dir, "content-expected.md"), "utf8");
     const r = await cleanText(dirty);
@@ -216,8 +216,8 @@ describe("buildProject", () => {
     expect(results).toEqual([]);
   });
 
-  it("coastal-multi-doc fixture: every *.md builds and shares the same component registry", async () => {
-    const dir = join(fixturesDir, "coastal-multi-doc");
+  it("multi-doc fixture: every *.md builds and shares the same component registry", async () => {
+    const dir = join(fixturesDir, "multi-doc");
     const results = await buildProjectAll(dir);
     expect(results.map(r => r.docBasename)).toEqual(["content", "cover-letter", "resume"]);
     for (const r of results) {

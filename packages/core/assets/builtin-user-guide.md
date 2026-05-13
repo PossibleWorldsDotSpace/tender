@@ -227,8 +227,8 @@ Sometimes Markdown can't express what you need — a `<br>` inside a span, a CSS
 
 ```
 <div class="cover-tags">
-  <div><span class="yellow-tag">A time-travel playbook for<br>inspiring coastal communities</span></div>
-  <div><span class="yellow-tag">By Ruth Catlow and Ann Light</span></div>
+  <div><span class="yellow-tag">A facilitator's playbook for<br>community story workshops</span></div>
+  <div><span class="yellow-tag">By Mara Ellison and Devin Park</span></div>
 </div>
 ```
 
@@ -604,7 +604,7 @@ page-templates:
 ```
 ::::page{template=cover}
 
-# This Coastal Planet
+# Open Circle
 
 …cover content…
 

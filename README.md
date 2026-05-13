@@ -225,7 +225,7 @@ VS Code opens with the extension live; the language server spawns from the works
 
 - **User guide:** [`docs/user-guide.md`](docs/user-guide.md) — authoring conventions, `project.yaml` reference, `styles.css` patterns, CLI commands, security model.
 - **Design plans:** [`docs/plans/`](docs/plans/) — dated design and implementation docs for each feature.
-- **Worked example:** [`packages/core/test/fixtures/coastal-planet-tags/`](packages/core/test/fixtures/coastal-planet-tags/) — a workshop playbook reproducing the original `example.html`. Shows the full authoring stack: `=== page` markers, tag-syntax components, `@@` slots, multi-component layout, and a real `design-tokens:` block.
+- **Worked example:** [`packages/core/test/fixtures/open-circle-tags/`](packages/core/test/fixtures/open-circle-tags/) — *Open Circle*, a facilitator's playbook for community story workshops. Shows the full authoring stack: `=== page` markers, tag-syntax components, `@@` slots, multi-component layout, and a real `design-tokens:` block.
 
 ## Built by Possible Worlds
 

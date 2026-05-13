@@ -22,6 +22,6 @@ typography:
     min-chars-after: 3
 
 # Components live under components/*.tender. Add files there as you author.
-# See packages/core/test/fixtures/coastal-planet-tags/ in the Tender repo
+# See packages/core/test/fixtures/open-circle-tags/ in the Tender repo
 # for a complete worked example, or use the tender-author Claude skill to
 # create components from natural-language descriptions.

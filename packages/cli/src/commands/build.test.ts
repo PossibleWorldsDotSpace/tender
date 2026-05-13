@@ -8,7 +8,7 @@ import { tmpdir } from "node:os";
 const here = dirname(fileURLToPath(import.meta.url));
 // Reuse the core fixtures
 const fixture = join(here, "../../../core/test/fixtures/hello");
-const COASTAL = join(here, "../../../core/test/fixtures/coastal-planet");
+const OPEN_CIRCLE = join(here, "../../../core/test/fixtures/open-circle");
 
 /** Write a project tree from a flat file map into a fresh tmpdir. */
 async function scaffold(files: Record<string, string>): Promise<string> {
@@ -35,10 +35,10 @@ describe("build command", () => {
     }
   }, 120_000);
 
-  it("coastal-planet: produces a multi-page PDF", async () => {
-    const out = await mkdtemp(join(tmpdir(), "tender-coastal-"));
+  it("open-circle: produces a multi-page PDF", async () => {
+    const out = await mkdtemp(join(tmpdir(), "tender-open-circle-"));
     try {
-      await build({ projectDir: COASTAL, outDir: out });
+      await build({ projectDir: OPEN_CIRCLE, outDir: out });
       const pdf = await readFile(join(out, "content.pdf"));
       expect(pdf.length).toBeGreaterThan(20_000);
       expect(pdf.subarray(0, 4).toString()).toBe("%PDF");

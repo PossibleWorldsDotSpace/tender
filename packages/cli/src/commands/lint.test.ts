@@ -54,8 +54,8 @@ describe("lint command", () => {
     expect(text).toMatch(/warning.*components\/x\.tender.*unused-component/);
   });
 
-  it("coastal-planet-tags fixture: only unused-component warnings, no errors or deprecation", async () => {
-    const { report, exitCode } = await lint(join(fixturesDir, "coastal-planet-tags"));
+  it("open-circle-tags fixture: only unused-component warnings, no errors or deprecation", async () => {
+    const { report, exitCode } = await lint(join(fixturesDir, "open-circle-tags"));
     // The fixture's row.tender references inline-component-shaped class
     // names as raw HTML rather than as tag invocations. Several inline
     // components (speaker-name, margin-label, participant-name) and a
