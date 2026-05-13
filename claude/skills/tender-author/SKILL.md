@@ -37,7 +37,7 @@ If a task seems to require editing prose to succeed (e.g. "make this fit on one 
 The same principle applies to the project's *vocabulary*. Tender is a layout tool; the author decides what components, tokens, page templates, and inline shortcuts exist.
 
 - **Do not** create a `components/<name>.tender` file the user did not ask for. If a piece of content "would benefit from" being a callout/row/whatever, *suggest it in one sentence and ask* — don't write the file.
-- **Do not** seed a "starter set" of components when initialising or scaffolding. `tender init` ships a deliberately minimal template; don't add to it from your own taste.
+- **Do not** seed a "starter set" of components when initialising or scaffolding. `tender init`'s default template is deliberately minimal; don't add to it from your own taste. (`tender init --example` exists for users who want a full worked example, but it's an explicit opt-in — don't suggest invoking it as part of routine authoring.)
 - **Do not** invent component names from memory of other Tender projects you've seen — especially anything from the `open-circle*` fixtures (`row`, `callout`, `ad-lib`, `cover-spiral`, `spanning-row`, `stage-direction`, etc.). Those are example-specific. A fresh project has no such components and shouldn't grow them by default.
 - **Do not** add new design tokens, page templates, inline shortcuts, or fonts the user didn't request. Vocabulary changes are explicit author decisions.
 - **Do** create exactly what was asked for, with the name and shape the user named (or one you proposed and they confirmed when intent was ambiguous).

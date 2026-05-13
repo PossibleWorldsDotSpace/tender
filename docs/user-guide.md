@@ -983,6 +983,8 @@ tender init                  # scaffold around the cwd; git init; prompt for fir
 tender init my-doc           # scaffold a new project in my-doc/
 tender init my-doc --force   # overwrite existing files (rarely needed)
 tender init --no-commit      # don't offer to make an initial commit
+tender init --example        # scaffold the open-circle worked example
+tender init my-doc --example=open-circle
 ```
 
 The most common flow is "user has a directory with their content.md already in it, runs `tender init` there, ends up with a working project." The existing `content.md` is preserved verbatim; `project.yaml`, `styles.css`, `components/`, and `.gitignore` get filled in. The output reports exactly which files were created vs preserved.
@@ -1004,6 +1006,8 @@ Make an initial commit? [y/N]
 ```
 
 `--force` overwrites existing scaffolded files (it does not touch git). Re-running without `--force` is always safe — every file is reported as preserved and nothing changes; a directory that's already a repo is left as-is.
+
+`--example` (with no value, or `--example=<name>`) scaffolds a worked-example project instead of the minimal starter. Available examples ship under the CLI's `templates/`; today there is one: `open-circle`, a facilitator's playbook that exercises components, design tokens, page templates, and the row grid. Unlike the minimal scaffold, examples are **conflict-refusing**: if any file would be overwritten, `tender init --example` prints the list of would-be-clobbered files, writes nothing, and exits non-zero. Re-run with `--force` to clobber. The same example set is reachable from the preview UI's Help tab ("Load example" button) for projects you've already opened in `tender preview`.
 
 ### `tender build [dir]`
 
@@ -1031,7 +1035,7 @@ tender preview my-doc --host 0.0.0.0          # expose on LAN/Tailscale
 
 The preview shows pages as printed sheets (white background, drop shadow, page numbers, margin guides). In a multi-document project the UI carries a dropdown to switch between documents. Build errors surface in the terminal and as a browser overlay; the server stays up and recovers when you fix the error. Stop with Ctrl-C.
 
-The UI has four tabs: **Preview** (the rendered output), **Palette** (component and typography gallery — see "Palette" above), **Help** (this guide), and **Export**. The Export tab builds PDFs into the project's `out/` directory — one "Build PDF" button per document, plus "Build all PDFs" when the project has more than one — and offers a download link for each freshly-built file. It produces PDF only; for the standalone HTML mirror run `tender build`. Per-document build errors are shown inline on the Export tab without aborting the rest of a "build all".
+The UI has four tabs: **Preview** (the rendered output), **Palette** (component and typography gallery — see "Palette" above), **Help** (this guide, with a "Load example" panel for installing a worked example into the current project), and **Export**. The Export tab builds PDFs into the project's `out/` directory — one "Build PDF" button per document, plus "Build all PDFs" when the project has more than one — and offers a download link for each freshly-built file. It produces PDF only; for the standalone HTML mirror run `tender build`. Per-document build errors are shown inline on the Export tab without aborting the rest of a "build all". The Help tab's "Load example" panel installs a worked-example project (today: `open-circle`) into the current directory; the install refuses on conflict by default and asks for a single confirm before overwriting.
 
 ### `tender lint [dir]`
 

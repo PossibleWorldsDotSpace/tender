@@ -1,0 +1,216 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=JetBrains+Mono:wght@400;600&display=swap');
+
+/* ── Tokens ──
+   Design tokens live in project.yaml under `design-tokens:` and compile
+   to a :root { --token: value; } block prepended to this stylesheet.
+   See docs for the full token list; --space-baseline-offset is the
+   baseline offset between JetBrains Mono and Inter (start at 0, tune
+   in 0.5px increments after loading real fonts).
+*/
+
+html, body {
+  margin: 0;
+  padding: 0;
+  background: var(--color-page);
+  color: var(--color-ink);
+  font-family: var(--font-body);
+  font-size: var(--size-body);
+  line-height: var(--leading-body);
+  -webkit-print-color-adjust: exact;
+  print-color-adjust: exact;
+}
+
+/* ── Base Type ── */
+h1, h2, h3 {
+  font-family: var(--font-display);
+  font-weight: 400;
+  line-height: var(--leading-head);
+  margin: 0;
+}
+h1 { font-size: var(--size-h1); }
+h2 { font-size: var(--size-h2); }
+h3 { font-size: var(--size-h3); }
+
+h4 {
+  font-family: var(--font-body);
+  font-size: var(--size-h4);
+  font-weight: 600;
+  line-height: var(--leading-head);
+  margin: 0 0 0.3em 0;
+}
+
+p {
+  font-size: var(--size-body);
+  line-height: var(--leading-body);
+  margin: 0 0 0.75em 0;
+  orphans: 3;
+  widows: 3;
+}
+p:last-child { margin-bottom: 0; }
+
+ul {
+  margin: 0 0 0.75em 0;
+  padding-left: 1.2em;
+}
+ul li {
+  font-size: var(--size-body);
+  line-height: var(--leading-body);
+  margin-bottom: 0.2em;
+}
+ul li:last-child { margin-bottom: 0; }
+
+strong { font-weight: 600; }
+
+/* ── Page Breaks ── */
+.no-break { break-inside: avoid; }
+.break-before { break-before: page; }
+
+/* ── Two-Column Row ── */
+/*
+  .row is the core layout unit.
+  Each row: l-col (3fr) + r-col (5fr), baseline-aligned.
+  align-items: first baseline aligns the mono label
+  with the first line of body copy in r-col.
+*/
+.row {
+  display: grid;
+  grid-template-columns: 3fr 5fr;
+  column-gap: var(--col-gap);
+  align-items: first baseline;
+  margin-bottom: 1.5em;
+}
+.row:last-child { margin-bottom: 0; }
+
+/* l-col inner: label left, icon right */
+.col-l {
+  display: flex;
+  justify-content: space-between;
+  align-items: first baseline;
+  margin-top: var(--space-baseline-offset);
+}
+
+/* ── Spanning Header ── */
+.spanning-row {
+  margin-bottom: 1.5em;
+}
+.spanning-row h1,
+.spanning-row h2,
+.spanning-row h3 {
+  margin-bottom: 0.2em;
+}
+.spanning-rule {
+  border: none;
+  border-top: 0.5px solid var(--color-ink);
+  margin: 0.3em 0 0 0;
+}
+
+/* ── Margin Label ── */
+.margin-label {
+  font-family: var(--font-mono);
+  font-size: var(--size-mono);
+  font-weight: 400;
+  letter-spacing: 0.02em;
+  line-height: var(--leading-body);
+  color: var(--color-ink);
+}
+
+/* All l-col icons: same size as label text, baseline-offset */
+.margin-icon {
+  width: 1em;
+  height: 1em;
+  flex-shrink: 0;
+  margin-left: 0.5em;
+  position: relative;
+  top: 0.15em; /* optical baseline correction */
+}
+
+/* ── Speaker ── */
+.speaker-name {
+  font-family: var(--font-mono);
+  font-size: var(--size-mono);
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  line-height: var(--leading-body);
+  color: var(--color-ink);
+}
+/* speaker icon inherits .margin-icon */
+
+/* ── Inline Text Styles ── */
+
+/* block — sits between paragraphs as its own <p> */
+p.stage-direction { font-style: italic; }
+
+/* inline — <span> within a body paragraph */
+span.stage-direction { font-style: italic; }
+
+/* inline semibold within body copy */
+.participant-name { font-weight: 600; }
+
+/* ── Ad-lib ── */
+/*
+  L-col: suggested script text, italic.
+  R-col: ruled boxout for handwriting.
+  Box height = l-col height (set by content) × 1.5.
+  Achieved by making the grid row stretch, then adding
+  50% extra via padding-bottom on the box.
+*/
+.ad-lib {
+  display: grid;
+  grid-template-columns: 3fr 5fr;
+  column-gap: var(--col-gap);
+  align-items: stretch;
+  margin-bottom: 1.5em;
+}
+.ad-lib__suggested {
+  font-style: italic;
+  font-size: var(--size-body);
+  line-height: var(--leading-body);
+}
+.ad-lib__box {
+  border: 1.5px solid var(--color-ink);
+  padding: 0.5em 0.75em;
+  /* stretch to grid row height, then add 50% more via padding */
+  padding-bottom: 50%;
+  box-sizing: border-box;
+}
+.ad-lib__label {
+  font-family: var(--font-body);
+  font-size: var(--size-body);
+  line-height: var(--leading-body);
+  color: #aaaaaa;
+  display: block;
+}
+
+/* ── Yellow Tag ── */
+.yellow-tag {
+  display: inline-block;
+  background: var(--color-accent);
+  color: var(--color-ink);
+  font-family: var(--font-body);
+  font-size: var(--size-tag);
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  padding: 3px 7px;
+  line-height: 1.3;
+}
+
+/* ── Cover layout ── */
+/*
+  Cover page is a flex column filling the printable area, so we can push
+  the spiral to the bottom-left with margin-top: auto.
+*/
+.page[data-page-template="cover"] {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+.cover-title { margin-bottom: 2em; }
+.cover-tags {
+  display: grid;
+  grid-template-columns: 3fr 5fr;
+  column-gap: var(--col-gap);
+  margin-bottom: 3em;
+}
+.cover-spiral { margin-top: auto; }
+.cover-spiral img { width: 25%; }

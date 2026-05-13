@@ -6,7 +6,8 @@ import { listDocuments } from "@tender/core";
 import { lint, formatReport } from "./commands/lint.js";
 import { clean } from "./commands/clean.js";
 import { startPreviewServer } from "./commands/preview.js";
-import { init, formatInitResult, gitInitialCommit } from "./commands/init.js";
+import { init, formatInitResult, gitInitialCommit, KNOWN_EXAMPLES, DEFAULT_EXAMPLE } from "./commands/init.js";
+import type { ExampleName } from "./commands/init.js";
 import { listTokens, formatTokensList, setToken, editTokens } from "./commands/tokens.js";
 import { renderBanner, shouldShowBanner } from "./ui/banner.js";
 import { startSpinner } from "./ui/spinner.js";
@@ -187,17 +188,34 @@ program
   .description("Scaffold a Tender project (idempotent; preserves existing files; git init)")
   .option("--force", "overwrite existing files instead of preserving them")
   .option("--no-commit", "don't offer to make an initial git commit")
+  .option(
+    "--example [name]",
+    `scaffold a worked example instead of the minimal starter (available: ${KNOWN_EXAMPLES.join(", ")}; default: ${DEFAULT_EXAMPLE})`
+  )
   .addHelpText(
     "after",
-    `\nExamples:\n  $ tender init                        # scaffold here, git init, prompt for first commit\n  $ tender init my-doc                 # scaffold into ./my-doc\n  $ tender init --force                # overwrite (careful)\n  $ tender init --no-commit            # skip the initial-commit prompt\n`
+    `\nExamples:\n  $ tender init                        # scaffold here, git init, prompt for first commit\n  $ tender init my-doc                 # scaffold into ./my-doc\n  $ tender init --example              # scaffold the open-circle worked example\n  $ tender init --example=open-circle  # same, explicit\n  $ tender init --force                # overwrite (careful)\n  $ tender init --no-commit            # skip the initial-commit prompt\n`
   )
-  .action(async (dir: string | undefined, opts: { force?: boolean; commit?: boolean }) => {
+  .action(async (dir: string | undefined, opts: { force?: boolean; commit?: boolean; example?: string | boolean }) => {
     const target = resolve(dir ?? ".");
     if (shouldShowBanner()) {
       process.stdout.write(renderBanner());
     }
-    const result = await init(target, opts);
+    // --example with no value -> use the default example; with a value -> validate.
+    let example: ExampleName | undefined;
+    if (opts.example !== undefined && opts.example !== false) {
+      const name = opts.example === true ? DEFAULT_EXAMPLE : opts.example;
+      if (!(KNOWN_EXAMPLES as readonly string[]).includes(name)) {
+        console.error(`${red("error")}: unknown example "${name}". Available: ${KNOWN_EXAMPLES.join(", ")}.`);
+        process.exit(2);
+      }
+      example = name as ExampleName;
+    }
+    const result = await init(target, { force: opts.force, example });
     console.log(formatInitResult(result));
+    if (result.conflicts.length > 0) {
+      process.exit(1); // signal "did not install"; clear from the printed output
+    }
 
     // Offer an initial commit only when we just created the repo, the user
     // didn't pass --no-commit, and we're on an interactive terminal (no point

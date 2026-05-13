@@ -10,6 +10,7 @@ import { buildProject, buildPalette, renderHelp, listDocuments } from "@tender/c
 import type { BuildResult, ProjectDocument } from "@tender/core";
 import { createRenderSession } from "@tender/render";
 import type { RenderSession } from "@tender/render";
+import { init, KNOWN_EXAMPLES, type ExampleName } from "./init.js";
 
 const previewUiDist = (() => {
   const pkg = createRequire(import.meta.url).resolve("@tender/preview-ui/package.json");
@@ -405,6 +406,41 @@ export async function startPreviewServer(opts: PreviewOptions): Promise<RunningS
     res.download(join(outDir, file), file, err => {
       if (err && !res.headersSent) res.status(404).send("not built yet");
     });
+  });
+
+  // --- Examples ------------------------------------------------------------
+  //
+  // List the worked examples this CLI ships, and let the UI install one into
+  // the running project (refuse-on-conflict unless { force: true }). The
+  // examples are the same set the `tender init --example=<name>` CLI exposes.
+
+  app.get("/_api/examples", (_req, res) => {
+    res.json({ examples: KNOWN_EXAMPLES });
+  });
+
+  app.post("/_api/examples/load", express.json(), async (req, res, next) => {
+    try {
+      const body = (req.body ?? {}) as { name?: string; force?: boolean };
+      const name = body.name;
+      if (!name || !(KNOWN_EXAMPLES as readonly string[]).includes(name)) {
+        res.status(400).json({ error: `Unknown example "${name ?? ""}". Available: ${KNOWN_EXAMPLES.join(", ")}.` });
+        return;
+      }
+      const result = await init(opts.projectDir, { example: name as ExampleName, force: !!body.force });
+      // Whether or not init() wrote anything, refresh the doc set and
+      // rebuild — the example may have introduced new *.md files and a new
+      // component registry. (No-op when init refused due to conflicts.)
+      if (result.conflicts.length === 0) {
+        await rebuildAll();
+        // Tell connected clients to reload so the iframe + tabs pick up the
+        // new project shape (docs/components/styles/project all changed).
+        broadcast({ kind: "docs" });
+        broadcast({ kind: "project" });
+      }
+      res.json(result);
+    } catch (err) {
+      next(err);
+    }
   });
 
   app.get("/_preview", (req, res) => {

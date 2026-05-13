@@ -162,7 +162,7 @@ These compile to CSS custom properties (`--color-ink`, `--size-body`, …) your 
 
 - **Preview** — the live-reloading rendered output.
 - **Palette** — gallery of components and typography in this project, each rendered with project styles.
-- **Help** — the user guide.
+- **Help** — the user guide, with a "Load example" panel for installing a worked-example project (today: `open-circle`) into the current directory.
 - **Export** — build PDFs into the project's `out/` directory: one button per document, plus "Build all PDFs"; each result links to a download. Same output as `tender build` (PDF only — no HTML mirror).
 
 Preview, Palette, and Help update automatically when you edit project files.
@@ -175,7 +175,7 @@ Tender has two equal control surfaces — the CLI and the Claude skill. Both ope
 
 Six commands, all run from inside (or pointed at) a project directory.
 
-- **`tender init [dir]`** — scaffold a new project from the default starter (idempotent; preserves existing files), write a `.gitignore`, and `git init` unless the directory is already a repo. On a terminal it offers to make an initial commit; `--no-commit` skips that.
+- **`tender init [dir]`** — scaffold a new project from the default starter (idempotent; preserves existing files), write a `.gitignore`, and `git init` unless the directory is already a repo. On a terminal it offers to make an initial commit; `--no-commit` skips that. Pass `--example` (or `--example=open-circle`) to scaffold the worked-example project instead — refuses on conflict, override with `--force`.
 - **`tender build [dir]`** — render every document at the project root to `out/<basename>.pdf` and `out/<basename>.html`. Pass `--doc <name>` to build a single document.
 - **`tender preview [dir]`** — live-reloading HTML preview server (`--port`, `--host`). In a multi-document project the preview UI shows a dropdown to switch between documents; `--doc <name>` preselects one.
 - **`tender lint [dir]`** — validate the project; surface unused/unknown components, missing assets, deprecated syntax, design-token issues (`--strict`, `--json`).

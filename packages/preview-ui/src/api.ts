@@ -81,6 +81,50 @@ export async function buildPdfs(doc?: string): Promise<BuildPdfResponse> {
   return res.json();
 }
 
+export interface ExamplesResponse {
+  examples: string[];
+}
+
+export interface LoadExampleFileResult {
+  path: string;
+  action: "created" | "preserved" | "overwritten";
+}
+
+export interface LoadExampleResponse {
+  targetDir: string;
+  template: string;
+  files: LoadExampleFileResult[];
+  /**
+   * Files that already exist at the destination. When non-empty, nothing was
+   * written; re-call with `force: true` to overwrite.
+   */
+  conflicts: string[];
+}
+
+export async function fetchExamples(): Promise<ExamplesResponse> {
+  const res = await fetch("/_api/examples");
+  if (!res.ok) throw new Error(`/_api/examples ${res.status}`);
+  return res.json();
+}
+
+/**
+ * Install a worked example into the running project. Refuses by default
+ * when files would be overwritten; pass `force: true` to clobber.
+ */
+export async function loadExample(name: string, force = false): Promise<LoadExampleResponse> {
+  const res = await fetch("/_api/examples/load", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ name, force })
+  });
+  if (!res.ok) {
+    let detail = "";
+    try { detail = ((await res.json()) as { error?: string }).error ?? ""; } catch { /* non-JSON */ }
+    throw new Error(detail || `loadExample failed: ${res.status}`);
+  }
+  return res.json();
+}
+
 export async function fetchPalette(): Promise<PaletteResponse> {
   const res = await fetch("/_api/palette");
   if (!res.ok) throw new Error(`palette fetch failed: ${res.status}`);

@@ -24,12 +24,33 @@ dist/
 // At dev/test time, resolve relative to the source location.
 // The CLI package layout: packages/cli/{src,dist}/commands/init.{ts,js}
 // From here (.../commands/), package root is two levels up.
-function templatesDir(): string {
-  return resolve(here, "..", "..", "templates", "default");
+function templatesDir(name = "default"): string {
+  return resolve(here, "..", "..", "templates", name);
 }
+
+/**
+ * Examples the CLI ships under `templates/`, surfaced to both
+ * `tender init --example=<name>` and the preview UI's "Load example" button.
+ * Add a new entry by dropping a fixture-shaped directory under
+ * `packages/cli/templates/<slug>/` and listing it here.
+ */
+export const KNOWN_EXAMPLES = ["open-circle"] as const;
+export type ExampleName = (typeof KNOWN_EXAMPLES)[number];
+
+/** Default example for `tender init --example` (no value supplied). */
+export const DEFAULT_EXAMPLE: ExampleName = "open-circle";
 
 export interface InitOptions {
   force?: boolean;
+  /**
+   * Scaffold from `templates/<example>/` instead of the minimal default.
+   * The conflict policy is stricter for examples than for the default
+   * template: any pre-existing file in the target that would be overwritten
+   * causes init() to return `conflicts: [...]` and write nothing (unless
+   * `force` is also set). The default template uses the historical
+   * created/preserved/overwritten semantics regardless.
+   */
+  example?: ExampleName;
 }
 
 /**
@@ -63,6 +84,18 @@ export interface InitResult {
   targetDir: string;
   files: InitFileResult[];
   git: InitGitResult;
+  /**
+   * Which template was scaffolded. `"default"` for the minimal starter; an
+   * example name (e.g. `"open-circle"`) when `opts.example` was set.
+   */
+  template: string;
+  /**
+   * Populated only when an example install was refused due to existing files
+   * (and `force` wasn't set). Each entry is a path relative to the target
+   * directory that the example would have overwritten. When non-empty, no
+   * files were written and `files` is empty.
+   */
+  conflicts: string[];
 }
 
 /**
@@ -81,13 +114,54 @@ export interface InitResult {
  */
 export async function init(targetDir: string, opts: InitOptions = {}): Promise<InitResult> {
   await mkdir(targetDir, { recursive: true });
-  const src = templatesDir();
+  const templateName = opts.example ?? "default";
+  if (opts.example && !KNOWN_EXAMPLES.includes(opts.example)) {
+    throw new Error(
+      `Unknown example "${opts.example}". Available: ${KNOWN_EXAMPLES.join(", ")}.`
+    );
+  }
+  const src = templatesDir(templateName);
+
+  // For examples, do a preflight conflict check. Refusing to clobber is the
+  // safer default; the user opts in with `force` once they've seen the list.
+  if (opts.example && !opts.force) {
+    const conflicts = await listConflicts(src, targetDir);
+    if (conflicts.length > 0) {
+      const git = await setupGit(targetDir);
+      return { targetDir, files: [], git, template: templateName, conflicts };
+    }
+  }
+
   const files: InitFileResult[] = [];
   await copyDir(src, targetDir, targetDir, !!opts.force, files);
   files.push(await writeGitignore(targetDir, !!opts.force));
   files.sort((a, b) => a.path.localeCompare(b.path));
   const git = await setupGit(targetDir);
-  return { targetDir, files, git };
+  return { targetDir, files, git, template: templateName, conflicts: [] };
+}
+
+/**
+ * Walk the template tree and return every file path (relative to the target)
+ * that already exists at the destination. Used to refuse an example install
+ * before it would clobber the user's work.
+ */
+async function listConflicts(srcDir: string, targetDir: string): Promise<string[]> {
+  const conflicts: string[] = [];
+  async function recur(srcSub: string, destSub: string): Promise<void> {
+    const entries = await readdir(srcSub, { withFileTypes: true });
+    for (const entry of entries) {
+      const srcPath = join(srcSub, entry.name);
+      const destPath = join(destSub, entry.name);
+      if (entry.isDirectory()) {
+        await recur(srcPath, destPath);
+      } else {
+        const exists = await stat(destPath).then(() => true).catch(() => false);
+        if (exists) conflicts.push(relative(targetDir, destPath));
+      }
+    }
+  }
+  await recur(srcDir, targetDir);
+  return conflicts.sort();
 }
 
 /**
@@ -191,12 +265,27 @@ async function copyDir(
  */
 export function formatInitResult(result: InitResult): string {
   const lines: string[] = [];
+
+  // Conflict refusal short-circuits everything else: nothing was written.
+  if (result.conflicts.length > 0) {
+    const n = result.conflicts.length;
+    lines.push(`Refused to install the "${result.template}" example: ${n} file${n === 1 ? "" : "s"} already exist${n === 1 ? "s" : ""}:`);
+    for (const p of result.conflicts) lines.push(`  ! ${p}`);
+    lines.push("");
+    lines.push("Re-run with --force to overwrite, or move the existing files aside first.");
+    return lines.join("\n");
+  }
+
   const created = result.files.filter(f => f.action === "created");
   const preserved = result.files.filter(f => f.action === "preserved");
   const overwritten = result.files.filter(f => f.action === "overwritten");
 
   if (created.length === 0 && preserved.length === 0 && overwritten.length === 0) {
     return `Initialized Tender project at ${result.targetDir} (no template files).`;
+  }
+
+  if (result.template !== "default") {
+    lines.push(`Loaded example: ${result.template}.`);
   }
 
   if (created.length > 0) {

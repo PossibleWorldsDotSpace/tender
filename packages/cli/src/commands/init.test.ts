@@ -143,6 +143,65 @@ describe("init command", () => {
     }
   });
 
+  it("--example=open-circle scaffolds the worked example into an empty directory", async () => {
+    const dir = await mkdtemp(join(tmpdir(), "tender-init-ex-"));
+    try {
+      const result = await init(dir, { example: "open-circle" });
+      expect(result.template).toBe("open-circle");
+      expect(result.conflicts).toEqual([]);
+      // Hallmarks of the open-circle example, not the minimal starter.
+      const yaml = await readFile(join(dir, "project.yaml"), "utf8");
+      expect(yaml).toContain("design-tokens");
+      expect(yaml).toContain("font:");
+      const components = await readdir(join(dir, "components"));
+      expect(components).toContain("row.tender");
+      expect(components).toContain("ad-lib.tender");
+      const content = await readFile(join(dir, "content.md"), "utf8");
+      expect(content).toContain("Open Circle");
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  });
+
+  it("--example refuses to overwrite existing files; reports conflicts", async () => {
+    const dir = await mkdtemp(join(tmpdir(), "tender-init-ex-"));
+    try {
+      await writeFile(join(dir, "content.md"), "# Mine\n");
+      const result = await init(dir, { example: "open-circle" });
+      expect(result.files).toEqual([]);
+      expect(result.conflicts).toContain("content.md");
+      // The user's file is untouched.
+      const after = await readFile(join(dir, "content.md"), "utf8");
+      expect(after).toBe("# Mine\n");
+      // project.yaml from the example wasn't written either.
+      await expect(readFile(join(dir, "project.yaml"), "utf8")).rejects.toThrow();
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  });
+
+  it("--example --force overwrites conflicting files", async () => {
+    const dir = await mkdtemp(join(tmpdir(), "tender-init-ex-"));
+    try {
+      await writeFile(join(dir, "content.md"), "# Mine\n");
+      const result = await init(dir, { example: "open-circle", force: true });
+      expect(result.conflicts).toEqual([]);
+      const after = await readFile(join(dir, "content.md"), "utf8");
+      expect(after).toContain("Open Circle");
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  });
+
+  it("--example=<unknown> throws a clear error listing the available names", async () => {
+    const dir = await mkdtemp(join(tmpdir(), "tender-init-ex-"));
+    try {
+      await expect(init(dir, { example: "nope" as never })).rejects.toThrow(/unknown example.*open-circle/i);
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  });
+
   describe("formatInitResult", () => {
     const gitCreated: InitGitResult = { action: "created" };
     const gitAlready: InitGitResult = { action: "already-repo" };
@@ -155,7 +214,9 @@ describe("init command", () => {
           { path: "content.md", action: "created" },
           { path: "styles.css", action: "created" }
         ],
-        git: gitCreated
+        git: gitCreated,
+        template: "default",
+        conflicts: []
       });
       expect(text).toContain("Created 3 files");
       expect(text).toContain("project.yaml");
@@ -170,7 +231,9 @@ describe("init command", () => {
           { path: "project.yaml", action: "preserved" },
           { path: "content.md", action: "preserved" }
         ],
-        git: gitAlready
+        git: gitAlready,
+        template: "default",
+        conflicts: []
       });
       expect(text).toContain("Preserved 2 existing files");
       expect(text).toContain("All template files already exist");
@@ -185,7 +248,9 @@ describe("init command", () => {
           { path: "content.md", action: "preserved" },
           { path: "project.yaml", action: "created" }
         ],
-        git: gitAlready
+        git: gitAlready,
+        template: "default",
+        conflicts: []
       });
       expect(text).toContain("Created 1 file");
       expect(text).toContain("Preserved 1 existing file");
@@ -196,9 +261,37 @@ describe("init command", () => {
       const text = formatInitResult({
         targetDir: "/p",
         files: [{ path: "project.yaml", action: "created" }],
-        git: { action: "git-missing" }
+        git: { action: "git-missing" },
+        template: "default",
+        conflicts: []
       });
       expect(text).toContain("git not found");
+    });
+
+    it("describes a refused example install with the conflicts list", () => {
+      const text = formatInitResult({
+        targetDir: "/p",
+        files: [],
+        git: { action: "already-repo" },
+        template: "open-circle",
+        conflicts: ["content.md", "styles.css"]
+      });
+      expect(text).toContain("Refused to install the \"open-circle\" example");
+      expect(text).toContain("content.md");
+      expect(text).toContain("styles.css");
+      expect(text).toContain("--force");
+    });
+
+    it("describes a fresh example install", () => {
+      const text = formatInitResult({
+        targetDir: "/p",
+        files: [{ path: "content.md", action: "created" }],
+        git: { action: "created" },
+        template: "open-circle",
+        conflicts: []
+      });
+      expect(text).toContain("Loaded example: open-circle.");
+      expect(text).toContain("Project ready");
     });
   });
 });

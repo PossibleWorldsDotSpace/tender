@@ -344,6 +344,94 @@ describe("preview server", () => {
     }
   }, 120_000);
 
+  it("GET /_api/examples lists the known examples", async () => {
+    const tmp = await mkdtemp(join(tmpdir(), "tender-ex-list-"));
+    try {
+      await writeFile(join(tmp, "project.yaml"), `page-templates:\n  default: { size: A5, margin: 0 }\n`);
+      await writeFile(join(tmp, "styles.css"), ``);
+      await writeFile(join(tmp, "content.md"), `# Hi`);
+      const server = await startPreviewServer({ projectDir: tmp, port: 0 });
+      try {
+        const res = await fetch(`http://127.0.0.1:${server.port}/_api/examples`);
+        expect(res.status).toBe(200);
+        const body = await res.json();
+        expect(body.examples).toContain("open-circle");
+      } finally {
+        await server.close();
+      }
+    } finally {
+      await rm(tmp, { recursive: true, force: true });
+    }
+  }, 60_000);
+
+  it("POST /_api/examples/load refuses on conflict; force installs the example", async () => {
+    const tmp = await mkdtemp(join(tmpdir(), "tender-ex-load-"));
+    try {
+      // Seed the dir with a minimal starter so there's a real conflict.
+      await writeFile(join(tmp, "project.yaml"), `page-templates:\n  default: { size: A5, margin: 0 }\n`);
+      await writeFile(join(tmp, "styles.css"), ``);
+      await writeFile(join(tmp, "content.md"), `# Pre-existing\n`);
+      const server = await startPreviewServer({ projectDir: tmp, port: 0 });
+      try {
+        // 1. Refused (no force): files=[], conflicts list non-empty.
+        const refuse = await fetch(`http://127.0.0.1:${server.port}/_api/examples/load`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ name: "open-circle" })
+        });
+        expect(refuse.status).toBe(200);
+        const refusedBody = await refuse.json();
+        expect(refusedBody.template).toBe("open-circle");
+        expect(refusedBody.files).toEqual([]);
+        expect(refusedBody.conflicts).toContain("content.md");
+        // Original file untouched.
+        expect((await readFile(join(tmp, "content.md"), "utf8"))).toBe("# Pre-existing\n");
+
+        // 2. Force installs.
+        const ok = await fetch(`http://127.0.0.1:${server.port}/_api/examples/load`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ name: "open-circle", force: true })
+        });
+        expect(ok.status).toBe(200);
+        const okBody = await ok.json();
+        expect(okBody.conflicts).toEqual([]);
+        expect(okBody.files.length).toBeGreaterThan(5);
+        // content.md now carries the example's prose.
+        const after = await readFile(join(tmp, "content.md"), "utf8");
+        expect(after).toContain("Open Circle");
+      } finally {
+        await server.close();
+      }
+    } finally {
+      await rm(tmp, { recursive: true, force: true });
+    }
+  }, 120_000);
+
+  it("POST /_api/examples/load rejects an unknown example name", async () => {
+    const tmp = await mkdtemp(join(tmpdir(), "tender-ex-bad-"));
+    try {
+      await writeFile(join(tmp, "project.yaml"), `page-templates:\n  default: { size: A5, margin: 0 }\n`);
+      await writeFile(join(tmp, "styles.css"), ``);
+      await writeFile(join(tmp, "content.md"), `# Hi`);
+      const server = await startPreviewServer({ projectDir: tmp, port: 0 });
+      try {
+        const res = await fetch(`http://127.0.0.1:${server.port}/_api/examples/load`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ name: "definitely-not-real" })
+        });
+        expect(res.status).toBe(400);
+        const body = await res.json();
+        expect(body.error).toMatch(/unknown example/i);
+      } finally {
+        await server.close();
+      }
+    } finally {
+      await rm(tmp, { recursive: true, force: true });
+    }
+  }, 60_000);
+
   it("GET /_api/out/<bad> rejects non-pdf and traversal", async () => {
     const tmp = await mkdtemp(join(tmpdir(), "tender-out-guard-"));
     try {
