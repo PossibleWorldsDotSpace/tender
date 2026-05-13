@@ -65,7 +65,7 @@ export async function buildProject(
     throw err;
   });
   const stylesCss = await readFile(join(projectDir, "styles.css"), "utf8").catch(() => "");
-  const { html: parsed, startsWithPage } = await parseProject(md, mergedConfig);
+  const { html: parsed, startsWithPage } = await parseProject(md, mergedConfig, { docFilename });
   const bodyHtml = startsWithPage ? parsed : `<div class="page">${parsed}</div>`;
   const lang = mergedConfig.typography?.lang ?? "en";
   const html = composeDocument({ bodyHtml, lang, title: basename(projectDir) });

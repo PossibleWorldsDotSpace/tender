@@ -52,7 +52,21 @@ function tagSyntaxEnabled(): boolean {
   return process.env.TENDER_TAG_SYNTAX !== "0";
 }
 
-export async function parseProject(source: string, config: ProjectConfig): Promise<ParseResult> {
+export interface ParseProjectOptions {
+  /**
+   * Filename used as the prefix in build-error messages (e.g.
+   * `resume.md:7:1: Unknown component "x"`). Defaults to `content.md` for
+   * back-compat; pass the real filename when building a non-default doc so
+   * users see the actual file in errors.
+   */
+  docFilename?: string;
+}
+
+export async function parseProject(
+  source: string,
+  config: ProjectConfig,
+  opts: ParseProjectOptions = {}
+): Promise<ParseResult> {
   let startsWithPage = false;
   const detectStartsWithPage: Plugin<[], Root> = () => (tree) => {
     const first = tree.children[0];
@@ -85,7 +99,7 @@ export async function parseProject(source: string, config: ProjectConfig): Promi
     .use(remarkGfm)
     .use(remarkDirective)
     .use(detectStartsWithPage)
-    .use(resolveComponents, config)
+    .use(resolveComponents, config, opts.docFilename)
     .use(remarkRehype, { allowDangerousHtml: true })
     .use(rehypeStringify, { allowDangerousHtml: true })
     .process(processedSource);

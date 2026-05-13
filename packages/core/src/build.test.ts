@@ -185,6 +185,19 @@ describe("buildProject", () => {
     await expect(buildProject(dir, { docName: "missing" })).rejects.toThrow(/no document.*missing/i);
   });
 
+  it("build errors reference the actual document filename, not content.md", async () => {
+    // Regression: positionPrefix used to hard-code "content.md", so an
+    // Unknown-component error in resume.md was reported as `content.md:N:N`.
+    const dir = await fixture({
+      "project.yaml": "page-templates:\n  default:\n    size: A4\n    margin: 0\n",
+      "styles.css": "",
+      "content.md": "# Hi",
+      "resume.md": ":::definitely-not-real\noops\n:::\n"
+    });
+    await expect(buildProject(dir, { docName: "resume" })).rejects.toThrow(/resume\.md:\d+/);
+    await expect(buildProject(dir, { docName: "resume" })).rejects.not.toThrow(/content\.md:\d+/);
+  });
+
   it("rethrows non-ENOENT read errors instead of wrapping them as missing-doc", async () => {
     const dir = await fixture({
       "project.yaml": "page-templates:\n  default:\n    size: A4\n    margin: 0\n",

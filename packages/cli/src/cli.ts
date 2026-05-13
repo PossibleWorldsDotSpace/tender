@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 import { Command } from "commander";
 import { resolve, join } from "node:path";
+import { createRequire } from "node:module";
 import { build } from "./commands/build.js";
 import { listDocuments } from "@tender/core";
 import { lint, formatReport } from "./commands/lint.js";
@@ -13,12 +14,19 @@ import { renderBanner, shouldShowBanner } from "./ui/banner.js";
 import { startSpinner } from "./ui/spinner.js";
 import { red, dim, cyan } from "./ui/style.js";
 
+// Resolve the package version at runtime from the CLI's own package.json.
+// `tender --version` previously hard-coded "0.0.0", which is fine in dev
+// but lies as soon as the package is published. createRequire (vs an import
+// assertion) keeps this portable across Node versions and avoids the
+// `--experimental-json-modules` flag on older releases.
+const pkg = createRequire(import.meta.url)("../package.json") as { version: string };
+
 const program = new Command();
 
 program
   .name("tender")
   .description(`${renderBanner()}\n  Define your templates in yaml. Build components in CSS. Add text in Markdown. Export to PDF.`)
-  .version("0.0.0", "-v, --version", "show version");
+  .version(pkg.version, "-v, --version", "show version");
 
 // commander prints `description` before the usage line for the root command.
 // That gives `tender --help` a banner header for free. Subcommand `--help`

@@ -52,7 +52,7 @@ export function positionPrefix(
  * components in its body — the inner ones resolve first (becoming raw HTML
  * nodes), then the outer Handlebars template sees them as part of `{{{body}}}`.
  */
-export const resolveComponents: Plugin<[ProjectConfig], Root> = (config) => {
+export const resolveComponents: Plugin<[ProjectConfig, string?], Root> = (config, docFilename) => {
   const userComponents = (config.components ?? {}) as Record<string, ComponentDef>;
   // Built-ins first; user-defined entries override.
   const components: Record<string, ComponentDef> = {
@@ -76,15 +76,15 @@ export const resolveComponents: Plugin<[ProjectConfig], Root> = (config) => {
       const dir = node as unknown as DirectiveNode;
       const def = components[dir.name];
       if (!def) {
-        throw new Error(`${positionPrefix(dir)}Unknown component "${dir.name}"`);
+        throw new Error(`${positionPrefix(dir, docFilename)}Unknown component "${dir.name}"`);
       }
       if (def.template) {
-        return await renderBlockTemplate(dir, def, compiled.get(dir.name)!, config);
+        return await renderBlockTemplate(dir, def, compiled.get(dir.name)!, config, docFilename);
       }
       // Wrapper component: set hast properties on the directive node so that
       // remark-rehype emits `<tag class="…" data-NAME="…">{children}</tag>`.
       if (def.inline && dir.type === "containerDirective") {
-        throw new Error(`${positionPrefix(dir)}Component "${dir.name}" is inline-only; cannot use as a block`);
+        throw new Error(`${positionPrefix(dir, docFilename)}Component "${dir.name}" is inline-only; cannot use as a block`);
       }
       const data = (dir.data ??= {});
       data.hName = def.tag;
@@ -107,7 +107,8 @@ async function renderBlockTemplate(
   dir: DirectiveNode,
   def: ComponentDef,
   fn: Handlebars.TemplateDelegate,
-  config: ProjectConfig
+  config: ProjectConfig,
+  docFilename?: string
 ): Promise<RootContent> {
   const isMultiSlot = !!(def.slots && def.slots.length > 0);
   const split = isMultiSlot
@@ -121,7 +122,7 @@ async function renderBlockTemplate(
     for (const slot of def.slots!) {
       const children = split.slots[slot];
       if (!children || children.length === 0) {
-        throw new Error(`${positionPrefix(dir)}Component '${dir.name}' is missing slot '${slot}'`);
+        throw new Error(`${positionPrefix(dir, docFilename)}Component '${dir.name}' is missing slot '${slot}'`);
       }
       data[slot] = await mdChildrenToHtml(children, config);
     }
