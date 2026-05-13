@@ -6,5 +6,9 @@ out/
 .vitest-cache/
 *.tsbuildinfo
 
+# Generated at build time from docs/user-guide.md — see
+# packages/core/scripts/copy-help.mjs. Do not hand-edit.
+packages/core/assets/builtin-user-guide.md
+
 # Local scratch / test files (not part of the project)
 PlanetScript.md

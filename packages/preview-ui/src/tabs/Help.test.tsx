@@ -4,7 +4,7 @@ import { Help } from "./Help.tsx";
 
 /**
  * Help fetches `/_api/help` AND `/_api/examples`. Default mock returns the
- * built-in user guide and one example (open-circle); individual tests override
+ * bundled user guide and one example (open-circle); individual tests override
  * with stubFetch.
  */
 function jsonResponse(body: unknown, status = 200): Response {
@@ -19,7 +19,7 @@ function stubFetch(handler: (url: string, init?: RequestInit) => unknown): void 
   ));
 }
 
-const DEFAULT_HELP = { html: "<h1>User Guide</h1><p>Welcome.</p>", source: "builtin" };
+const DEFAULT_HELP = { html: "<h1>User Guide</h1><p>Welcome.</p>" };
 const DEFAULT_EXAMPLES = { examples: ["open-circle"] };
 
 beforeEach(() => {
@@ -36,22 +36,6 @@ describe("Help", () => {
   it("renders fetched HTML", async () => {
     const { findByText } = render(() => <Help />);
     expect(await findByText("User Guide")).toBeTruthy();
-  });
-
-  it("shows 'using built-in' notice when source is builtin", async () => {
-    const { findByText } = render(() => <Help />);
-    expect(await findByText(/built-in user guide/i)).toBeTruthy();
-  });
-
-  it("does not show notice when source is project", async () => {
-    stubFetch(url => {
-      if (url === "/_api/help") return { html: "<h1>Custom</h1>", source: "project" };
-      if (url === "/_api/examples") return DEFAULT_EXAMPLES;
-      return {};
-    });
-    const { findByText, queryByText } = render(() => <Help />);
-    expect(await findByText("Custom")).toBeTruthy();
-    expect(queryByText(/built-in user guide/i)).toBeNull();
   });
 });
 

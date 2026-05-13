@@ -15,9 +15,13 @@
     "assets"
   ],
   "scripts": {
+    "copy-help": "node scripts/copy-help.mjs",
+    "prebuild": "pnpm run copy-help",
     "build": "tsc -p tsconfig.json",
+    "pretest": "pnpm run copy-help",
     "test": "vitest run",
     "test:watch": "vitest",
+    "pretypecheck": "pnpm run copy-help",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "devDependencies": {

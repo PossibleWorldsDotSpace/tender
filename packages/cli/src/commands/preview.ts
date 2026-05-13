@@ -36,7 +36,6 @@ type WsMessage =
   | { kind: "project" }
   | { kind: "components" }
   | { kind: "styles" }
-  | { kind: "help" }
   | { kind: "assets" }
   | { kind: "docs" }
   | { kind: "error"; message: string };
@@ -45,7 +44,6 @@ type ClassifiedKind =
   | "content"
   | "project"
   | "styles"
-  | "help"
   | "assets"
   | "components"
   | "skip";
@@ -60,7 +58,6 @@ function classifyPath(path: string, projectDir: string): Classified {
   const rel = path.startsWith(projectDir) ? path.slice(projectDir.length + 1) : path;
   if (rel === "project.yaml") return { kind: "project" };
   if (rel === "styles.css") return { kind: "styles" };
-  if (rel === "docs/user-guide.md" || rel === "docs" + sep + "user-guide.md") return { kind: "help" };
   if (rel.startsWith("assets/") || rel.startsWith("assets" + sep)) return { kind: "assets" };
   if (rel.startsWith("components/") || rel.startsWith("components" + sep)) return { kind: "components" };
   // Root-level *.md (no path separator) is a document — provided it isn't
@@ -261,7 +258,7 @@ export async function startPreviewServer(opts: PreviewOptions): Promise<RunningS
 
   app.get("/_api/help", async (_req, res, next) => {
     try {
-      res.json(await renderHelp(opts.projectDir));
+      res.json(await renderHelp());
     } catch (err) {
       next(err);
     }
@@ -552,12 +549,6 @@ export async function startPreviewServer(opts: PreviewOptions): Promise<RunningS
         } else {
           broadcast({ kind: "content", doc });
         }
-        return;
-      }
-
-      if (classified.kind === "help") {
-        // Help-only changes don't affect rendered docs — no rebuild.
-        broadcast({ kind: "help" });
         return;
       }
 

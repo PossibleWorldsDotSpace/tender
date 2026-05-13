@@ -47,7 +47,6 @@ const makeLayout = (lp: LayoutProps) => (props: { children?: any }) => {
 
 export function App() {
   const [paletteVersion, setPaletteVersion] = createSignal(0);
-  const [helpVersion, setHelpVersion] = createSignal(0);
   const [docsVersion, setDocsVersion] = createSignal(0);
   const [errorMessage, setErrorMessage] = createSignal<string | null>(null);
   const [docs, setDocs] = createSignal<DocsResponse["docs"]>([]);
@@ -107,9 +106,6 @@ export function App() {
     if (msg.kind === "project" || msg.kind === "components" || msg.kind === "styles") {
       setPaletteVersion(v => v + 1);
     }
-    if (msg.kind === "help") {
-      setHelpVersion(v => v + 1);
-    }
   });
   onCleanup(close);
 
@@ -122,7 +118,7 @@ export function App() {
   });
 
   return (
-    <ReloadContext.Provider value={{ paletteVersion, helpVersion, docsVersion }}>
+    <ReloadContext.Provider value={{ paletteVersion, docsVersion }}>
       <Router root={Layout}>
         <Route path="/" component={() => null} />
         <Route path="/palette" component={Palette} />

@@ -23,7 +23,6 @@ export interface PaletteResponse {
 
 export interface HelpResponse {
   html: string;
-  source: "project" | "builtin";
 }
 
 export type WsMessage =
@@ -31,7 +30,6 @@ export type WsMessage =
   | { kind: "project" }
   | { kind: "components" }
   | { kind: "styles" }
-  | { kind: "help" }
   | { kind: "assets" }
   | { kind: "docs" }
   | { kind: "error"; message: string };

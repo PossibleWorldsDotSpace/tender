@@ -198,8 +198,8 @@ describe("preview server", () => {
       const res = await fetch(`http://127.0.0.1:${server.port}/_api/help`);
       expect(res.status).toBe(200);
       const body = await res.json();
-      expect(body.source).toBe("builtin");
       expect(body.html).toMatch(/<h1[^>]*>/);
+      expect(body.source).toBeUndefined();
     } finally {
       await server.close();
     }

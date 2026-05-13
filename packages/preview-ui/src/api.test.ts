@@ -11,12 +11,12 @@ describe("api client", () => {
     expect(result.components).toEqual([]);
   });
 
-  it("fetchHelp returns html and source", async () => {
+  it("fetchHelp returns the bundled user guide as HTML", async () => {
     vi.stubGlobal("fetch", vi.fn(() =>
-      Promise.resolve(new Response(JSON.stringify({ html: "<p>ok</p>", source: "builtin" }), { status: 200 }))
+      Promise.resolve(new Response(JSON.stringify({ html: "<p>ok</p>" }), { status: 200 }))
     ));
     const result = await fetchHelp();
-    expect(result.source).toBe("builtin");
+    expect(result.html).toBe("<p>ok</p>");
   });
 
   it("fetchDocs hits /_api/docs and returns the JSON body", async () => {

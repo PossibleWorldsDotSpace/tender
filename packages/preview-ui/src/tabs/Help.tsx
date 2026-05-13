@@ -1,7 +1,6 @@
 import { createResource, createMemo, createSignal, Show, For } from "solid-js";
 import { fetchHelp, fetchExamples, loadExample, type LoadExampleResponse } from "../api.ts";
 import { buildToc } from "../util/toc.ts";
-import { useReload } from "../reload-context.ts";
 import "./Help.css";
 
 type LoadState =
@@ -100,8 +99,7 @@ function ExampleLoader() {
 }
 
 export function Help() {
-  const reload = useReload();
-  const [data] = createResource(reload.helpVersion, fetchHelp);
+  const [data] = createResource(fetchHelp);
 
   const processed = createMemo(() => {
     const d = data();
@@ -128,11 +126,6 @@ export function Help() {
               </nav>
             </Show>
             <div class="help-main">
-              <Show when={p().source === "builtin"}>
-                <div class="help-notice">
-                  Using the built-in user guide. Place a customised copy at <code>docs/user-guide.md</code> in your project to override.
-                </div>
-              </Show>
               <ExampleLoader />
               <article class="help-content" innerHTML={p().html} />
             </div>
