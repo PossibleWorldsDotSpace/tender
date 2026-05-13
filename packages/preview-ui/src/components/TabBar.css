@@ -23,15 +23,20 @@
   position: relative;
   display: inline-flex;
   align-items: center;
+  height: 100%;                /* fill the nav row so the wordmark centers */
   text-decoration: none;
   isolation: isolate;
-  padding: 4px 6px;
+  padding: 0 6px;
 }
 .tender-wordmark {
-  font: 700 16px var(--font-headline);
+  display: inline-block;
+  font: 700 16px/1 var(--font-headline);
   letter-spacing: 0.18em;
   color: var(--text);
   transition: color 0.2s;
+  /* Reglo's glyph box is taller than the visible caps; nudge up so the
+     visual centre lines up with the tab-link labels. */
+  transform: translateY(-1px);
 }
 .tender-logo:hover .tender-wordmark { color: var(--accent); }
 

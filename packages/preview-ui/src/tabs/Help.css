@@ -4,9 +4,9 @@
 
 .help {
   display: grid;
-  grid-template-columns: 230px minmax(0, 1fr);
+  grid-template-columns: 260px minmax(0, 1fr);
   gap: 48px;
-  max-width: 1080px;
+  max-width: 1120px;
   margin: 0 auto;
   padding: 36px 32px 80px;
   box-sizing: border-box;
@@ -31,21 +31,21 @@
   border-right: 1px solid var(--border);
 }
 .help-toc ul { list-style: none; margin: 0; padding: 0; }
-.help-toc li { margin: 1px 0; }
+.help-toc li { margin: 2px 0; }
 .help-toc a {
   display: block;
-  padding: 4px 0;
-  font: 11px var(--font-mono);
+  padding: 6px 0 6px 12px;
+  margin-left: -14px;
+  font: 13px var(--font-mono);
+  line-height: 1.45;
   letter-spacing: 0.02em;
   color: var(--text-faint);
   text-decoration: none;
   border-left: 2px solid transparent;
-  padding-left: 10px;
-  margin-left: -12px;
   transition: color 0.15s, border-color 0.15s;
 }
-.help-toc-l2 a { color: var(--text-muted); }
-.help-toc-l3 a { padding-left: 24px; }
+.help-toc-l2 a { color: var(--text-muted); font-size: 14px; }
+.help-toc-l3 a { padding-left: 28px; }
 .help-toc a:hover {
   color: var(--accent);
   border-left-color: var(--accent);
