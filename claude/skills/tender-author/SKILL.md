@@ -70,6 +70,7 @@ my-doc/
   assets/
     images/
     fonts/
+  .gitignore            # written by `tender init`; ignores out/, node_modules/, dist/
 ```
 
 Four-way split:
@@ -112,8 +113,8 @@ When you encounter legacy syntax in a file you're editing, **don't auto-migrate 
 
 A `.tender` file is one of two shapes:
 
-- **Wrapper component**: declares `tag` in frontmatter, no template body. Renders as `<tag class="…" data-NAME="value">{children}</tag>`.
-- **Block-template component**: declares a Handlebars template in the body. Has `params:` and optionally `slots:`. Renders by running the template with attribute values, slot contents, and `{{{body}}}`.
+- **Wrapper component**: declares `tag` in frontmatter, no template body. May still declare `params:` (each becomes a `data-<param>` attribute on the wrapper). Renders as `<tag class="…" data-NAME="value">{children}</tag>`.
+- **Block-template component**: declares a Handlebars template in the body. May declare `params:` (interpolated as `{{param}}` / `{{#if param}}`) and `slots:` (delimited by `@@ name`). Renders by running the template with attribute values, slot contents, and `{{{body}}}`.
 
 These are mutually exclusive at the field level: a `tag` is the wrapper's shorthand, and a template body is the block-template's full body. Never declare both. The schema rejects `{ tag: … }` together with a template body.
 
@@ -358,6 +359,7 @@ You can run `tender clean --check` (read-only) yourself to confirm there are pen
 ## What this skill does NOT do automatically
 
 - **Don't run `tender build`.** Slow (~30s per build). When the user signals they're done iterating, suggest producing a PDF — either `tender build` from the terminal, or the **Export** tab in `tender preview` (per-document "Build PDF", or "Build all PDFs"; writes to `out/`). Don't trigger either yourself.
+- **Don't install the worked example.** `tender init --example` and the Help tab's "Load example" panel (in `tender preview`) both copy the open-circle worked example into the current directory — refusing on conflict, requiring an explicit confirm to overwrite. Mention them when a new user asks "how do I see what Tender can do," but don't invoke them yourself; the install is a destructive operation the user should drive.
 - **Don't restart `tender preview`.** It auto-reloads on file changes. If the user reports the preview isn't updating, suggest checking the terminal where preview is running for errors — but don't try to start preview yourself.
 - **Don't run `tender clean` in interactive mode.** Default mode prompts the user; let them run it. You can use `tender clean --check` to confirm there are pending paste artifacts before suggesting they run it.
 - **Don't `git commit`.** That's the user's call. Mention "Ready to commit?" only when a meaningful chunk of work is done.

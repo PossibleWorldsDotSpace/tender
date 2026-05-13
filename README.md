@@ -176,7 +176,7 @@ Tender has two equal control surfaces — the CLI and the Claude skill. Both ope
 Six commands, all run from inside (or pointed at) a project directory.
 
 - **`tender init [dir]`** — scaffold a new project from the default starter (idempotent; preserves existing files), write a `.gitignore`, and `git init` unless the directory is already a repo. On a terminal it offers to make an initial commit; `--no-commit` skips that. Pass `--example` (or `--example=open-circle`) to scaffold the worked-example project instead — refuses on conflict, override with `--force`.
-- **`tender build [dir]`** — render every document at the project root to `out/<basename>.pdf` and `out/<basename>.html`. Pass `--doc <name>` to build a single document.
+- **`tender build [dir]`** — render every document at the project root to `out/<basename>.pdf` and `out/<basename>.html`. Flags: `--doc <name>` to build a single document, `--out <path>` to redirect the output directory, `--pdf-only` / `--html-only` to skip the other, `--timeout <ms>` to raise the Paged.js pagination cap (default 60000).
 - **`tender preview [dir]`** — live-reloading HTML preview server (`--port`, `--host`). In a multi-document project the preview UI shows a dropdown to switch between documents; `--doc <name>` preselects one.
 - **`tender lint [dir]`** — validate the project; surface unused/unknown components, missing assets, deprecated syntax, design-token issues (`--strict`, `--json`).
 - **`tender clean [path]`** — sanitise a document: strip paste artifacts; optionally apply smart typography (`--check`, `--yes`, `--typography`). In a multi-document project the path is required.

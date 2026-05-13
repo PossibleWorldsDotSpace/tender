@@ -28,7 +28,7 @@ program
   .command("build [dir]")
   .description("Build PDF and HTML from a project directory")
   .option("--out <path>", "output directory", "./out")
-  .option("--doc <name>", "build only the named document (basename without .md)")
+  .option("--doc <name>", "build only the named document (basename, with or without .md)")
   .option("--pdf-only", "produce only PDF")
   .option("--html-only", "produce only HTML")
   .option("--timeout <ms>", "max time (ms) for Paged.js pagination (default 60000)")
@@ -76,7 +76,7 @@ program
 
 program
   .command("lint [dir]")
-  .description("Validate a project; surface deprecated syntax, unused components, and missing assets")
+  .description("Validate a project; surface deprecated syntax, unused/unknown components, missing assets, and design-token issues")
   .option("--strict", "promote warnings to errors for CI gating")
   .option("--json", "emit findings as JSON")
   .addHelpText(
@@ -186,7 +186,7 @@ program
 program
   .command("init [dir]")
   .description("Scaffold a Tender project (idempotent; preserves existing files; git init)")
-  .option("--force", "overwrite existing files instead of preserving them")
+  .option("--force", "overwrite existing files instead of preserving them (also overrides --example's conflict refusal)")
   .option("--no-commit", "don't offer to make an initial git commit")
   .option(
     "--example [name]",
@@ -258,7 +258,7 @@ tokensCmd
 
 tokensCmd
   .command("set <token> <value> [dir]")
-  .description("Set a design token value (writes project.yaml in place)")
+  .description("Set a design token value, creating it if it doesn't exist (writes project.yaml in place)")
   .addHelpText("after", "\nExamples:\n  $ tender tokens set color.accent '#c33'\n  $ tender tokens set size.body 11pt\n")
   .action(async (token: string, value: string, dir: string | undefined) => {
     const projectDir = resolve(dir ?? ".");
