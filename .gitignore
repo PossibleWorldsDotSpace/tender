@@ -13,5 +13,9 @@ packages/core/assets/builtin-user-guide.md
 # Generated at build time by tsup (copies from packages/core/assets/).
 packages/cli/assets/
 
+# prepack backup of cli's package.json (restored by postpack); only
+# lingers if a pack run is interrupted between the two hooks.
+packages/cli/package.json.prepack.bak
+
 # Local scratch / test files (not part of the project)
 PlanetScript.md

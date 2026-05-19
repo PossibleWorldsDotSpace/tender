@@ -16,7 +16,9 @@
     "build:tsc": "tsc -p tsconfig.json && chmod +x dist/cli.js",
     "test": "vitest run --passWithNoTests",
     "test:watch": "vitest",
-    "typecheck": "tsc -p tsconfig.json --noEmit"
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "prepack": "cp package.json package.json.prepack.bak && npm pkg delete 'devDependencies.@tender/core' 'devDependencies.@tender/render' 'devDependencies.@tender/preview-ui'",
+    "postpack": "mv package.json.prepack.bak package.json"
   },
   "dependencies": {
     "chokidar": "^5.0.0",
