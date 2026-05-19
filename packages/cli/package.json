@@ -9,11 +9,13 @@
   "files": [
     "dist",
     "templates",
-    "assets"
+    "assets",
+    "skill"
   ],
   "scripts": {
     "build": "pnpm --filter @tender/core --filter @tender/render --filter @tender/preview-ui build && tsup && chmod +x dist/cli.js",
     "build:tsc": "tsc -p tsconfig.json && chmod +x dist/cli.js",
+    "pretest": "node scripts/copy-skill.mjs",
     "test": "vitest run --passWithNoTests",
     "test:watch": "vitest",
     "typecheck": "tsc -p tsconfig.json --noEmit",

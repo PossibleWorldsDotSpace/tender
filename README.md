@@ -178,9 +178,10 @@ Tender has two equal control surfaces — the CLI and the Claude skill. Both ope
 
 ### `tender` — the CLI
 
-Six commands, all run from inside (or pointed at) a project directory.
+Run from inside (or pointed at) a project directory.
 
-- **`tender init [dir]`** — scaffold a new project from the default starter (idempotent; preserves existing files), write a `.gitignore`, and `git init` unless the directory is already a repo. On a terminal it offers to make an initial commit; `--no-commit` skips that. Pass `--example` (or `--example=open-circle`) to scaffold the worked-example project instead — refuses on conflict, override with `--force`.
+- **`tender init [dir]`** — scaffold a new project from the default starter (idempotent; preserves existing files) and write a `.gitignore`. On a terminal it prompts for three choices — install the tender-author Claude skill (default yes), `git init` (default yes), keep `out/` under version control (default no) — each with a skip-the-prompt flag (`--skill`/`--no-skill`, `--git`/`--no-git`, `--track-out`/`--ignore-out`). Non-interactive defaults: git yes, skill no, `out/` ignored. It then offers an initial commit; `--no-commit` skips that. Pass `--example` (or `--example=open-circle`) to scaffold the worked-example project instead — refuses on conflict, override with `--force`.
+- **`tender add-skill [dir]`** — install the tender-author Claude skill into an existing project (`.claude/skills/tender-author/`); the recoverability path if you declined it at `init`. `--force` refreshes an existing copy from your installed `tender` version.
 - **`tender build [dir]`** — render every document at the project root to `out/<basename>.pdf` and `out/<basename>.html`. Flags: `--doc <name>` to build a single document, `--out <path>` to redirect the output directory, `--pdf-only` / `--html-only` to skip the other, `--timeout <ms>` to raise the Paged.js pagination cap (default 60000).
 - **`tender preview [dir]`** — live-reloading HTML preview server (`--port`, `--host`). In a multi-document project the preview UI shows a dropdown to switch between documents; `--doc <name>` preselects one.
 - **`tender lint [dir]`** — validate the project; surface unused/unknown components, missing assets, deprecated syntax, design-token issues (`--strict`, `--json`).
@@ -191,13 +192,9 @@ Run `tender --help` (or `tender <command> --help`) for examples on every command
 
 ### `tender-author` — the Claude skill
 
-A Claude Code skill at [`claude/skills/tender-author/`](claude/skills/tender-author/) lets you describe components, style tweaks, content structure, design-token edits, and lint diagnoses in natural language. Claude reads your project, makes the file edits, runs `tender lint`, and reports what landed.
+The tender-author Claude Code skill lets you describe components, style tweaks, content structure, design-token edits, and lint diagnoses in natural language. Claude reads your project, makes the file edits, runs `tender lint`, and reports what landed.
 
-Install via symlink (so `git pull` keeps it fresh):
-
-```bash
-ln -s "$(pwd)/claude/skills/tender-author" ~/.claude/skills/tender-author
-```
+The skill ships **with the CLI** and installs **project-local**, into `.claude/skills/tender-author/` inside your project — committed to your repo, travelling with it, picked up automatically by any Claude Code session opened there. No global symlink, no marketplace. `tender init` offers to install it; `tender add-skill` adds it to an existing project (and `--force` refreshes it after a `tender` upgrade).
 
 Then, in Claude Code with a Tender project open:
 

@@ -978,14 +978,25 @@ CLI behaviour:
 
 Scaffolds a Tender project. Idempotent: every scaffolded file (`project.yaml`, `styles.css`, `content.md`, `components/README.md`, `.gitignore`) is *created* if absent, *preserved* if present. Default `dir` is the current directory.
 
-It also sets up version control: unless the directory is already inside a git repository, it runs `git init`. If git isn't installed it says so and carries on — scaffolding still succeeds. On an interactive terminal it then asks whether to make an initial commit (`y` → `git add -A && git commit`). Pass `--no-commit` to skip that prompt; the prompt is also skipped when stdin isn't a TTY (scripts, CI).
+After scaffolding files, on an **interactive terminal** it asks three questions:
+
+1. **Install the tender-author Claude skill?** (default **yes**) — copies the skill into the project at `.claude/skills/tender-author/`. It's project-local: it lives in your repo, travels with it, and Claude Code picks it up automatically when the project is open. See [Authoring with Claude Code](#authoring-with-claude-code). Declining is cheap — add it later with `tender add-skill`.
+2. **Initialize a git repository?** (default **yes**) — runs `git init` unless the directory is already inside a repo. If git isn't installed it says so and carries on; scaffolding still succeeds.
+3. **Keep build output (`out/`) under version control?** (default **no**) — controls whether the scaffolded `.gitignore` ignores `out/`. Say yes if you want the built PDF/HTML diffed or distributed via git.
+
+If git was initialized it then also asks whether to make an initial commit (`y` → `git add -A && git commit`); `--no-commit` skips that one prompt.
+
+Every question has a flag that **skips the prompt** (useful for scripts and for power users): `--skill` / `--no-skill`, `--git` / `--no-git`, `--track-out` / `--ignore-out`. When stdin **isn't a TTY** (piped, CI) no prompts are shown and these documented defaults apply: **git init yes, skill no, `out/` ignored** — flags override them.
 
 ```
-tender init                  # scaffold around the cwd; git init; prompt for first commit
-tender init my-doc           # scaffold a new project in my-doc/
-tender init my-doc --force   # overwrite existing files (rarely needed)
-tender init --no-commit      # don't offer to make an initial commit
-tender init --example        # scaffold the open-circle worked example
+tender init                       # scaffold around the cwd, then prompt
+tender init my-doc                # scaffold a new project in my-doc/
+tender init my-doc --force        # overwrite existing files (rarely needed)
+tender init --skill --git         # non-interactive: install skill + git init
+tender init --no-skill --no-git   # scaffold files only, no prompts
+tender init --track-out           # keep out/ tracked in git
+tender init --no-commit           # don't offer to make an initial commit
+tender init --example             # scaffold the open-circle worked example
 tender init my-doc --example=open-circle
 ```
 
@@ -993,6 +1004,9 @@ The most common flow is "user has a directory with their content.md already in i
 
 ```
 $ tender init
+Install the tender-author Claude skill? [Y/n] y
+Initialize a git repository? [Y/n] y
+Keep build output (out/) under version control? [y/N] n
 Created 4 files:
   + .gitignore
   + components/README.md
@@ -1001,6 +1015,7 @@ Created 4 files:
 Preserved 1 existing file:
   = content.md
 Initialized a git repository.
+Installed the tender-author skill at .claude/skills/tender-author/.
 
 Project ready at /home/me/manuscripts/script.
 Try: tender preview
@@ -1010,6 +1025,18 @@ Make an initial commit? [y/N]
 `--force` overwrites existing scaffolded files (it does not touch git). Re-running without `--force` is always safe — every file is reported as preserved and nothing changes; a directory that's already a repo is left as-is.
 
 `--example` (with no value, or `--example=<name>`) scaffolds a worked-example project instead of the minimal starter. Available examples ship under the CLI's `templates/`; today there is one: `open-circle`, a facilitator's playbook that exercises components, design tokens, page templates, and the row grid. Unlike the minimal scaffold, examples are **conflict-refusing**: if any file would be overwritten, `tender init --example` prints the list of would-be-clobbered files, writes nothing, and exits non-zero. Re-run with `--force` to clobber. The same example set is reachable from the preview UI's Help tab ("Load example" button) for projects you've already opened in `tender preview`.
+
+### `tender add-skill [dir]`
+
+Installs the tender-author Claude skill into an existing project at `.claude/skills/tender-author/`. This is the recoverability path for `tender init` — if you declined the skill prompt (or scaffolded non-interactively), add it any time:
+
+```
+tender add-skill            # install into the current project
+tender add-skill my-doc     # install into ./my-doc
+tender add-skill --force    # refresh an existing skill copy from this CLI version
+```
+
+The skill is **project-local**: it lives in your repo and travels with it (Claude Code reads project-local `.claude/skills/`). Re-running without `--force` when the skill is already present is a safe no-op that says so and exits zero; `--force` overwrites it with the copy bundled in your installed `tender` version (use this after `npm update -g @possibleworlds/tender` to refresh the skill). See [Authoring with Claude Code](#authoring-with-claude-code).
 
 ### `tender build [dir]`
 
@@ -1096,13 +1123,13 @@ The skill is scoped to five authoring concerns:
 
 It deliberately doesn't run `tender build` (slow), restart `tender preview` (auto-reloads), pick fonts, or draft prose — those stay with you. When you're ready to produce a PDF, build from the terminal (`tender build`) or use the **Export** tab in the preview UI (per-document and "Build all PDFs" buttons; PDFs land in `out/` and the tab offers download links). Worked examples can be installed into a fresh directory with `tender init --example` or from the preview UI's **Help** tab "Load example" panel.
 
-Install via symlink:
+**Installing the skill.** The skill is **project-local**: it lives in your project at `.claude/skills/tender-author/`, is committed to your repo, and travels with it. Claude Code loads project-local skills automatically — no global symlink, no marketplace, nothing to keep in sync by hand.
 
-```bash
-ln -s "$(pwd)/claude/skills/tender-author" ~/.claude/skills/tender-author
-```
+- `tender init` offers to install it (default yes on a terminal).
+- `tender add-skill` installs it into an existing project at any time — see the [CLI reference](#tender-add-skill-dir).
+- `tender add-skill --force` refreshes the project's copy from your installed `tender` version (run it after `npm update -g @possibleworlds/tender` to pull skill updates into a project).
 
-Then in any Claude Code session inside a Tender project, the skill activates automatically. See [`claude/skills/tender-author/SKILL.md`](../claude/skills/tender-author/SKILL.md) for the full skill body and [`docs/plans/2026-05-10-tender-author-skill-design.md`](plans/2026-05-10-tender-author-skill-design.md) for the design rationale.
+Once `.claude/skills/tender-author/` is in the project, any Claude Code session opened there activates the skill automatically. See [`claude/skills/tender-author/SKILL.md`](../claude/skills/tender-author/SKILL.md) for the full skill body and [`docs/plans/2026-05-10-tender-author-skill-design.md`](plans/2026-05-10-tender-author-skill-design.md) for the design rationale.
 
 ---
 

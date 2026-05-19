@@ -9,10 +9,7 @@ const execFileAsync = promisify(execFile);
 
 const here = dirname(fileURLToPath(import.meta.url));
 
-const GITIGNORE_BODY = `# Tender build output
-out/
-
-# Node
+const GITIGNORE_BASE = `# Node
 node_modules/
 dist/
 
@@ -20,6 +17,20 @@ dist/
 *.log
 .DS_Store
 `;
+
+const GITIGNORE_OUT_BLOCK = `# Tender build output
+out/
+
+`;
+
+/**
+ * Body of the scaffolded `.gitignore`. When `trackOut` is true the `out/`
+ * block is omitted so build artifacts (PDF/HTML) are version-controlled —
+ * useful for users who diff or distribute the built output via git.
+ */
+function gitignoreBody(trackOut: boolean): string {
+  return trackOut ? GITIGNORE_BASE : GITIGNORE_OUT_BLOCK + GITIGNORE_BASE;
+}
 
 // Templates directory is bundled adjacent to the dist/ dir at publish time.
 // Two layouts to support:
@@ -33,6 +44,23 @@ function templatesDir(name = "default"): string {
   for (const p of candidates) if (existsSync(p)) return p;
   return candidates[candidates.length - 1]!;
 }
+
+// The tender-author skill payload (SKILL.md + examples/), copied next to
+// dist/ at build time by tsup's onSuccess. Same dev/bundled dual layout
+// as templatesDir():
+//   - dev (tsc): here = packages/cli/dist/commands → ../../skill
+//   - bundled (tsup): here = packages/cli/dist → ../skill
+function skillDir(): string {
+  const candidates = [
+    resolve(here, "..", "skill"),
+    resolve(here, "..", "..", "skill")
+  ];
+  for (const p of candidates) if (existsSync(p)) return p;
+  return candidates[candidates.length - 1]!;
+}
+
+/** Where the skill scaffolds inside a project. Claude Code reads this. */
+export const SKILL_PROJECT_PATH = ".claude/skills/tender-author";
 
 /**
  * Examples the CLI ships under `templates/`, surfaced to both
@@ -57,6 +85,24 @@ export interface InitOptions {
    * created/preserved/overwritten semantics regardless.
    */
   example?: ExampleName;
+  /**
+   * Install the tender-author Claude skill into the project at
+   * `.claude/skills/tender-author/`. Default false: the CLI prompts on an
+   * interactive terminal (defaulting to yes there) and passes the resolved
+   * decision; a non-interactive caller gets no skill unless it opts in.
+   */
+  skill?: boolean;
+  /**
+   * Run `git init` (unless already in a work tree). Default true — this
+   * preserves the historical always-init behaviour for non-interactive
+   * callers. The CLI turns this into a prompt on a terminal.
+   */
+  git?: boolean;
+  /**
+   * Keep build output (`out/`) under version control by omitting it from
+   * the scaffolded `.gitignore`. Default false (out/ is ignored).
+   */
+  trackOut?: boolean;
 }
 
 /**
@@ -77,8 +123,9 @@ export interface InitFileResult {
  *   - "already-repo"   — the directory was already inside a git work tree
  *   - "git-missing"    — git isn't installed; we skipped repo setup
  *   - "init-failed"    — `git init` was attempted but errored (message kept)
+ *   - "skipped"        — caller opted out of git init (no repo created)
  */
-export type InitGitAction = "created" | "already-repo" | "git-missing" | "init-failed";
+export type InitGitAction = "created" | "already-repo" | "git-missing" | "init-failed" | "skipped";
 
 export interface InitGitResult {
   action: InitGitAction;
@@ -102,6 +149,18 @@ export interface InitResult {
    * files were written and `files` is empty.
    */
   conflicts: string[];
+  /**
+   * What happened with the tender-author skill:
+   *   - "installed"  — scaffolded SKILL.md + examples/ into the project
+   *   - "skipped"    — caller opted out (no skill written)
+   *   - "exists"     — `.claude/skills/tender-author/` was already present;
+   *                    left untouched (use `tender add-skill --force`)
+   *   - "missing-payload" — the bundled skill payload wasn't found (a
+   *                    packaging fault); scaffolding still succeeded
+   */
+  skill: "installed" | "skipped" | "exists" | "missing-payload";
+  /** Whether the scaffolded `.gitignore` keeps `out/` tracked. */
+  trackOut: boolean;
 }
 
 /**
@@ -127,23 +186,82 @@ export async function init(targetDir: string, opts: InitOptions = {}): Promise<I
     );
   }
   const src = templatesDir(templateName);
+  // Default git on (historical behaviour for non-interactive callers); the
+  // CLI overrides this with the prompt's answer on a terminal.
+  const wantGit = opts.git !== false;
+  const trackOut = !!opts.trackOut;
 
   // For examples, do a preflight conflict check. Refusing to clobber is the
   // safer default; the user opts in with `force` once they've seen the list.
   if (opts.example && !opts.force) {
     const conflicts = await listConflicts(src, targetDir);
     if (conflicts.length > 0) {
-      const git = await setupGit(targetDir);
-      return { targetDir, files: [], git, template: templateName, conflicts };
+      const git = wantGit ? await setupGit(targetDir) : { action: "skipped" as const };
+      return {
+        targetDir, files: [], git, template: templateName, conflicts,
+        skill: "skipped", trackOut
+      };
     }
   }
 
   const files: InitFileResult[] = [];
   await copyDir(src, targetDir, targetDir, !!opts.force, files);
-  files.push(await writeGitignore(targetDir, !!opts.force));
+  files.push(await writeGitignore(targetDir, !!opts.force, trackOut));
+  const skill = opts.skill ? await installSkill(targetDir, !!opts.force) : "skipped";
   files.sort((a, b) => a.path.localeCompare(b.path));
-  const git = await setupGit(targetDir);
-  return { targetDir, files, git, template: templateName, conflicts: [] };
+  const git = wantGit ? await setupGit(targetDir) : { action: "skipped" as const };
+  return { targetDir, files, git, template: templateName, conflicts: [], skill, trackOut };
+}
+
+/**
+ * Copy the bundled tender-author skill payload into the project at
+ * `.claude/skills/tender-author/`. Project-local so it travels with the
+ * user's git repo (Claude Code reads project-local `.claude/skills/`).
+ *
+ * Shared by `tender init` (when the user opts in) and `tender add-skill`.
+ * Refuses to clobber an existing skill dir unless `force` — re-running is
+ * then a safe no-op that reports "exists".
+ */
+export async function installSkill(
+  targetDir: string,
+  force: boolean
+): Promise<InitResult["skill"]> {
+  const payload = skillDir();
+  if (!existsSync(join(payload, "SKILL.md"))) return "missing-payload";
+  const dest = join(targetDir, SKILL_PROJECT_PATH);
+  if (existsSync(dest) && !force) return "exists";
+  await mkdir(dest, { recursive: true });
+  const files: InitFileResult[] = [];
+  await copyDir(payload, dest, dest, true, files);
+  return "installed";
+}
+
+/**
+ * Human-readable result line for the standalone `tender add-skill` command.
+ * Returns the message plus a process exit code (non-zero only when nothing
+ * usable happened, so scripts can detect failure).
+ */
+export function formatSkillInstall(
+  outcome: InitResult["skill"]
+): { message: string; exitCode: number } {
+  switch (outcome) {
+    case "installed":
+      return { message: `Installed the tender-author skill at ${SKILL_PROJECT_PATH}/.`, exitCode: 0 };
+    case "exists":
+      return {
+        message: `Skill already present at ${SKILL_PROJECT_PATH}/. Re-run with --force to refresh it.`,
+        exitCode: 0
+      };
+    case "missing-payload":
+      return {
+        message: "Skill payload not found in this build — could not install (packaging fault).",
+        exitCode: 1
+      };
+    case "skipped":
+      // Not reachable from add-skill (it always attempts an install), but
+      // the union is exhaustive so handle it.
+      return { message: "Skill install skipped.", exitCode: 1 };
+  }
 }
 
 /**
@@ -177,15 +295,20 @@ async function listConflicts(srcDir: string, targetDir: string): Promise<string[
  * Kept out of the template directory on purpose — npm strips files literally
  * named `.gitignore` from published tarballs, so we materialise it here.
  */
-async function writeGitignore(targetDir: string, force: boolean): Promise<InitFileResult> {
+async function writeGitignore(
+  targetDir: string,
+  force: boolean,
+  trackOut: boolean
+): Promise<InitFileResult> {
   const dest = join(targetDir, ".gitignore");
+  const body = gitignoreBody(trackOut);
   const exists = await stat(dest).then(() => true).catch(() => false);
   if (!exists) {
-    await writeFile(dest, GITIGNORE_BODY);
+    await writeFile(dest, body);
     return { path: ".gitignore", action: "created" };
   }
   if (force) {
-    await writeFile(dest, GITIGNORE_BODY);
+    await writeFile(dest, body);
     return { path: ".gitignore", action: "overwritten" };
   }
   return { path: ".gitignore", action: "preserved" };
@@ -314,6 +437,9 @@ export function formatInitResult(result: InitResult): string {
   const gitLine = formatGitLine(result.git);
   if (gitLine) lines.push(gitLine);
 
+  const skillLine = formatSkillLine(result.skill);
+  if (skillLine) lines.push(skillLine);
+
   if (created.length === 0 && overwritten.length === 0) {
     lines.push("");
     lines.push("All template files already exist. Re-running `tender init` was a no-op.");
@@ -321,6 +447,12 @@ export function formatInitResult(result: InitResult): string {
     lines.push("");
     lines.push(`Project ready at ${result.targetDir}.`);
     lines.push("Try: tender preview");
+  }
+
+  // Recoverability: if the skill isn't in the project, say how to add it
+  // later so declining the prompt is a cheap, reversible choice.
+  if (result.skill === "skipped" || result.skill === "missing-payload") {
+    lines.push("Authoring skill not installed — add it anytime with: tender add-skill");
   }
 
   return lines.join("\n");
@@ -336,5 +468,20 @@ function formatGitLine(git: InitGitResult): string | null {
       return "git not found — skipped repository setup.";
     case "init-failed":
       return `git init failed — skipped repository setup (${git.message ?? "unknown error"}).`;
+    case "skipped":
+      return null; // user opted out — no need to narrate the absence
+  }
+}
+
+function formatSkillLine(skill: InitResult["skill"]): string | null {
+  switch (skill) {
+    case "installed":
+      return `Installed the tender-author skill at ${SKILL_PROJECT_PATH}/.`;
+    case "exists":
+      return `Skill already present at ${SKILL_PROJECT_PATH}/ — left untouched.`;
+    case "missing-payload":
+      return "Skill payload not found in this build — could not install (packaging fault).";
+    case "skipped":
+      return null; // recoverability tip is printed separately
   }
 }

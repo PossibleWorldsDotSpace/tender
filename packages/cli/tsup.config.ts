@@ -1,6 +1,10 @@
 import { defineConfig } from "tsup";
 import { cp, mkdir, rm } from "node:fs/promises";
+import { execFile } from "node:child_process";
+import { promisify } from "node:util";
 import { join } from "node:path";
+
+const execFileAsync = promisify(execFile);
 
 // Workspace packages we fold into the bundle. Everything else (commander,
 // puppeteer, pagedjs, etc.) stays external and resolves from node_modules
@@ -41,5 +45,11 @@ export default defineConfig({
     const guideDest = join(cliRoot, "assets", "builtin-user-guide.md");
     await mkdir(join(cliRoot, "assets"), { recursive: true });
     await cp(guideSrc, guideDest);
+
+    // Materialise packages/cli/skill/ from the canonical skill at
+    // claude/skills/tender-author/ (SKILL.md + examples/ only). Shared with
+    // the test lifecycle (`pretest`) via one script so the copy rule has a
+    // single source of truth.
+    await execFileAsync(process.execPath, [join(cliRoot, "scripts", "copy-skill.mjs")]);
   }
 });

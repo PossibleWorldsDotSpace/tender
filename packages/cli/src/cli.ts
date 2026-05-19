@@ -7,11 +7,12 @@ import { listDocuments } from "@tender/core";
 import { lint, formatReport } from "./commands/lint.js";
 import { clean } from "./commands/clean.js";
 import { startPreviewServer } from "./commands/preview.js";
-import { init, formatInitResult, gitInitialCommit, KNOWN_EXAMPLES, DEFAULT_EXAMPLE } from "./commands/init.js";
+import { init, formatInitResult, gitInitialCommit, installSkill, formatSkillInstall, SKILL_PROJECT_PATH, KNOWN_EXAMPLES, DEFAULT_EXAMPLE } from "./commands/init.js";
 import type { ExampleName } from "./commands/init.js";
 import { listTokens, formatTokensList, setToken, editTokens } from "./commands/tokens.js";
 import { renderBanner, shouldShowBanner } from "./ui/banner.js";
 import { startSpinner } from "./ui/spinner.js";
+import { confirm } from "./ui/prompt.js";
 import { red, dim, cyan } from "./ui/style.js";
 
 // Resolve the package version at runtime from the CLI's own package.json.
@@ -193,18 +194,27 @@ program
 
 program
   .command("init [dir]")
-  .description("Scaffold a Tender project (idempotent; preserves existing files; git init)")
+  .description("Scaffold a Tender project (idempotent; preserves existing files)")
   .option("--force", "overwrite existing files instead of preserving them (also overrides --example's conflict refusal)")
   .option("--no-commit", "don't offer to make an initial git commit")
+  .option("--skill", "install the tender-author Claude skill (skips the prompt)")
+  .option("--no-skill", "don't install the skill (skips the prompt)")
+  .option("--git", "git init (skips the prompt)")
+  .option("--no-git", "don't git init (skips the prompt)")
+  .option("--track-out", "keep build output (out/) under version control (skips the prompt)")
+  .option("--ignore-out", "ignore out/ in .gitignore (skips the prompt)")
   .option(
     "--example [name]",
     `scaffold a worked example instead of the minimal starter (available: ${KNOWN_EXAMPLES.join(", ")}; default: ${DEFAULT_EXAMPLE})`
   )
   .addHelpText(
     "after",
-    `\nExamples:\n  $ tender init                        # scaffold here, git init, prompt for first commit\n  $ tender init my-doc                 # scaffold into ./my-doc\n  $ tender init --example              # scaffold the open-circle worked example\n  $ tender init --example=open-circle  # same, explicit\n  $ tender init --force                # overwrite (careful)\n  $ tender init --no-commit            # skip the initial-commit prompt\n`
+    `\nInteractive on a terminal: prompts for the skill, git init, and whether to\ntrack out/. Pass the matching flag to skip a prompt. Non-interactive\n(piped / CI) defaults: git init yes, skill no, out/ ignored.\n\nExamples:\n  $ tender init                        # scaffold here, then prompt\n  $ tender init my-doc                 # scaffold into ./my-doc\n  $ tender init --skill --git          # non-interactive, install skill + git init\n  $ tender init --no-skill --no-git    # scaffold files only\n  $ tender init --track-out            # keep out/ in git\n  $ tender init --example              # scaffold the open-circle worked example\n  $ tender init --force                # overwrite (careful)\n`
   )
-  .action(async (dir: string | undefined, opts: { force?: boolean; commit?: boolean; example?: string | boolean }) => {
+  .action(async (dir: string | undefined, opts: {
+    force?: boolean; commit?: boolean; example?: string | boolean;
+    skill?: boolean; git?: boolean; trackOut?: boolean; ignoreOut?: boolean;
+  }) => {
     const target = resolve(dir ?? ".");
     if (shouldShowBanner()) {
       process.stdout.write(renderBanner());
@@ -219,7 +229,19 @@ program
       }
       example = name as ExampleName;
     }
-    const result = await init(target, { force: opts.force, example });
+
+    const interactive = process.stdin.isTTY === true;
+
+    // Resolve each decision: an explicit flag always wins; otherwise prompt
+    // on a terminal; otherwise fall back to the documented non-interactive
+    // default (git yes — historical behaviour; skill no; out/ ignored).
+    const skill = await resolveDecision(opts.skill, interactive, "Install the tender-author Claude skill?", true, false);
+    const git = await resolveDecision(opts.git, interactive, "Initialize a git repository?", true, true);
+    // trackOut: --track-out => true, --ignore-out => false, else prompt/default.
+    const trackOutFlag = opts.trackOut === true ? true : opts.ignoreOut === true ? false : undefined;
+    const trackOut = await resolveDecision(trackOutFlag, interactive, "Keep build output (out/) under version control?", false, false);
+
+    const result = await init(target, { force: opts.force, example, skill, git, trackOut });
     console.log(formatInitResult(result));
     if (result.conflicts.length > 0) {
       process.exit(1); // signal "did not install"; clear from the printed output
@@ -228,12 +250,8 @@ program
     // Offer an initial commit only when we just created the repo, the user
     // didn't pass --no-commit, and we're on an interactive terminal (no point
     // prompting a script — and a scripted caller can run `git commit` itself).
-    if (result.git.action === "created" && opts.commit !== false && process.stdin.isTTY) {
-      process.stdout.write("Make an initial commit? [y/N] ");
-      const answer = await new Promise<string>(res => {
-        process.stdin.once("data", chunk => res(chunk.toString()));
-      });
-      if (/^\s*y(es)?\s*$/i.test(answer)) {
+    if (result.git.action === "created" && opts.commit !== false && interactive) {
+      if (await confirm("Make an initial commit?", false)) {
         try {
           await gitInitialCommit(target);
           console.log(dim("  Committed."));
@@ -243,6 +261,41 @@ program
         }
       }
     }
+  });
+
+/**
+ * Resolve a yes/no init decision. An explicit flag (true/false) wins
+ * outright; on an interactive terminal we prompt (with `defaultYes`
+ * controlling the Enter answer); non-interactive falls back to
+ * `nonInteractiveDefault` so scripts/CI get stable, documented behaviour.
+ */
+async function resolveDecision(
+  flag: boolean | undefined,
+  interactive: boolean,
+  question: string,
+  defaultYes: boolean,
+  nonInteractiveDefault: boolean
+): Promise<boolean> {
+  if (flag !== undefined) return flag;
+  if (interactive) return confirm(question, defaultYes);
+  return nonInteractiveDefault;
+}
+
+program
+  .command("add-skill [dir]")
+  .description(`Install the tender-author Claude skill into a project (${SKILL_PROJECT_PATH}/)`)
+  .option("--force", "overwrite an existing skill directory with the bundled copy")
+  .addHelpText(
+    "after",
+    `\nThe skill is project-local — it lives in your repo and travels with it.\nClaude Code picks it up automatically when the project is open.\n\nExamples:\n  $ tender add-skill            # install into the current project\n  $ tender add-skill my-doc     # install into ./my-doc\n  $ tender add-skill --force    # refresh an existing skill copy\n`
+  )
+  .action(async (dir: string | undefined, opts: { force?: boolean }) => {
+    const target = resolve(dir ?? ".");
+    const outcome = await installSkill(target, !!opts.force);
+    const { message, exitCode } = formatSkillInstall(outcome);
+    if (exitCode === 0) console.log(message);
+    else console.error(`${red("error")}: ${message}`);
+    if (exitCode !== 0) process.exit(exitCode);
   });
 
 const tokensCmd = program

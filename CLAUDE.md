@@ -25,7 +25,7 @@ The three places are:
    - Change file-structure conventions (the project-shape recap, four-way split)
    - Change what the skill should NOT do automatically
 
-The skill is symlinked from `~/.claude/skills/tender-author/` to `claude/skills/tender-author/` in this repo, so updates land alongside the code.
+`claude/skills/tender-author/` in this repo is the **canonical source** of the skill. It ships to users via the CLI: `packages/cli/scripts/copy-skill.mjs` copies `SKILL.md` + `examples/` (not `STATUS.md` / `test-prompts.md`) into `packages/cli/skill/` at build and pretest (also invoked from `tsup.config.ts` `onSuccess`); `tender init` / `tender add-skill` then scaffold that payload **project-local** into a user's `.claude/skills/tender-author/`. Edit the canonical copy here — the bundled `packages/cli/skill/` is generated and gitignored. (A maintainer may additionally symlink `~/.claude/skills/tender-author/` → this dir for their own dev convenience; that's not the user install path.)
 
 ### Checklist before committing a user-facing change
 
@@ -53,7 +53,7 @@ Treat docs as part of the change, not a follow-up.
 - `packages/preview-ui/` — SolidJS preview app served by `tender preview`
 - `packages/language-server/` — LSP for `.tender` files (used by VS Code extension)
 - `packages/vscode-extension/`
-- `claude/skills/tender-author/` — the Claude skill (symlinked from `~/.claude/skills/`)
+- `claude/skills/tender-author/` — canonical Claude skill source; bundled into the CLI (`packages/cli/skill/`, generated) and scaffolded project-local by `tender init` / `tender add-skill`
 - `docs/user-guide.md` — author reference
 - `docs/plans/` — design and implementation plans, dated
 - `packages/core/test/fixtures/open-circle-tags/` — the canonical worked example
