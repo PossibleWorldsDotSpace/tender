@@ -256,6 +256,21 @@ export function generateProjectCss(config: ProjectConfig, opts: ProjectCssOption
     parts.push(lines.join("\n"));
   }
 
+  // Bare `@page { size }` from the default template. Paged.js consumes the
+  // *named* `@page <name> { size }` rules into its own `--pagedjs-*` sheet
+  // properties, but the CSS print box Chromium actually prints to is governed
+  // by the bare `@page` rule. Paged.js injects its own `@page { size: letter }`
+  // reset; without this rule the print box silently falls back to US Letter
+  // (clipping A4/Legal sheets) the moment author `styles.css` adds any `@page`
+  // CSS. Emitted before the named rules so it precedes the Paged.js reset in
+  // the cascade; author `styles.css` still loads last and can override it.
+  // A single PDF has one print box, so we use `default` (always present per
+  // the schema), matching the dimensions handed to Chromium in build.ts.
+  const defaultTpl = config["page-templates"].default;
+  if (defaultTpl) {
+    parts.push(`@page {\n  size: ${formatSize((defaultTpl as PageTemplateLike).size)};\n}`);
+  }
+
   for (const [name, tplRaw] of Object.entries(config["page-templates"])) {
     if (!tplRaw) continue;
     const resolved = resolvePageTemplate(name, tplRaw as PageTemplateLike);

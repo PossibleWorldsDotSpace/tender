@@ -438,7 +438,7 @@ Every project must have a `default` page template. Declare any number of additio
 
 | Field | Type | Notes |
 |---|---|---|
-| `size` | `A4`, `A5`, `A6`, `Letter`, `Legal`, or `[width, height]` (e.g. `[148mm, 210mm]`) | |
+| `size` | `A4`, `A5`, `A6`, `Letter`, `Legal`, or `[width, height]` (e.g. `[148mm, 210mm]`) | Drives the PDF print box; you don't need to restate it as `@page { size }` in `styles.css`. A single PDF has one print box — if templates declare different sizes, the `default` template's size wins. |
 | `margin` | object with `top`/`bottom`/`inner`/`outer` (or `left`/`right`), or `0` | |
 | `bleed` | length string (e.g. `3mm`) | Optional; expands page box for crop marks. |
 | `headers` | object, `"none"`, or verso/recto object | See below. |

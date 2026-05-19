@@ -18,6 +18,33 @@ describe("generateProjectCss", () => {
     expect(css).toContain(".page { page: default; }");
   });
 
+  it("emits a bare @page { size } from the default template, before any named @page rule", () => {
+    const css = generateProjectCss({
+      "page-templates": {
+        default: {
+          size: "A4",
+          margin: { top: "18mm", bottom: "20mm", inner: "18mm", outer: "14mm" }
+        }
+      }
+    });
+    // Bare @page (no name) governs Chromium's print box and overrides
+    // Paged.js's internal `@page { size: letter }` reset.
+    expect(css).toMatch(/@page \{\s*size: A4;\s*\}/);
+    const bareIdx = css.search(/@page \{/);
+    const namedIdx = css.indexOf("@page default");
+    expect(bareIdx).toBeGreaterThanOrEqual(0);
+    expect(namedIdx).toBeGreaterThan(bareIdx);
+  });
+
+  it("derives the bare @page size from an explicit [width, height] pair", () => {
+    const css = generateProjectCss({
+      "page-templates": {
+        default: { size: ["210mm", "297mm"], margin: 0 }
+      }
+    });
+    expect(css).toMatch(/@page \{\s*size: 210mm 297mm;\s*\}/);
+  });
+
   it("emits @top-left and @bottom-center margin boxes from header/footer config", () => {
     const css = generateProjectCss({
       "page-templates": {
