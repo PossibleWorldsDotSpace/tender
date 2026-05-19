@@ -13,7 +13,7 @@
 import { existsSync } from "node:fs";
 import { join } from "node:path";
 import {
-  runPageSetup, runTokenPicker,
+  runPageSetup, runTokenPicker, copy,
   type PageSetupResult, type TokenPickerResult
 } from "../config-edit/index.js";
 
@@ -39,11 +39,11 @@ function summarize(
 ): string {
   switch (r.outcome) {
     case "applied":
-      return `${label}: applied ${r.editCount} change${r.editCount === 1 ? "" : "s"}.`;
+      return copy.outcome.applied(label, r.editCount);
     case "no-op":
-      return `${label}: no changes.`;
+      return copy.outcome.noop(label);
     case "cancelled":
-      return `${label}: cancelled — nothing written.`;
+      return copy.outcome.cancelled(label);
   }
 }
 
@@ -62,18 +62,12 @@ export async function configure(
   opts: ConfigureOptions = {}
 ): Promise<ConfigureResult> {
   if (!existsSync(join(projectDir, "project.yaml"))) {
-    throw new Error(
-      `No project.yaml in ${projectDir} — run \`tender init\` first, ` +
-        `or pass the project directory.`
-    );
+    throw new Error(copy.noProject(projectDir));
   }
 
   const isTTY = opts.isTTY ?? process.stdin.isTTY === true;
   if (!isTTY) {
-    throw new Error(
-      "`tender configure` requires an interactive terminal — " +
-        "use `tender tokens set <token> <value>` or edit project.yaml directly."
-    );
+    throw new Error(copy.needsTTY("`tender configure`"));
   }
 
   const runPage = !opts.tokensOnly;
@@ -84,13 +78,16 @@ export async function configure(
   if (runPage) {
     const page = await runPageSetup(projectDir, { isTTY });
     result.page = page;
-    result.lines.push(summarize("Page setup", page));
+    result.lines.push(summarize(copy.page.title, page));
+    if (page.outcome === "applied" && page.addedTemplates.length > 0) {
+      result.lines.push(copy.outcome.addedTemplatesNextStep(page.addedTemplates));
+    }
   }
 
   if (runTokens) {
     const tokens = await runTokenPicker(projectDir, { isTTY });
     result.tokens = tokens;
-    result.lines.push(summarize("Design tokens", tokens));
+    result.lines.push(summarize(copy.tokens.title, tokens));
   }
 
   return result;

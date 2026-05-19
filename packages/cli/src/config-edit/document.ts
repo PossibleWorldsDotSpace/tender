@@ -45,10 +45,26 @@ export async function readProjectDocument(projectDir: string): Promise<{
  * wizard), so the absence of an edit and an explicit clear are the same:
  * leave the document alone.
  */
+/** A single header/footer marginal-box config. The schema accepts either the
+ * literal string `"none"` (suppresses the row) or a `{left?, center?, right?}`
+ * map. Verso/recto (`headers-rest` / `footers-rest`) is deferred to #18. */
+export type HeaderFooterValue =
+  | "none"
+  | { left?: string; center?: string; right?: string };
+
 export type Edit =
   | { kind: "page-size"; template: string; value: PageSizeValue | undefined }
   | { kind: "page-margin"; template: string; value: MarginValue | undefined }
-  | { kind: "page-bleed"; template: string; value: string | undefined }
+  | { kind: "page-headers"; template: string; value: HeaderFooterValue | undefined }
+  | { kind: "page-footers"; template: string; value: HeaderFooterValue | undefined }
+  /** Create a whole new page template. `value` carries the minimum required
+   * fields (size + margin) per the schema; further config (headers, footers,
+   * bleed) lands as separate edits in the same batch, keyed by the new name. */
+  | {
+      kind: "page-template-add";
+      template: string;
+      value: { size: PageSizeValue; margin: MarginValue } | undefined;
+    }
   | {
       kind: "token";
       category: string;
@@ -94,9 +110,26 @@ export function applyEdits(
         path = ["page-templates", edit.template, "margin"];
         next = formatMargin(edit.value);
         break;
-      case "page-bleed":
-        path = ["page-templates", edit.template, "bleed"];
+      case "page-headers":
+        path = ["page-templates", edit.template, "headers"];
         next = edit.value;
+        break;
+      case "page-footers":
+        path = ["page-templates", edit.template, "footers"];
+        next = edit.value;
+        break;
+      case "page-template-add":
+        // Whole-template create. In merge mode we never clobber an existing
+        // template (the configurator is "add" semantics; mutating an existing
+        // template goes through the per-field edits above). Wrap as a yaml
+        // node via `doc.createNode` so subsequent edits in the same batch
+        // (headers/footers/bleed) can descend into this newly-created
+        // mapping — `setIn` rejects descent through a plain JS object.
+        path = ["page-templates", edit.template];
+        next = doc.createNode({
+          size: formatPageSize(edit.value.size),
+          margin: formatMargin(edit.value.margin)
+        });
         break;
       case "token":
         path = ["design-tokens", edit.category, edit.name];
@@ -105,6 +138,11 @@ export function applyEdits(
     }
 
     const prev = doc.getIn(path);
+    // Create-only: never clobber an existing template via the "add" edit
+    // (mutating an existing template uses the per-field edits). This is the
+    // safety counterpart to `default`'s immutability — make destructive
+    // overwrites of a whole template impossible from the configurator.
+    if (edit.kind === "page-template-add" && prev !== undefined) continue;
     if (mode === "merge" && yamlEqual(prev, next)) continue; // no-op
     doc.setIn(path, next);
     changed++;

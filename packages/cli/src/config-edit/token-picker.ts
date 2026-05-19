@@ -12,6 +12,7 @@
 import type { ProjectConfig } from "@tender/core";
 import { normalizeHex } from "./values.js";
 import type { Edit } from "./document.js";
+import { glyph, copy, plainTheme, type Theme } from "./theme.js";
 
 /** Minimal key event the driver maps node keypress onto (shared shape). */
 export interface KeyEvent {
@@ -131,6 +132,12 @@ export function reduce(
     const row = state.rows[state.cursor];
     if (!row) return { ...state, phase: "browse" };
     if (key.name === "return") {
+      // Empty buffer = "keep current" — return to browse without touching the
+      // row. Matches the "replace-on-type" UX where the current value is
+      // shown beside an empty editor and ↵ on empty preserves it.
+      if (state.buffer.length === 0) {
+        return { ...state, phase: "browse", buffer: "", status: "" };
+      }
       const next = clone(state.rows);
       let v = state.buffer;
       if (row.category === "color") {
@@ -141,7 +148,7 @@ export function reduce(
       return { ...state, rows: next, phase: "browse", buffer: "", status: "" };
     }
     if (key.name === "escape") {
-      return { ...state, phase: "browse", buffer: "", status: "edit cancelled" };
+      return { ...state, phase: "browse", buffer: "", status: copy.tokens.editCancelled };
     }
     if (key.name === "backspace") {
       return { ...state, buffer: state.buffer.slice(0, -1) };
@@ -166,7 +173,9 @@ export function reduce(
   }
   if (key.name === "return") {
     if (state.rows.length === 0) return state;
-    return { ...state, phase: "edit", buffer: state.rows[state.cursor]!.value };
+    // Empty buffer on enter-to-edit; current value renders beside the editor
+    // as a dimmed "current: …" hint. Typing replaces, ↵ on empty keeps.
+    return { ...state, phase: "edit", buffer: "" };
   }
   if (key.str === "a") {
     return {
@@ -188,7 +197,7 @@ function reduceAdd(
   const add = clone(state.add);
 
   if (key.name === "escape") {
-    return { ...state, phase: "browse", status: "add cancelled" };
+    return { ...state, phase: "browse", status: copy.tokens.addCancelled };
   }
   if (key.name === "backspace") {
     if (add.step === "category") add.category = add.category.slice(0, -1);
@@ -200,7 +209,7 @@ function reduceAdd(
   if (key.name === "return") {
     if (add.step === "category") {
       if (!isValidIdent(add.category)) {
-        add.error = "category must match /^[a-z][a-z0-9-]*$/";
+        add.error = copy.tokens.badIdent(copy.tokens.addFieldCategory);
         return { ...state, add };
       }
       add.step = "name";
@@ -209,7 +218,7 @@ function reduceAdd(
     }
     if (add.step === "name") {
       if (!isValidIdent(add.name)) {
-        add.error = "name must match /^[a-z][a-z0-9-]*$/";
+        add.error = copy.tokens.badIdent(copy.tokens.addFieldName);
         return { ...state, add };
       }
       if (
@@ -217,7 +226,7 @@ function reduceAdd(
           r => r.category === add.category && r.name === add.name
         )
       ) {
-        add.error = `${add.category}.${add.name} already exists`;
+        add.error = copy.tokens.duplicate(`${add.category}.${add.name}`);
         return { ...state, add };
       }
       add.step = "value";
@@ -244,7 +253,7 @@ function reduceAdd(
       cursor: rows.length - 1,
       phase: "browse",
       add: { step: "category", category: "", name: "", value: "", error: "" },
-      status: `added ${add.category}.${add.name}`
+      status: copy.tokens.added(`${add.category}.${add.name}`)
     };
   }
   if (key.str && key.str.length === 1 && key.str >= " ") {
@@ -276,57 +285,122 @@ export function collectEdits(state: TokenPickerState): Edit[] {
   return edits;
 }
 
-/** Pure renderer — no ANSI (driver adds emphasis), test-readable. */
-export function render(state: TokenPickerState): string {
+/**
+ * Pure renderer. Owns the WHOLE screen including the confirm/diff tail (the
+ * driver no longer draws its own — that was the slice-4 dead-copy defect).
+ * `theme` defaults to `plainTheme` (identity) so tests / `NO_COLOR` get
+ * clean text; the driver passes `ansiTheme` and the precomputed `diff`.
+ */
+export function render(
+  state: TokenPickerState,
+  theme: Theme = plainTheme,
+  diff = ""
+): string {
   const L: string[] = [];
+  L.push(theme.title(copy.tokens.title));
+  L.push("");
 
   if (state.phase === "confirm") {
-    L.push("Review token changes");
+    if (!diff) {
+      L.push(theme.hint(copy.review.noChanges));
+      return L.join("\n");
+    }
+    for (const line of diff.split("\n")) {
+      if (line.startsWith("+")) L.push(theme.diffAdd(line));
+      else if (line.startsWith("-")) L.push(theme.diffDel(line));
+      else L.push(theme.hint(line));
+    }
     L.push("");
-    L.push("(diff shown by the driver)");
-    L.push("");
-    L.push("Apply? [y]es  [n]o  [e]dit more");
+    L.push(copy.review.prompt);
+    L.push(theme.hint(copy.review.actions));
     return L.join("\n");
   }
 
   if (state.phase === "add") {
     const a = state.add;
-    L.push("Add a token");
+    L.push(theme.title(copy.tokens.addTitle));
     L.push("");
-    const mark = (s: string): string => (a.step === s ? ">" : " ");
-    L.push(`${mark("category")} category: ${a.category}${a.step === "category" ? "_" : ""}`);
-    L.push(`${mark("name")} name:     ${a.name}${a.step === "name" ? "_" : ""}`);
-    L.push(`${mark("value")} value:    ${a.value}${a.step === "value" ? "_" : ""}`);
+    // Don't nest theme spans: the active field's label gets `cursor`, its
+    // value gets `editing`, joined raw. (The ui/style wrappers all close
+    // with the same SGR reset, so a span-in-span loses the outer colour
+    // after the inner reset — keep them siblings, never nested.)
+    const field = (key: AddDraft["step"], label: string, val: string): string => {
+      const active = a.step === key;
+      const mark = active ? glyph.cursor : glyph.cursorOff;
+      const prefix = `${mark} ${label.padEnd(8)} `;
+      if (!active) return `${prefix}${val}`;
+      return `${theme.cursor(prefix)}${theme.editing(`${val}${glyph.caret}`)}`;
+    };
+    L.push(field("category", copy.tokens.addFieldCategory, a.category));
+    L.push(field("name", copy.tokens.addFieldName, a.name));
+    L.push(field("value", copy.tokens.addFieldValue, a.value));
+
+    // Contextual hint under the active field — guides format without
+    // gating (categories stay open-ended; value formats are advisory).
+    if (a.step === "category") {
+      L.push("");
+      L.push(theme.hint(copy.tokens.categoryHint));
+    } else if (a.step === "value") {
+      const hint = copy.tokens.valueHint(a.category);
+      if (hint) {
+        L.push("");
+        L.push(theme.hint(hint));
+      }
+    }
+
     if (a.error) {
       L.push("");
-      L.push(a.error);
+      L.push(theme.err(`${glyph.err} ${a.error}`));
     }
     L.push("");
-    L.push("Enter: next/commit · Esc: cancel");
+    L.push(theme.hint(copy.tokens.addLegend));
     return L.join("\n");
   }
 
-  L.push("Design tokens — ↑/↓ move · Enter edit · a add · s review · Esc cancel");
+  L.push(theme.hint(copy.tokens.legend));
   L.push("");
 
   if (state.rows.length === 0) {
-    L.push("(no tokens yet — press a to add one)");
+    // Empty state: full intro paragraph + examples. Renders as multiple
+    // lines via the joined `\n` in copy.tokens.emptyIntro.
+    for (const line of copy.tokens.emptyIntro.split("\n")) {
+      L.push(theme.hint(line));
+    }
   } else {
+    // Populated: short orientation block above the list — names what
+    // tokens *do* (build-time substitution), so a returning user gets
+    // reminded without re-reading the full empty-state intro.
+    for (const line of copy.tokens.orientation.split("\n")) {
+      L.push(theme.hint(line));
+    }
+    L.push("");
     const w = Math.max(
       ...state.rows.map(r => `${r.category}.${r.name}`.length)
     );
     for (let i = 0; i < state.rows.length; i++) {
       const r = state.rows[i]!;
-      const cur = i === state.cursor ? ">" : " ";
+      const onCursor = i === state.cursor;
+      const mark = onCursor ? glyph.cursor : glyph.cursorOff;
       const path = `${r.category}.${r.name}`.padEnd(w);
-      const editing = state.phase === "edit" && i === state.cursor;
-      const val = editing ? `${state.buffer}_` : r.value;
-      const tag = r.added ? " (new)" : "";
-      L.push(`${cur} ${path}  ${val}${tag}`);
+      const editing = state.phase === "edit" && onCursor;
+      // Keep theme spans as siblings, never nested (see the add-field note):
+      // colour the "mark path" prefix, then the value/tag separately.
+      const prefix = `${mark} ${path}  `;
+      // While editing: show the live buffer + caret, plus a dimmed
+      // "current: <old>" hint so the user can choose to keep, replace, or
+      // ↵-on-empty to keep. Empty hint when there's nothing to keep.
+      const val = editing
+        ? `${theme.editing(`${state.buffer}${glyph.caret}`)}${
+            r.value ? `   ${theme.hint(`current: ${r.value}`)}` : ""
+          }`
+        : r.value;
+      const tag = r.added ? ` ${theme.added(`(${copy.tokens.newTag})`)}` : "";
+      L.push(`${onCursor ? theme.cursor(prefix) : prefix}${val}${tag}`);
     }
 
     // Advisory contrast hint when the conventional color.ink / color.page
-    // pair both look like hex — not a gate, just guidance.
+    // pair both look like hex — not a gate, just guidance. Coloured by how
+    // it scores so a bad pair reads as a warning, not neutral chrome.
     const hex = (n: string): string | null => {
       const row = state.rows.find(
         r => r.category === "color" && r.name === n
@@ -337,16 +411,22 @@ export function render(state: TokenPickerState): string {
     const page = hex("page");
     if (ink && page) {
       const ratio = contrastRatio(ink, page);
-      const note =
-        ratio >= 7 ? "AAA" : ratio >= 4.5 ? "AA" : ratio >= 3 ? "AA-large" : "low";
+      const rating =
+        ratio >= 7 ? "AAA" : ratio >= 4.5 ? "AA" : ratio >= 3 ? "AA large only" : "too low";
+      const msg = copy.tokens.contrast(ratio, rating);
       L.push("");
-      L.push(`color.ink / color.page contrast: ${ratio}:1 (${note})`);
+      L.push(
+        ratio >= 4.5 ? theme.ok(`${glyph.ok} ${msg}`)
+          : ratio >= 3 ? theme.warn(`${glyph.warn} ${msg}`)
+          : theme.err(`${glyph.err} ${msg}`)
+      );
     }
   }
 
   if (state.status) {
     L.push("");
-    L.push(state.status);
+    const isErr = / already exists\.$| must be /.test(state.status);
+    L.push(isErr ? theme.err(state.status) : theme.hint(state.status));
   }
   return L.join("\n");
 }

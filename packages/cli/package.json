@@ -18,6 +18,7 @@
     "pretest": "node scripts/copy-skill.mjs",
     "test": "vitest run --passWithNoTests",
     "test:watch": "vitest",
+    "preview:configurator": "tsx scripts/preview-configurator.mts",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "prepack": "cp package.json package.json.prepack.bak && npm pkg delete 'devDependencies.@tender/core' 'devDependencies.@tender/render' 'devDependencies.@tender/preview-ui'",
     "postpack": "mv package.json.prepack.bak package.json"
@@ -53,6 +54,7 @@
     "@types/express": "^5.0.6",
     "@types/ws": "^8.18.1",
     "tsup": "^8.5.1",
+    "tsx": "^4.19.0",
     "typescript": "^5.4.0",
     "vitest": "^1.6.0"
   }

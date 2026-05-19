@@ -40,20 +40,33 @@ describe("initTokenPicker", () => {
       "page-templates": { default: { size: "A5", margin: 0 } }
     } as unknown as ProjectConfig);
     expect(s.rows).toHaveLength(0);
-    expect(render(s)).toContain("press a to add one");
+    const out = render(s);
+    expect(out).toContain("Set basic design tokens here");
+    expect(out).toMatch(/Press a to add your first token/);
   });
 });
 
 describe("reduce — browse & edit", () => {
   it("edits a value and emits a token edit", () => {
     const s0 = initTokenPicker(CONFIG); // cursor on color.ink
-    let s = drive(s0, [enter]); // edit mode, buffer = "#1a1a1a"
+    let s = drive(s0, [enter]); // edit mode, replace-on-type so buffer starts empty
     expect(s.phase).toBe("edit");
-    s = drive(s, [...Array(7).fill(bs), ...type("#000000"), enter]);
+    expect(s.buffer).toBe("");
+    s = drive(s, [...type("#000000"), enter]);
     expect(s.phase).toBe("browse");
     expect(collectEdits(s)).toContainEqual({
       kind: "token", category: "color", name: "ink", value: "#000000"
     });
+  });
+
+  it("↵ on empty buffer keeps the current value (replace-on-type)", () => {
+    const s0 = initTokenPicker(CONFIG); // cursor on color.ink (#1a1a1a)
+    const s = drive(s0, [enter, enter]); // enter edit, immediately enter again
+    expect(s.phase).toBe("browse");
+    // No edit emitted — the value is unchanged.
+    expect(collectEdits(s).filter(e => e.kind === "token" && e.name === "ink")).toEqual([]);
+    // The row's value is still the original.
+    expect(s.rows.find(r => r.name === "ink")!.value).toBe("#1a1a1a");
   });
 
   it("normalizes a 3-digit hex on commit for the color category", () => {
@@ -116,7 +129,7 @@ describe("reduce — add a new token", () => {
     let s = reduce(s0, ch("a"));
     s = drive(s, [...type("Color"), enter]); // capital → invalid
     expect(s.add.step).toBe("category");
-    expect(s.add.error).toMatch(/category must match/);
+    expect(s.add.error).toMatch(/category must be lowercase/);
   });
 
   it("rejects a duplicate category.name", () => {
@@ -175,18 +188,19 @@ describe("reduce — confirm phase", () => {
 });
 
 describe("render & helpers", () => {
-  it("marks the cursor row, tags new tokens, emits no ANSI", () => {
+  it("marks the cursor row, tags new tokens, emits no ANSI by default", () => {
     const s0 = initTokenPicker(CONFIG);
     const s = drive(s0, [ch("a"), ...type("space"), enter, ...type("g"), enter, ...type("8mm"), enter]);
     const out = render(s);
     expect(out).toContain("(new)");
-    expect(out).toMatch(/^>/m);
+    expect(out).toMatch(/^▸/m);
+    expect(out).toContain("Design tokens");
     expect(out).not.toMatch(/\x1b\[/);
   });
 
   it("shows an advisory contrast hint for color.ink / color.page", () => {
     const out = render(initTokenPicker(CONFIG));
-    expect(out).toMatch(/contrast: .*:1 \((AAA|AA|AA-large|low)\)/);
+    expect(out).toMatch(/color\.ink on color\.page — .*:1 contrast \((AAA|AA|AA large only|too low)\)/);
   });
 
   it("contrastRatio: black on white is 21, identical is 1", () => {

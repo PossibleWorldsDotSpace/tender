@@ -11,7 +11,7 @@ import { init, formatInitResult, gitInitialCommit, installSkill, formatSkillInst
 import type { ExampleName } from "./commands/init.js";
 import { listTokens, formatTokensList, setToken } from "./commands/tokens.js";
 import { configure } from "./commands/configure.js";
-import { runPageSetup, runTokenPicker } from "./config-edit/index.js";
+import { runPageSetup, runTokenPicker, copy } from "./config-edit/index.js";
 import { renderBanner, shouldShowBanner } from "./ui/banner.js";
 import { startSpinner } from "./ui/spinner.js";
 import { confirm } from "./ui/prompt.js";
@@ -259,28 +259,39 @@ program
     // configured file). Both default no, are independent, TTY-only, and
     // flag-skippable. Non-interactive: skipped entirely. They run the same
     // drivers `tender configure` uses, against the just-scaffolded project.
+    const summarizeOutcome = (
+      screen: string,
+      r: { outcome: "applied" | "no-op" | "cancelled"; editCount: number }
+    ): string =>
+      r.outcome === "applied" ? copy.outcome.applied(screen, r.editCount)
+        : r.outcome === "no-op" ? copy.outcome.noop(screen)
+        : copy.outcome.cancelled(screen);
+
     const wantPage = await resolveDecision(
       opts.configurePage, interactive,
-      "Configure page setup (size, margins) now?", false, false
+      copy.initPrompt.page, false, false
     );
     if (wantPage) {
       try {
         const r = await runPageSetup(target);
-        console.log(dim(`  page setup: ${r.outcome}${r.outcome === "applied" ? ` (${r.editCount})` : ""}`));
+        console.log(dim(`  ${summarizeOutcome(copy.page.title, r)}`));
+        if (r.outcome === "applied" && r.addedTemplates.length > 0) {
+          console.log(dim(`  ${copy.outcome.addedTemplatesNextStep(r.addedTemplates)}`));
+        }
       } catch (err) {
-        console.error(`${red("page setup failed")}: ${err instanceof Error ? err.message : String(err)}`);
+        console.error(`${red(`${copy.page.title} failed`)}: ${err instanceof Error ? err.message : String(err)}`);
       }
     }
     const wantTokens = await resolveDecision(
       opts.configureTokens, interactive,
-      "Configure design tokens now?", false, false
+      copy.initPrompt.tokens, false, false
     );
     if (wantTokens) {
       try {
         const r = await runTokenPicker(target);
-        console.log(dim(`  design tokens: ${r.outcome}${r.outcome === "applied" ? ` (${r.editCount})` : ""}`));
+        console.log(dim(`  ${summarizeOutcome(copy.tokens.title, r)}`));
       } catch (err) {
-        console.error(`${red("token picker failed")}: ${err instanceof Error ? err.message : String(err)}`);
+        console.error(`${red(`${copy.tokens.title} failed`)}: ${err instanceof Error ? err.message : String(err)}`);
       }
     }
 
@@ -346,7 +357,7 @@ program
   )
   .action(async (dir: string | undefined, opts: { pageOnly?: boolean; tokensOnly?: boolean }) => {
     if (opts.pageOnly && opts.tokensOnly) {
-      console.error(`${red("error")}: --page-only and --tokens-only are mutually exclusive.`);
+      console.error(`${red("error")}: ${copy.pageTokensExclusive}`);
       process.exit(2);
     }
     try {

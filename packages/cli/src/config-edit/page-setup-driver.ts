@@ -12,7 +12,6 @@
 
 import * as readline from "node:readline";
 import { loadProjectConfig } from "@tender/core";
-import { bold, cyan, dim, red } from "../ui/style.js";
 import {
   initPageSetup, reduce, render, collectEdits, invalidCustomDims,
   type PageSetupState, type KeyEvent
@@ -21,6 +20,7 @@ import {
   readProjectDocument, parseProjectDocument, applyEdits,
   serializeDocument, diffYaml, writeProjectDocument
 } from "./document.js";
+import { ansiTheme, copy } from "./theme.js";
 
 export interface PageSetupIO {
   /** Raw-mode-capable input. Defaults to process.stdin. */
@@ -36,6 +36,10 @@ export interface PageSetupResult {
   outcome: "applied" | "no-op" | "cancelled";
   /** Edits applied (empty for no-op/cancelled). */
   editCount: number;
+  /** Names of any *new* page templates this session created. Surfaced so
+   * the CLI can tell the user how to actually apply them in source — the
+   * config alone is dead until `=== page{template=<name>}` references it. */
+  addedTemplates: string[];
 }
 
 /** Map a node readline keypress to the reducer's minimal KeyEvent. */
@@ -58,16 +62,13 @@ export async function runPageSetup(
   const isTTY = io.isTTY ?? input.isTTY === true;
 
   if (!isTTY) {
-    throw new Error(
-      "page setup requires an interactive terminal — " +
-        "use `tender tokens set` or edit project.yaml directly"
-    );
+    throw new Error(copy.needsTTY(copy.page.title));
   }
 
   const config = await loadProjectConfig(projectDir);
   let state = initPageSetup(config);
   if (state.fields.length === 0) {
-    return { outcome: "no-op", editCount: 0 };
+    return { outcome: "no-op", editCount: 0, addedTemplates: [] };
   }
 
   // Pre-read the document once; re-read at apply time would race a
@@ -80,15 +81,11 @@ export async function runPageSetup(
 
   let diffText = "";
 
+  // One renderer owns the whole screen (title + body + confirm/diff). The
+  // driver supplies the precomputed diff; it no longer draws its own tail.
   const paint = (): void => {
     clear();
-    write(bold("Tender — page setup") + "\n\n");
-    write(render(state));
-    if (state.phase === "confirm") {
-      write("\n\n");
-      write(diffText ? diffText : dim("(no changes)"));
-      write("\n\n" + cyan("Apply? [y]es  [n]o  [e]dit more"));
-    }
+    write(render(state, ansiTheme, diffText));
     write("\n");
   };
 
@@ -132,7 +129,7 @@ export async function runPageSetup(
         if (wasEdit && key && key.name === "return") {
           const bad = invalidCustomDims(state);
           if (bad.length > 0) {
-            state = { ...state, status: red(`invalid: ${bad.join(", ")}`) };
+            state = { ...state, status: copy.page.invalid(bad) };
             paint();
             return;
           }
@@ -143,15 +140,19 @@ export async function runPageSetup(
         if (state.phase === "confirm" && !wasConfirm) computeDiff();
 
         if (state.phase === "cancelled") {
-          finish({ outcome: "cancelled", editCount: 0 });
+          finish({ outcome: "cancelled", editCount: 0, addedTemplates: [] });
           return;
         }
         if (state.phase === "done") {
           const edits = collectEdits(state);
           if (edits.length === 0) {
-            finish({ outcome: "no-op", editCount: 0 });
+            finish({ outcome: "no-op", editCount: 0, addedTemplates: [] });
             return;
           }
+          const added = edits
+            .filter((e): e is Extract<typeof e, { kind: "page-template-add" }> =>
+              e.kind === "page-template-add")
+            .map(e => e.template);
           // Apply and write. Done synchronously-ish via a microtask so the
           // keypress handler stays sync; errors surface via reject.
           (async () => {
@@ -159,7 +160,7 @@ export async function runPageSetup(
               const doc = parseProjectDocument(src);
               const n = applyEdits(doc, edits, "merge");
               await writeProjectDocument(projectDir, doc);
-              finish({ outcome: "applied", editCount: n });
+              finish({ outcome: "applied", editCount: n, addedTemplates: added });
             } catch (err) {
               cleanup();
               reject(err instanceof Error ? err : new Error(String(err)));

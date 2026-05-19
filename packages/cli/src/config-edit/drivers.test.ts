@@ -30,7 +30,7 @@ describe("config-edit drivers — non-TTY guard", () => {
     const dir = await project();
     try {
       await expect(runPageSetup(dir, { isTTY: false })).rejects.toThrow(
-        /interactive terminal/
+        /interactive and needs a terminal/
       );
     } finally {
       await rm(dir, { recursive: true, force: true });
@@ -41,7 +41,7 @@ describe("config-edit drivers — non-TTY guard", () => {
     const dir = await project();
     try {
       await expect(runTokenPicker(dir, { isTTY: false })).rejects.toThrow(
-        /interactive terminal/
+        /interactive and needs a terminal/
       );
     } finally {
       await rm(dir, { recursive: true, force: true });

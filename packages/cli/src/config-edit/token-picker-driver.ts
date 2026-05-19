@@ -8,7 +8,6 @@
 
 import * as readline from "node:readline";
 import { loadProjectConfig } from "@tender/core";
-import { bold, cyan, dim } from "../ui/style.js";
 import {
   initTokenPicker, reduce, render, collectEdits,
   type TokenPickerState, type KeyEvent
@@ -17,6 +16,7 @@ import {
   readProjectDocument, parseProjectDocument, applyEdits,
   serializeDocument, diffYaml, writeProjectDocument
 } from "./document.js";
+import { ansiTheme, copy } from "./theme.js";
 
 export interface TokenPickerIO {
   input?: NodeJS.ReadStream;
@@ -47,10 +47,7 @@ export async function runTokenPicker(
   const isTTY = io.isTTY ?? input.isTTY === true;
 
   if (!isTTY) {
-    throw new Error(
-      "token picker requires an interactive terminal — " +
-        "use `tender tokens set` or edit project.yaml directly"
-    );
+    throw new Error(copy.needsTTY(copy.tokens.title));
   }
 
   const config = await loadProjectConfig(projectDir);
@@ -62,15 +59,10 @@ export async function runTokenPicker(
 
   let diffText = "";
 
+  // One renderer owns the whole screen; the driver supplies the diff.
   const paint = (): void => {
     clear();
-    write(bold("Tender — design tokens") + "\n\n");
-    write(render(state));
-    if (state.phase === "confirm") {
-      write("\n\n");
-      write(diffText ? diffText : dim("(no changes)"));
-      write("\n\n" + cyan("Apply? [y]es  [n]o  [e]dit more"));
-    }
+    write(render(state, ansiTheme, diffText));
     write("\n");
   };
 

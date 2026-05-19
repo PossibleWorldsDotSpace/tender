@@ -35,7 +35,7 @@ describe("configure", () => {
   it("hard-errors without a TTY (a wizard has no non-interactive meaning)", async () => {
     await withProject(async (dir) => {
       await expect(configure(dir, { isTTY: false })).rejects.toThrow(
-        /requires an interactive terminal.*tokens set/s
+        /interactive and needs a terminal.*tokens set/s
       );
     });
   });
@@ -50,7 +50,7 @@ describe("configure", () => {
       // driver runs.
       await expect(
         configure(dir, { isTTY: false, pageOnly: true })
-      ).rejects.toThrow(/interactive terminal/);
+      ).rejects.toThrow(/interactive and needs a terminal/);
     });
   });
 });

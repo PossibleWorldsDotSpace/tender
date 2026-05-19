@@ -9,3 +9,7 @@ export { runPageSetup } from "./page-setup-driver.js";
 export type { PageSetupIO, PageSetupResult } from "./page-setup-driver.js";
 export { runTokenPicker } from "./token-picker-driver.js";
 export type { TokenPickerIO, TokenPickerResult } from "./token-picker-driver.js";
+// Shared copy + visual system (slice 5). `copy` is the single authored-string
+// surface; cli.ts / configure.ts reference it so prompts and summaries match
+// the screens.
+export { copy, glyph } from "./theme.js";

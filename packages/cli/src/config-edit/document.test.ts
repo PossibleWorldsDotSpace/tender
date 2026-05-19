@@ -171,3 +171,91 @@ describe("diffYaml", () => {
     expect(d).toMatch(/^\+ .*h1: 24pt/m);
   });
 });
+
+/* ============== headers / footers / template-add ============== */
+
+describe("applyEdits — page-headers and page-footers", () => {
+  it("writes the literal \"none\" string when mode is none", () => {
+    const { out, changed } = apply(SAMPLE, [
+      { kind: "page-headers", template: "cover", value: "none" }
+    ]);
+    expect(changed).toBe(1);
+    expect(out).toMatch(/cover:[\s\S]*headers: none/);
+    // Sibling fields and comments survive
+    expect(out).toContain("# chosen for the booklet");
+  });
+
+  it("writes a {left,center,right} map when mode is boxes", () => {
+    const { out, changed } = apply(SAMPLE, [
+      { kind: "page-headers", template: "default",
+        value: { left: "{chapter}", right: "{page}" } }
+    ]);
+    expect(changed).toBe(1);
+    expect(out).toMatch(/headers:[\s\S]*left: ['"]?\{chapter\}/);
+    expect(out).toMatch(/right: ['"]?\{page\}/);
+  });
+
+  it("page-footers writes under the footers key", () => {
+    const { out, changed } = apply(SAMPLE, [
+      { kind: "page-footers", template: "default", value: { center: "{page}" } }
+    ]);
+    expect(changed).toBe(1);
+    expect(out).toMatch(/footers:[\s\S]*center: ['"]?\{page\}/);
+  });
+});
+
+describe("applyEdits — page-template-add (create-only)", () => {
+  it("creates a new template with size + margin under page-templates", () => {
+    const { out, changed } = apply(SAMPLE, [
+      {
+        kind: "page-template-add",
+        template: "chapter-opener",
+        value: {
+          size: { kind: "named", name: "A5" },
+          margin: { kind: "box", top: "30mm", bottom: "20mm", inner: "18mm", outer: "14mm" }
+        }
+      }
+    ]);
+    expect(changed).toBe(1);
+    expect(out).toMatch(/chapter-opener:[\s\S]*size: A5/);
+    expect(out).toMatch(/chapter-opener:[\s\S]*top: 30mm/);
+    // Existing templates and comments survive
+    expect(out).toContain("default:");
+    expect(out).toContain("cover:");
+    expect(out).toContain("# chosen for the booklet");
+  });
+
+  it("is create-only: never clobbers an existing template", () => {
+    // SAMPLE already has `default` — re-adding it with different values
+    // must be a no-op (the configurator routes edits to existing templates
+    // through the per-field kinds, not page-template-add).
+    const { out, changed } = apply(SAMPLE, [
+      {
+        kind: "page-template-add",
+        template: "default",
+        value: {
+          size: { kind: "named", name: "A4" }, // different
+          margin: { kind: "zero" }              // different
+        }
+      }
+    ]);
+    expect(changed).toBe(0);
+    expect(out).toMatch(/default:[\s\S]*size: A5/); // unchanged
+  });
+
+  it("a new template plus headers in the same batch land on the same key", () => {
+    const { out, changed } = apply(SAMPLE, [
+      {
+        kind: "page-template-add",
+        template: "appendix",
+        value: {
+          size: { kind: "named", name: "A4" },
+          margin: { kind: "box", top: "20mm", bottom: "20mm", inner: "20mm", outer: "20mm" }
+        }
+      },
+      { kind: "page-headers", template: "appendix", value: { center: "Appendix {page}" } }
+    ]);
+    expect(changed).toBe(2);
+    expect(out).toMatch(/appendix:[\s\S]*headers:[\s\S]*center: ['"]?Appendix \{page\}/);
+  });
+});
