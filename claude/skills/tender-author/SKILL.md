@@ -134,7 +134,7 @@ Tender's design vocabulary (colours, fonts, sizes, leadings, spaces) lives in `p
 
 **User-CSS-wins.** Anything you redeclare at `:root` in `styles.css` overrides the token. This is the documented escape hatch: use it for token references (e.g. `--accent: var(--color-brand)`), since token-to-token references inside the YAML aren't supported in v1.
 
-**CLI.** The user can drive token edits with `tender tokens list`, `tender tokens set color.accent '#c33'`, or `tender tokens edit` (opens `$EDITOR` on the block). You can call the CLI or edit `project.yaml` directly — your judgment. Don't change tokens without being asked; they're vocabulary, not implementation detail.
+**CLI.** The user can drive token edits with `tender tokens list`, `tender tokens set color.accent '#c33'` (non-interactive), or `tender configure` (interactive page-setup + token picker, diff-before-write — needs the user's terminal). You call `tender tokens set` or edit `project.yaml` directly — your judgment; never invoke the interactive `tender configure` yourself. Don't change tokens without being asked; they're vocabulary, not implementation detail.
 
 For the canonical worked example, see `packages/core/test/fixtures/open-circle-tags/project.yaml` (6 categories, 17 tokens). For the full reference, see the "Design tokens" section of `docs/user-guide.md`.
 

@@ -9,7 +9,9 @@ import { clean } from "./commands/clean.js";
 import { startPreviewServer } from "./commands/preview.js";
 import { init, formatInitResult, gitInitialCommit, installSkill, formatSkillInstall, SKILL_PROJECT_PATH, KNOWN_EXAMPLES, DEFAULT_EXAMPLE } from "./commands/init.js";
 import type { ExampleName } from "./commands/init.js";
-import { listTokens, formatTokensList, setToken, editTokens } from "./commands/tokens.js";
+import { listTokens, formatTokensList, setToken } from "./commands/tokens.js";
+import { configure } from "./commands/configure.js";
+import { runPageSetup, runTokenPicker } from "./config-edit/index.js";
 import { renderBanner, shouldShowBanner } from "./ui/banner.js";
 import { startSpinner } from "./ui/spinner.js";
 import { confirm } from "./ui/prompt.js";
@@ -203,17 +205,22 @@ program
   .option("--no-git", "don't git init (skips the prompt)")
   .option("--track-out", "keep build output (out/) under version control (skips the prompt)")
   .option("--ignore-out", "ignore out/ in .gitignore (skips the prompt)")
+  .option("--configure-page", "after scaffolding, open the page-setup screen (skips the prompt)")
+  .option("--no-configure-page", "don't open page setup (skips the prompt)")
+  .option("--configure-tokens", "after scaffolding, open the token picker (skips the prompt)")
+  .option("--no-configure-tokens", "don't open the token picker (skips the prompt)")
   .option(
     "--example [name]",
     `scaffold a worked example instead of the minimal starter (available: ${KNOWN_EXAMPLES.join(", ")}; default: ${DEFAULT_EXAMPLE})`
   )
   .addHelpText(
     "after",
-    `\nInteractive on a terminal: prompts for the skill, git init, and whether to\ntrack out/. Pass the matching flag to skip a prompt. Non-interactive\n(piped / CI) defaults: git init yes, skill no, out/ ignored.\n\nExamples:\n  $ tender init                        # scaffold here, then prompt\n  $ tender init my-doc                 # scaffold into ./my-doc\n  $ tender init --skill --git          # non-interactive, install skill + git init\n  $ tender init --no-skill --no-git    # scaffold files only\n  $ tender init --track-out            # keep out/ in git\n  $ tender init --example              # scaffold the open-circle worked example\n  $ tender init --force                # overwrite (careful)\n`
+    `\nInteractive on a terminal: prompts for the skill, git init, whether to\ntrack out/, then optionally page setup and design tokens. Pass the\nmatching flag to skip a prompt. Non-interactive (piped / CI) defaults:\ngit init yes, skill no, out/ ignored, no configurator.\n\nExamples:\n  $ tender init                        # scaffold here, then prompt\n  $ tender init my-doc                 # scaffold into ./my-doc\n  $ tender init --skill --git          # non-interactive, install skill + git init\n  $ tender init --no-skill --no-git    # scaffold files only\n  $ tender init --configure-page       # scaffold, then open page setup\n  $ tender init --track-out            # keep out/ in git\n  $ tender init --example              # scaffold the open-circle worked example\n  $ tender init --force                # overwrite (careful)\n`
   )
   .action(async (dir: string | undefined, opts: {
     force?: boolean; commit?: boolean; example?: string | boolean;
     skill?: boolean; git?: boolean; trackOut?: boolean; ignoreOut?: boolean;
+    configurePage?: boolean; configureTokens?: boolean;
   }) => {
     const target = resolve(dir ?? ".");
     if (shouldShowBanner()) {
@@ -245,6 +252,36 @@ program
     console.log(formatInitResult(result));
     if (result.conflicts.length > 0) {
       process.exit(1); // signal "did not install"; clear from the printed output
+    }
+
+    // Two optional configurator steps, after scaffolding (so project.yaml
+    // exists) and before the commit prompt (so a commit captures the
+    // configured file). Both default no, are independent, TTY-only, and
+    // flag-skippable. Non-interactive: skipped entirely. They run the same
+    // drivers `tender configure` uses, against the just-scaffolded project.
+    const wantPage = await resolveDecision(
+      opts.configurePage, interactive,
+      "Configure page setup (size, margins) now?", false, false
+    );
+    if (wantPage) {
+      try {
+        const r = await runPageSetup(target);
+        console.log(dim(`  page setup: ${r.outcome}${r.outcome === "applied" ? ` (${r.editCount})` : ""}`));
+      } catch (err) {
+        console.error(`${red("page setup failed")}: ${err instanceof Error ? err.message : String(err)}`);
+      }
+    }
+    const wantTokens = await resolveDecision(
+      opts.configureTokens, interactive,
+      "Configure design tokens now?", false, false
+    );
+    if (wantTokens) {
+      try {
+        const r = await runTokenPicker(target);
+        console.log(dim(`  design tokens: ${r.outcome}${r.outcome === "applied" ? ` (${r.editCount})` : ""}`));
+      } catch (err) {
+        console.error(`${red("token picker failed")}: ${err instanceof Error ? err.message : String(err)}`);
+      }
     }
 
     // Offer an initial commit only when we just created the repo, the user
@@ -298,6 +335,32 @@ program
     if (exitCode !== 0) process.exit(exitCode);
   });
 
+program
+  .command("configure [dir]")
+  .description("Interactively adjust page setup and design tokens (TTY required)")
+  .option("--page-only", "configure page size/margins only (skip the token picker)")
+  .option("--tokens-only", "configure design tokens only (skip page setup)")
+  .addHelpText(
+    "after",
+    `\nEdits project.yaml in place, preserving comments and unrelated keys.\nEach screen ends with a diff you confirm before anything is written —\nEnter-through changes nothing. Re-runnable any time. Does not scaffold,\ngit init, or touch the skill (that's \`tender init\`).\n\nExamples:\n  $ tender configure              # page setup, then design tokens\n  $ tender configure my-doc       # against ./my-doc\n  $ tender configure --page-only  # just size/margins\n  $ tender configure --tokens-only\n`
+  )
+  .action(async (dir: string | undefined, opts: { pageOnly?: boolean; tokensOnly?: boolean }) => {
+    if (opts.pageOnly && opts.tokensOnly) {
+      console.error(`${red("error")}: --page-only and --tokens-only are mutually exclusive.`);
+      process.exit(2);
+    }
+    try {
+      const res = await configure(resolve(dir ?? "."), {
+        pageOnly: opts.pageOnly,
+        tokensOnly: opts.tokensOnly
+      });
+      for (const line of res.lines) console.log(line);
+    } catch (err) {
+      console.error(`${red("error")}: ${err instanceof Error ? err.message : String(err)}`);
+      process.exit(1);
+    }
+  });
+
 const tokensCmd = program
   .command("tokens")
   .description("Inspect and edit design tokens");
@@ -329,12 +392,10 @@ tokensCmd
     console.log(dim(`  Wrote ${join(projectDir, "project.yaml")}.`));
   });
 
-tokensCmd
-  .command("edit [dir]")
-  .description("Interactive picker for design tokens (TTY required)")
-  .action(async (dir: string | undefined) => {
-    await editTokens(resolve(dir ?? "."));
-  });
+// `tokens edit` was retired in favour of `tender configure` (#17 slice 4):
+// the design-token picker now lives in the unified configurator alongside
+// page setup, with the mandatory diff-before-write. `tokens list`/`set`
+// stay as the non-interactive surfaces.
 
 // When no subcommand is given, print help. commander defaults to silently
 // exiting 0, which feels like the CLI did nothing.

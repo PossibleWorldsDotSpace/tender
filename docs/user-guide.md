@@ -637,16 +637,15 @@ This keeps the indirection visible in `styles.css` rather than hidden in YAML, a
 
 ### The `tender tokens` CLI
 
-Three subcommands, all operating on `project.yaml` in the current directory (or the path you pass).
+Two subcommands, both operating on `project.yaml` in the current directory (or the path you pass).
 
 ```
 tender tokens list                          # human-readable listing, grouped by category
 tender tokens list --json                   # machine-readable, for editor tooling
 tender tokens set color.accent '#FF6600'    # creates the token if not present; updates if it is
-tender tokens edit                          # opens $EDITOR on the design-tokens block (TTY required)
 ```
 
-`set` is the right tool for scripted tweaks and one-off changes; `edit` is the right tool when you're rebalancing a whole palette and want a real editor. `list --json` is what the VS Code extension and the `tender-author` Claude skill consume.
+`set` is the right tool for scripted tweaks and one-off changes. For interactively rebalancing a whole palette, use [`tender configure`](#tender-configure-dir) (which also covers page setup) — it supersedes the old `tender tokens edit`. `list --json` is what the VS Code extension and the `tender-author` Claude skill consume.
 
 ### Lint codes
 
@@ -978,15 +977,17 @@ CLI behaviour:
 
 Scaffolds a Tender project. Idempotent: every scaffolded file (`project.yaml`, `styles.css`, `content.md`, `components/README.md`, `.gitignore`) is *created* if absent, *preserved* if present. Default `dir` is the current directory.
 
-After scaffolding files, on an **interactive terminal** it asks three questions:
+After scaffolding files, on an **interactive terminal** it asks:
 
 1. **Install the tender-author Claude skill?** (default **yes**) — copies the skill into the project at `.claude/skills/tender-author/`. It's project-local: it lives in your repo, travels with it, and Claude Code picks it up automatically when the project is open. See [Authoring with Claude Code](#authoring-with-claude-code). Declining is cheap — add it later with `tender add-skill`.
 2. **Initialize a git repository?** (default **yes**) — runs `git init` unless the directory is already inside a repo. If git isn't installed it says so and carries on; scaffolding still succeeds.
 3. **Keep build output (`out/`) under version control?** (default **no**) — controls whether the scaffolded `.gitignore` ignores `out/`. Say yes if you want the built PDF/HTML diffed or distributed via git.
+4. **Configure page setup now?** (default **no**) — opens the interactive page-setup screen (size, margins) against the just-scaffolded `project.yaml`. Same screen as [`tender configure`](#tender-configure-dir); skip it and run that any time later.
+5. **Configure design tokens now?** (default **no**) — opens the design-token picker. Also part of `tender configure`.
 
-If git was initialized it then also asks whether to make an initial commit (`y` → `git add -A && git commit`); `--no-commit` skips that one prompt.
+If git was initialized it then also asks whether to make an initial commit (`y` → `git add -A && git commit`); `--no-commit` skips that one prompt. The commit (if made) captures any page-setup/token changes, since the configurator runs first.
 
-Every question has a flag that **skips the prompt** (useful for scripts and for power users): `--skill` / `--no-skill`, `--git` / `--no-git`, `--track-out` / `--ignore-out`. When stdin **isn't a TTY** (piped, CI) no prompts are shown and these documented defaults apply: **git init yes, skill no, `out/` ignored** — flags override them.
+Every question has a flag that **skips the prompt** (useful for scripts and for power users): `--skill` / `--no-skill`, `--git` / `--no-git`, `--track-out` / `--ignore-out`, `--configure-page` / `--no-configure-page`, `--configure-tokens` / `--no-configure-tokens`. When stdin **isn't a TTY** (piped, CI) no prompts are shown and these documented defaults apply: **git init yes, skill no, `out/` ignored, no configurator** — flags override them.
 
 ```
 tender init                       # scaffold around the cwd, then prompt
@@ -1094,18 +1095,32 @@ In a multi-document project an explicit path is required; calling `tender clean`
 
 Set `clean.typography: smart` in `project.yaml` to make `--typography` the default for that project.
 
-### `tender tokens list|set|edit`
+### `tender configure [dir]`
 
-Inspect and modify the `design-tokens:` block in `project.yaml` without opening the file. The full reference is in [Design tokens → The `tender tokens` CLI](#the-tender-tokens-cli); a quick reminder of the subcommands:
+Interactively adjust the foundational `project.yaml` config — page setup (size, margins per template) and design tokens — against an existing project. Re-runnable any time; it does not scaffold, `git init`, or touch the skill (that's `tender init`'s job).
+
+```
+tender configure              # page setup, then the design-token picker
+tender configure my-doc       # against ./my-doc
+tender configure --page-only  # just size/margins
+tender configure --tokens-only
+```
+
+Each screen prefills from the current `project.yaml` and ends with a **diff you confirm before anything is written** — walking through and pressing Enter changes nothing. Writes round-trip through a YAML AST, so comments, key ordering, and unrelated keys survive. TTY required: a wizard has no non-interactive meaning, so on a pipe/CI it errors and points you at `tender tokens set` or editing `project.yaml` directly. `tender init` offers the same two screens as optional post-scaffold prompts.
+
+> The interactive picker that was `tender tokens edit` now lives here, alongside page setup, with the mandatory diff-before-write.
+
+### `tender tokens list|set`
+
+Inspect and modify the `design-tokens:` block in `project.yaml` without opening the file, non-interactively. The full reference is in [Design tokens → The `tender tokens` CLI](#the-tender-tokens-cli); a quick reminder of the subcommands:
 
 ```
 tender tokens list                          # human-readable listing, grouped by category
 tender tokens list --json                   # machine-readable, for editor tooling
 tender tokens set color.accent '#FF6600'    # creates the token if not present; updates if it is
-tender tokens edit                          # opens an interactive picker on the design-tokens block (TTY required)
 ```
 
-`tender tokens set` round-trips the YAML through an AST edit, so existing comments, key ordering, and formatting in `project.yaml` survive the write. Unknown categories and names are allowed (the schema treats categories as open-ended); the lint pass flags suspicious value shapes separately — see [Validation](#validation).
+`tender tokens set` round-trips the YAML through an AST edit, so existing comments, key ordering, and formatting in `project.yaml` survive the write. Unknown categories and names are allowed (the schema treats categories as open-ended); the lint pass flags suspicious value shapes separately — see [Validation](#validation). For interactive, multi-token editing use [`tender configure`](#tender-configure-dir).
 
 ---
 
