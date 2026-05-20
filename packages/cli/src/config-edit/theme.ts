@@ -284,9 +284,11 @@ export const copy = {
     }
   },
 
-  /** The init prompts (post-scaffold, optional, default no). */
+  /** The init prompts (post-scaffold, optional, default no). Phrased in
+   * parallel so the two steps read as siblings under the "Configure"
+   * section heading. */
   initPrompt: {
-    page: "Set up the page now? (size, margins)",
+    page: "Set up page templates now? (size, margins, headers)",
     tokens: "Set up design tokens now? (colours, lengths, fonts)"
   },
 

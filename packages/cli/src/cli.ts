@@ -15,7 +15,7 @@ import { runPageSetup, runTokenPicker, copy } from "./config-edit/index.js";
 import { renderBanner, shouldShowBanner } from "./ui/banner.js";
 import { startSpinner } from "./ui/spinner.js";
 import { confirm } from "./ui/prompt.js";
-import { red, dim, cyan } from "./ui/style.js";
+import { red, dim, cyan, section } from "./ui/style.js";
 
 // Resolve the package version at runtime from the CLI's own package.json.
 // `tender --version` previously hard-coded "0.0.0", which is fine in dev
@@ -239,6 +239,12 @@ program
 
     const interactive = process.stdin.isTTY === true;
 
+    // ─── Setup ───────────────────────────────────────────────────────────
+    // The three baseline choices: skill, git, out/ tracking. Section header
+    // only emitted on an interactive TTY — on a pipe/CI the headings would
+    // just be visual noise around prompts the user never sees.
+    if (interactive) process.stdout.write(section("Setup"));
+
     // Resolve each decision: an explicit flag always wins; otherwise prompt
     // on a terminal; otherwise fall back to the documented non-interactive
     // default (git yes — historical behaviour; skill no; out/ ignored).
@@ -254,11 +260,14 @@ program
       process.exit(1); // signal "did not install"; clear from the printed output
     }
 
+    // ─── Configure ───────────────────────────────────────────────────────
     // Two optional configurator steps, after scaffolding (so project.yaml
     // exists) and before the commit prompt (so a commit captures the
     // configured file). Both default no, are independent, TTY-only, and
     // flag-skippable. Non-interactive: skipped entirely. They run the same
     // drivers `tender configure` uses, against the just-scaffolded project.
+    if (interactive) process.stdout.write(section("Configure"));
+
     const summarizeOutcome = (
       screen: string,
       r: { outcome: "applied" | "no-op" | "cancelled"; editCount: number }
@@ -295,10 +304,13 @@ program
       }
     }
 
+    // ─── Finish ──────────────────────────────────────────────────────────
     // Offer an initial commit only when we just created the repo, the user
     // didn't pass --no-commit, and we're on an interactive terminal (no point
     // prompting a script — and a scripted caller can run `git commit` itself).
-    if (result.git.action === "created" && opts.commit !== false && interactive) {
+    const offerCommit = result.git.action === "created" && opts.commit !== false && interactive;
+    if (offerCommit) {
+      process.stdout.write(section("Finish"));
       if (await confirm("Make an initial commit?", false)) {
         try {
           await gitInitialCommit(target);
@@ -359,6 +371,9 @@ program
     if (opts.pageOnly && opts.tokensOnly) {
       console.error(`${red("error")}: ${copy.pageTokensExclusive}`);
       process.exit(2);
+    }
+    if (shouldShowBanner()) {
+      process.stdout.write(renderBanner());
     }
     try {
       const res = await configure(resolve(dir ?? "."), {

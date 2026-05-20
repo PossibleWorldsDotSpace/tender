@@ -43,3 +43,16 @@ export function stripAnsi(s: string): string {
   // eslint-disable-next-line no-control-regex
   return s.replace(/\x1b\[[0-9;]*m/g, "");
 }
+
+/**
+ * Section header — a visible landmark in a multi-stage CLI flow (e.g. the
+ * three stages of `tender init`: setup → configure → finish). Bold title
+ * over a dim divider sized to the title. Renders as two lines + a leading
+ * blank, so callers don't have to bracket it with their own whitespace.
+ *
+ * Plain-text fallback (no color): the title and an ASCII rule of "─"
+ * still produce a visible landmark — the divider isn't colour-dependent.
+ */
+export function section(title: string): string {
+  return `\n${bold(title)}\n${dim("─".repeat(title.length))}\n`;
+}
