@@ -111,7 +111,7 @@ Most desktop Linux distros include these by default; the list matters mainly for
 For contributors, or to track `trunk`:
 
 ```
-git clone https://github.com/joshajh/tender.git
+git clone https://github.com/possibleworldsdotspace/tender.git
 cd tender
 pnpm install
 pnpm -r build
@@ -225,10 +225,10 @@ The skill is scoped to five authoring concerns: components, styling tweaks, cont
 
 A VS Code extension lives in [`packages/vscode-extension/`](packages/vscode-extension/). It spawns the language server, registers `.tender` as a custom language with TextMate grammars and snippets, and provides completion, hover, diagnostics, and definition jumps for both `.tender` files and tag-syntax in markdown documents.
 
-The extension isn't on the marketplace yet ([#2](https://github.com/joshajh/tender/issues/2)). The supported install path is to run it from a clone of the repo:
+The extension isn't on the marketplace yet ([#2](https://github.com/possibleworldsdotspace/tender/issues/2)). The supported install path is to run it from a clone of the repo:
 
 ```bash
-git clone https://github.com/joshajh/tender.git
+git clone https://github.com/possibleworldsdotspace/tender.git
 cd tender
 pnpm install
 pnpm -r build

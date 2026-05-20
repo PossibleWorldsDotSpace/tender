@@ -27,6 +27,6 @@ Watch your step.
 </callout>
 ```
 
-For the full format reference (block templates with `params`/`slots`, inline-only components, the `<palette>` block, etc.), see the [Tender user guide](https://github.com/joshajh/tender/blob/main/docs/user-guide.md). For a complete worked example, see [`packages/core/test/fixtures/open-circle-tags/`](https://github.com/joshajh/tender/tree/main/packages/core/test/fixtures/open-circle-tags) in the Tender repository.
+For the full format reference (block templates with `params`/`slots`, inline-only components, the `<palette>` block, etc.), see the [Tender user guide](https://github.com/possibleworldsdotspace/tender/blob/main/docs/user-guide.md). For a complete worked example, see [`packages/core/test/fixtures/open-circle-tags/`](https://github.com/possibleworldsdotspace/tender/tree/main/packages/core/test/fixtures/open-circle-tags) in the Tender repository.
 
 This `README.md` is harmless to keep or delete.
