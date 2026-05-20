@@ -1,0 +1,63 @@
+name: Release
+
+# Triggered when a v* tag is pushed. Builds the whole workspace, runs the
+# full test suite, then publishes @possibleworlds/tender to npm with
+# provenance. Other workspace packages stay private.
+#
+# Requires repo secret NPM_TOKEN — an automation token from the
+# possibleworlds npm org with publish access to @possibleworlds/tender.
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: read
+  id-token: write    # for `npm publish --provenance`
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v3
+        with: { version: 9 }
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+          registry-url: https://registry.npmjs.org
+
+      - name: Verify tag matches @possibleworlds/tender version
+        run: |
+          TAG_VERSION="${GITHUB_REF_NAME#v}"
+          PKG_VERSION=$(node -p "require('./packages/cli/package.json').version")
+          if [ "$TAG_VERSION" != "$PKG_VERSION" ]; then
+            echo "::error::Tag ${GITHUB_REF_NAME} does not match packages/cli/package.json version ${PKG_VERSION}"
+            exit 1
+          fi
+          echo "Tag and package.json agree on ${PKG_VERSION}."
+
+      - run: pnpm install --frozen-lockfile
+
+      - run: pnpm -r typecheck
+
+      - run: pnpm -r build
+
+      - run: pnpm -r test
+
+      - run: node scripts/lint-skill.mjs
+
+      - name: Publish @possibleworlds/tender
+        working-directory: packages/cli
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: npm publish --provenance --access public
+
+      - name: Create GitHub release
+        uses: softprops/action-gh-release@v2
+        with:
+          generate_release_notes: true
