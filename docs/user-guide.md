@@ -1084,8 +1084,10 @@ Live-reloading HTML preview. Edits to `project.yaml`, `styles.css`, any document
 tender preview my-doc
 tender preview my-doc --doc resume            # preselect a document in the dropdown
 tender preview my-doc --port 3993
-tender preview my-doc --host 0.0.0.0          # expose on LAN/Tailscale
+tender preview my-doc --host 0.0.0.0          # expose on LAN/Tailscale (see Security)
 ```
+
+> **Security:** `--host` accepts any bind address, but the preview server has no authentication. Binding to anything other than `127.0.0.1` makes your project source, assets, and rendered PDFs readable by anyone on the network. The CLI prints a prominent warning when the bind is non-loopback. See "Security considerations" below.
 
 The preview shows pages as printed sheets — white sheets with a soft drop shadow, page numbers, and margin guides, floating on the preview UI's dark workspace background. In a multi-document project the UI carries a dropdown to switch between documents. Build errors surface in the terminal and as a browser overlay; the server stays up and recovers when you fix the error. Stop with Ctrl-C.
 
@@ -1179,9 +1181,11 @@ Once `.claude/skills/tender-author/` is in the project, any Claude Code session 
 
 ## Security considerations
 
-Tender renders via headless Chromium, launched with `--no-sandbox`. The flag is required on Linux hosts that disable unprivileged user namespaces (most CI environments fall into this category). The tradeoff: the rendering process runs without Chromium's normal sandbox isolation.
+**Headless Chromium.** Tender renders via headless Chromium, launched with `--no-sandbox`. The flag is required on Linux hosts that disable unprivileged user namespaces (most CI environments fall into this category). The tradeoff: the rendering process runs without Chromium's normal sandbox isolation.
 
 This is acceptable for the typical Tender use case — rendering local source files you author yourself. The risk surface only matters if you pipe **untrusted** content (Markdown, YAML, raw HTML, or images) into the build, in which case a malicious document could include script content that runs in the headless browser without sandboxing. Hosted-service deployments should consider running Tender in a separate container or VM and reviewing input sanitization.
+
+**Preview server network exposure.** `tender preview` binds to `127.0.0.1` by default. When `--host` is set to anything else — `0.0.0.0`, a LAN IP, a Tailscale IP — the server is reachable from the network, and the server has no authentication: anyone who can connect to the port can read your project source under `/assets`, any rendered PDF under `/_api/out/<file>.pdf`, and the full HTML preview. The CLI prints a prominent stderr warning on every non-loopback bind. Use `127.0.0.1` unless you understand the exposure and trust the network.
 
 ## What's not in v1
 

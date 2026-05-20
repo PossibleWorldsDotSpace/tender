@@ -15,7 +15,7 @@ import { runPageSetup, runTokenPicker, copy } from "./config-edit/index.js";
 import { renderBanner, shouldShowBanner } from "./ui/banner.js";
 import { startSpinner } from "./ui/spinner.js";
 import { confirm } from "./ui/prompt.js";
-import { red, dim, cyan, section } from "./ui/style.js";
+import { red, dim, cyan, yellow, bold, section } from "./ui/style.js";
 
 // Resolve the package version at runtime from the CLI's own package.json.
 // `tender --version` previously hard-coded "0.0.0", which is fine in dev
@@ -177,6 +177,9 @@ program
     } catch (err) {
       spinner.fail(`Failed to start preview: ${err instanceof Error ? err.message : String(err)}`);
       process.exit(1);
+    }
+    if (!isLoopbackHost(server.host)) {
+      printNonLoopbackWarning(server.host, server.port);
     }
     console.log(dim("  Watching for changes. Press Ctrl-C to stop."));
     let shuttingDown = false;
@@ -466,6 +469,23 @@ tokensCmd
 // the design-token picker now lives in the unified configurator alongside
 // page setup, with the mandatory diff-before-write. `tokens list`/`set`
 // stay as the non-interactive surfaces.
+
+function isLoopbackHost(host: string): boolean {
+  if (host === "localhost" || host === "127.0.0.1" || host === "::1") return true;
+  if (host.startsWith("127.")) return true;
+  return false;
+}
+
+function printNonLoopbackWarning(host: string, port: number): void {
+  const url = `http://${host}:${port}/`;
+  console.warn("");
+  console.warn(yellow(bold("  ⚠  Preview server is reachable from the network.")));
+  console.warn(yellow(`     Bound to ${url} — anyone who can reach this host`));
+  console.warn(yellow("     can read your project source, assets, and rendered PDFs."));
+  console.warn(yellow("     The preview server has no authentication."));
+  console.warn(dim("     Use 127.0.0.1 (the default) unless you understand the exposure."));
+  console.warn("");
+}
 
 // When no subcommand is given, print help. commander defaults to silently
 // exiting 0, which feels like the CLI did nothing.
