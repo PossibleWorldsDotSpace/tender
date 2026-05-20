@@ -46,11 +46,14 @@ const SLOT_KEYS = ["left", "center", "right"] as const;
 type SlotKey = (typeof SLOT_KEYS)[number];
 
 /**
- * Field discriminator. The list view emits only `template-row`s; the
+ * Field discriminator. The list view emits one `template-row` per template
+ * plus a single synthetic `add-template-row` at the bottom (so the add-flow
+ * is a first-class navigable row, not just a hidden shortcut); the
  * template view emits the size/margin/header/footer rows for one template.
  */
 export type Field =
   | { kind: "template-row"; template: string }
+  | { kind: "add-template-row" }
   | { kind: "size"; template: string }
   | { kind: "margin"; template: string; box: MarginKey }
   | { kind: "header-mode"; template: string }
@@ -195,7 +198,10 @@ function clone<T>(o: T): T {
 /** Recompute the field list for the given view + current template. */
 function fieldsFor(state: Pick<PageSetupState, "view" | "currentTemplate" | "templates">): Field[] {
   if (state.view === "list") {
-    return state.templates.map(t => ({ kind: "template-row", template: t } as const));
+    return [
+      ...state.templates.map(t => ({ kind: "template-row", template: t } as const)),
+      { kind: "add-template-row" } as const
+    ];
   }
   const t = state.currentTemplate!;
   const fs: Field[] = [{ kind: "size", template: t }];
@@ -296,15 +302,24 @@ function reduceList(state: PageSetupState, key: KeyEvent): PageSetupState {
   if (key.name === "down") {
     return {
       ...state,
-      cursor: Math.min(Math.max(0, state.templates.length - 1), state.cursor + 1),
+      // Includes the trailing add-template-row, so the cursor can land on it.
+      cursor: Math.min(Math.max(0, state.fields.length - 1), state.cursor + 1),
       status: ""
     };
   }
   if (key.name === "return") {
     const row = state.fields[state.cursor];
-    if (!row || row.kind !== "template-row") return state;
-    return enterTemplate(state, row.template);
+    if (!row) return state;
+    if (row.kind === "add-template-row") {
+      return { ...state, add: { buffer: "", error: "" }, status: "" };
+    }
+    if (row.kind === "template-row") {
+      return enterTemplate(state, row.template);
+    }
+    return state;
   }
+  // Keyboard shortcut: `a` still opens the add flow from anywhere on the
+  // list, so power users don't have to navigate to the bottom row.
   if (key.str === "a") {
     return { ...state, add: { buffer: "", error: "" }, status: "" };
   }
@@ -778,15 +793,40 @@ function renderAddTemplate(L: string[], add: AddTemplateDraft, theme: Theme): st
 function renderList(L: string[], state: PageSetupState, theme: Theme): string {
   L.push(theme.hint(copy.page.listLegend));
   L.push("");
-  L.push(theme.hint(copy.page.listIntro));
+  // Intro reads differently depending on whether the project already has
+  // more than just the default template — first-time users need to learn
+  // that multiple templates are possible (and optional); experienced users
+  // just want to see and edit their list.
+  const intro = state.templates.length <= 1
+    ? copy.page.listIntroSingle
+    : copy.page.listIntro;
+  L.push(theme.hint(intro));
   L.push("");
 
   // Compute a summary per template: size + a margin shape descriptor.
-  const w = Math.max(...state.templates.map(t => t.length));
-  for (let i = 0; i < state.templates.length; i++) {
-    const t = state.templates[i]!;
+  // `padEnd` width includes the synthetic add-row's visible label so the
+  // alignment between template rows and the add row reads coherently.
+  const w = Math.max(
+    ...state.templates.map(t => t.length),
+    copy.page.addRowLabel.length
+  );
+  for (let i = 0; i < state.fields.length; i++) {
+    const f = state.fields[i]!;
     const onCursor = i === state.cursor;
     const mark = onCursor ? glyph.cursor : glyph.cursorOff;
+
+    if (f.kind === "add-template-row") {
+      // Visually distinct: the `+` glyph marks it as a create action, and
+      // the label is dimmed (it's a verb, not a piece of config). The
+      // cursor still highlights it when focused.
+      L.push("");
+      const prefix = `${mark} ${theme.added(glyph.added)} ${copy.page.addRowLabel.padEnd(w - 2)}`;
+      const hint = theme.hint(copy.page.addRowHint);
+      L.push(`${onCursor ? theme.cursor(prefix) : prefix}  ${hint}`);
+      continue;
+    }
+    // template-row
+    const t = f.template;
     const sz = summarizeSize(state.size[t]!);
     const mg = summarizeMargin(state.margin[t]!);
     const tag = t === "default" ? ` ${theme.hint("(immutable)")}` : "";

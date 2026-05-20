@@ -19,6 +19,8 @@ function drive(s: TokenPickerState, keys: KeyEvent[]): TokenPickerState {
 }
 const down: KeyEvent = { name: "down" };
 const up: KeyEvent = { name: "up" };
+const left: KeyEvent = { name: "left" };
+const right: KeyEvent = { name: "right" };
 const enter: KeyEvent = { name: "return" };
 const esc: KeyEvent = { name: "escape" };
 const bs: KeyEvent = { name: "backspace" };
@@ -153,6 +155,50 @@ describe("reduce — add a new token", () => {
     let s = drive(s0, [ch("a"), ...type("foo"), esc]);
     expect(s.phase).toBe("browse");
     expect(s.rows).toHaveLength(n);
+  });
+
+  it("category opens in pick mode with `color` highlighted", () => {
+    const s0 = initTokenPicker(CONFIG);
+    const s = reduce(s0, ch("a"));
+    expect(s.add.categoryMode).toBe("pick");
+    expect(s.add.categoryPick).toBe(0);
+    expect(s.add.category).toBe("color");
+  });
+
+  it("←/→ cycle the category pick with wraparound, ↵ commits a conventional pick", () => {
+    const s0 = initTokenPicker(CONFIG);
+    let s = reduce(s0, ch("a"));
+    s = drive(s, [right, right]); // color → size → font
+    expect(s.add.category).toBe("font");
+    s = drive(s, [left, left, left]); // font → size → color → wrap to other
+    expect(s.add.category).toBe("other");
+    // ↵ on "other" pivots to free-text, not commit
+    s = reduce(s, enter);
+    expect(s.add.categoryMode).toBe("freetext");
+    expect(s.add.category).toBe("");
+    expect(s.add.step).toBe("category");
+    // Typing in free-text now builds up the buffer
+    s = drive(s, [...type("mood"), enter]);
+    expect(s.add.step).toBe("name");
+    s = drive(s, [...type("vibes"), enter, ...type("warm"), enter]);
+    expect(s.rows.find(r => r.category === "mood")!.value).toBe("warm");
+  });
+
+  it("typing a printable key in pick mode flips to free-text using that key", () => {
+    const s0 = initTokenPicker(CONFIG);
+    let s = reduce(s0, ch("a"));
+    expect(s.add.categoryMode).toBe("pick");
+    s = drive(s, [ch("z")]);
+    expect(s.add.categoryMode).toBe("freetext");
+    expect(s.add.category).toBe("z");
+  });
+
+  it("↵ on a conventional pick commits it and advances to name", () => {
+    const s0 = initTokenPicker(CONFIG);
+    // initial pick is `color`; ↵ should commit and advance.
+    let s = drive(s0, [ch("a"), enter]);
+    expect(s.add.step).toBe("name");
+    expect(s.add.category).toBe("color");
   });
 });
 

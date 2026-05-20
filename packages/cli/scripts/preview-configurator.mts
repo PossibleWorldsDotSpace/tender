@@ -122,6 +122,18 @@ async function main(): Promise<void> {
     const listCover = drive<PageSetupState>(list0, pageReduce, [key("down")]);
     frame("page setup — list with cursor on a non-default", renderPage(listCover, ansiTheme));
 
+    // Single-template orientation: the first thing a fresh `tender init`
+    // user sees after opting into page setup. Teaches that adding more
+    // templates is possible *and* optional.
+    await withEmptyTokensProject(async (singleDir) => {
+      const singleConfig = await loadProjectConfig(singleDir);
+      const singleList = initPageSetup(singleConfig);
+      frame(
+        "page setup — list with only `default` (single-template intro)",
+        renderPage(singleList, ansiTheme)
+      );
+    });
+
     /* ===================== Add template sub-flow ===================== */
     const addStart = drive<PageSetupState>(list0, pageReduce, [ch("a")]);
     frame("page setup — add template (empty buffer)", renderPage(addStart, ansiTheme));
@@ -194,12 +206,44 @@ async function main(): Promise<void> {
     frame("tokens — editing a value", renderTokens(tokEditing, ansiTheme));
 
     /* ===================== Design tokens — add flow with hints ===================== */
-    const tokAdd = drive<TokenPickerState>(tok0, tokenReduce, [ch("a")]);
-    frame("tokens — add: category step (with hint)", renderTokens(tokAdd, ansiTheme));
+    // Category step opens in pick mode with `color` highlighted.
+    const tokAddPickColor = drive<TokenPickerState>(tok0, tokenReduce, [ch("a")]);
+    frame(
+      "tokens — add: category pick (color highlighted)",
+      renderTokens(tokAddPickColor, ansiTheme)
+    );
 
+    // Cursor moved to `font` via ←/→.
+    const tokAddPickFont = drive<TokenPickerState>(tokAddPickColor, tokenReduce, [
+      key("right"), key("right")
+    ]);
+    frame(
+      "tokens — add: category pick (font highlighted)",
+      renderTokens(tokAddPickFont, ansiTheme)
+    );
+
+    // Cursor on `other` — about to pivot to free-text.
+    const tokAddPickOther = drive<TokenPickerState>(tokAddPickColor, tokenReduce, [
+      key("left") // wraps to "other"
+    ]);
+    frame(
+      "tokens — add: category pick (other highlighted; ↵ flips to free-text)",
+      renderTokens(tokAddPickOther, ansiTheme)
+    );
+
+    // After ↵ on `other`: free-text input with the matching hint.
+    const tokAddFreetext = drive<TokenPickerState>(tokAddPickOther, tokenReduce, [
+      key("return"), ...type("mood")
+    ]);
+    frame(
+      "tokens — add: category free-text (after picking other)",
+      renderTokens(tokAddFreetext, ansiTheme)
+    );
+
+    // Pick a conventional category → name → value (hex hint shows).
     const tokAddColorValue = drive<TokenPickerState>(tok0, tokenReduce, [
       ch("a"),
-      ...type("color"), key("return"),
+      key("return"), // commit "color" (the default pick)
       ...type("link"), key("return")
     ]);
     frame(
@@ -207,9 +251,10 @@ async function main(): Promise<void> {
       renderTokens(tokAddColorValue, ansiTheme)
     );
 
+    // Pick `size` → name → value (length hint).
     const tokAddSizeValue = drive<TokenPickerState>(tok0, tokenReduce, [
       ch("a"),
-      ...type("size"), key("return"),
+      key("right"), key("return"), // pick "size", commit
       ...type("caption"), key("return")
     ]);
     frame(
@@ -217,9 +262,10 @@ async function main(): Promise<void> {
       renderTokens(tokAddSizeValue, ansiTheme)
     );
 
+    // Custom category (via free-text fallback) → no value hint.
     const tokAddCustom = drive<TokenPickerState>(tok0, tokenReduce, [
       ch("a"),
-      ...type("mood"), key("return"),
+      ...type("mood"), key("return"), // typing flips to free-text, commits "mood"
       ...type("vibes"), key("return")
     ]);
     frame(

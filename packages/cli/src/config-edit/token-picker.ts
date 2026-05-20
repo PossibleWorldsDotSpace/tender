@@ -59,14 +59,33 @@ interface TokenRow {
 
 type Phase = "browse" | "edit" | "add" | "confirm" | "done" | "cancelled";
 
-/** State for the "add a token" sub-flow. */
+/**
+ * State for the "add a token" sub-flow.
+ *
+ * Category step is two-mode:
+ *  - `"pick"`: ←/→ cycles the conventional categories + "other"; ↵ on a
+ *    conventional one commits & advances; ↵ on "other" flips to free-text.
+ *  - `"freetext"`: type your own category name; ↵ commits & advances.
+ *
+ * `category` is the buffer in either mode (in pick mode it tracks the
+ * highlighted CATEGORY_PICKS entry so the commit/advance step is uniform).
+ */
 interface AddDraft {
   step: "category" | "name" | "value";
+  categoryMode: "pick" | "freetext";
+  /** Index into CATEGORY_PICKS while categoryMode === "pick". Ignored
+   * otherwise. Kept on the draft so cursor position survives re-renders. */
+  categoryPick: number;
   category: string;
   name: string;
   value: string;
   error: string;
 }
+
+/** The conventional categories surfaced as a pick-list. "other" is a
+ * pseudo-entry that drops to free-text; selecting it doesn't commit. */
+export const CATEGORY_PICKS = ["color", "size", "font", "space", "other"] as const;
+type CategoryPick = (typeof CATEGORY_PICKS)[number];
 
 export interface TokenPickerState {
   rows: TokenRow[];
@@ -95,7 +114,15 @@ export function initTokenPicker(config: ProjectConfig): TokenPickerState {
     cursor: 0,
     phase: "browse",
     buffer: "",
-    add: { step: "category", category: "", name: "", value: "", error: "" },
+    add: {
+      step: "category",
+      categoryMode: "pick",
+      categoryPick: 0,
+      category: CATEGORY_PICKS[0],
+      name: "",
+      value: "",
+      error: ""
+    },
     status: ""
   };
 }
@@ -181,7 +208,15 @@ export function reduce(
     return {
       ...state,
       phase: "add",
-      add: { step: "category", category: "", name: "", value: "", error: "" }
+      add: {
+        step: "category",
+        categoryMode: "pick",
+        categoryPick: 0,
+        category: CATEGORY_PICKS[0],
+        name: "",
+        value: "",
+        error: ""
+      }
     };
   }
   if (key.str === "s") {
@@ -199,15 +234,41 @@ function reduceAdd(
   if (key.name === "escape") {
     return { ...state, phase: "browse", status: copy.tokens.addCancelled };
   }
+
+  // ←/→ only meaningful while picking a category from the conventional list.
+  // Cycles CATEGORY_PICKS with wraparound so the row reads as a real list.
+  if (
+    add.step === "category" &&
+    add.categoryMode === "pick" &&
+    (key.name === "left" || key.name === "right")
+  ) {
+    const delta = key.name === "right" ? 1 : -1;
+    add.categoryPick = (add.categoryPick + delta + CATEGORY_PICKS.length) % CATEGORY_PICKS.length;
+    add.category = CATEGORY_PICKS[add.categoryPick]!;
+    add.error = "";
+    return { ...state, add };
+  }
+
   if (key.name === "backspace") {
-    if (add.step === "category") add.category = add.category.slice(0, -1);
-    else if (add.step === "name") add.name = add.name.slice(0, -1);
-    else add.value = add.value.slice(0, -1);
+    // Pick-mode category has no buffer to delete (it's a fixed-choice row);
+    // free-text mode lets you trim the buffer like any text field.
+    if (add.step === "category" && add.categoryMode === "freetext") {
+      add.category = add.category.slice(0, -1);
+    } else if (add.step === "name") add.name = add.name.slice(0, -1);
+    else if (add.step === "value") add.value = add.value.slice(0, -1);
     add.error = "";
     return { ...state, add };
   }
   if (key.name === "return") {
     if (add.step === "category") {
+      // "other" in pick mode pivots to free-text instead of committing —
+      // gives the open-ended path without sacrificing the guided default.
+      if (add.categoryMode === "pick" && add.category === "other") {
+        add.categoryMode = "freetext";
+        add.category = "";
+        add.error = "";
+        return { ...state, add };
+      }
       if (!isValidIdent(add.category)) {
         add.error = copy.tokens.badIdent(copy.tokens.addFieldCategory);
         return { ...state, add };
@@ -252,13 +313,30 @@ function reduceAdd(
       rows,
       cursor: rows.length - 1,
       phase: "browse",
-      add: { step: "category", category: "", name: "", value: "", error: "" },
+      add: {
+        step: "category",
+        categoryMode: "pick",
+        categoryPick: 0,
+        category: CATEGORY_PICKS[0],
+        name: "",
+        value: "",
+        error: ""
+      },
       status: copy.tokens.added(`${add.category}.${add.name}`)
     };
   }
   if (key.str && key.str.length === 1 && key.str >= " ") {
-    if (add.step === "category") add.category += key.str;
-    else if (add.step === "name") add.name += key.str;
+    if (add.step === "category") {
+      // Typing a printable key while picking a category flips to free-text
+      // and uses that key as the first character — the user clearly wants a
+      // category we don't list, so the conventional choices step aside.
+      if (add.categoryMode === "pick") {
+        add.categoryMode = "freetext";
+        add.category = key.str;
+      } else {
+        add.category += key.str;
+      }
+    } else if (add.step === "name") add.name += key.str;
     else add.value += key.str;
     add.error = "";
     return { ...state, add };
@@ -324,22 +402,43 @@ export function render(
     // value gets `editing`, joined raw. (The ui/style wrappers all close
     // with the same SGR reset, so a span-in-span loses the outer colour
     // after the inner reset — keep them siblings, never nested.)
-    const field = (key: AddDraft["step"], label: string, val: string): string => {
+    const textField = (key: AddDraft["step"], label: string, val: string): string => {
       const active = a.step === key;
       const mark = active ? glyph.cursor : glyph.cursorOff;
       const prefix = `${mark} ${label.padEnd(8)} `;
       if (!active) return `${prefix}${val}`;
       return `${theme.cursor(prefix)}${theme.editing(`${val}${glyph.caret}`)}`;
     };
-    L.push(field("category", copy.tokens.addFieldCategory, a.category));
-    L.push(field("name", copy.tokens.addFieldName, a.name));
-    L.push(field("value", copy.tokens.addFieldValue, a.value));
+
+    // Category row: a pick-list when categoryMode === "pick", otherwise a
+    // free-text editor (same shape as the other two fields).
+    const catActive = a.step === "category";
+    const catMark = catActive ? glyph.cursor : glyph.cursorOff;
+    const catPrefix = `${catMark} ${copy.tokens.addFieldCategory.padEnd(8)} `;
+    if (a.categoryMode === "pick") {
+      // ◉ color  ○ size  ○ font  ○ space  ○ other — selected one gets
+      // theme.editing if the row is active, the rest stay neutral.
+      const picks = CATEGORY_PICKS.map((p, i) => {
+        const radio = i === a.categoryPick ? glyph.radioOn : glyph.radioOff;
+        const label = `${radio} ${p}`;
+        return i === a.categoryPick && catActive ? theme.editing(label) : label;
+      }).join("  ");
+      L.push(`${catActive ? theme.cursor(catPrefix) : catPrefix}${picks}`);
+    } else {
+      L.push(textField("category", copy.tokens.addFieldCategory, a.category));
+    }
+    L.push(textField("name", copy.tokens.addFieldName, a.name));
+    L.push(textField("value", copy.tokens.addFieldValue, a.value));
 
     // Contextual hint under the active field — guides format without
     // gating (categories stay open-ended; value formats are advisory).
     if (a.step === "category") {
       L.push("");
-      L.push(theme.hint(copy.tokens.categoryHint));
+      L.push(theme.hint(
+        a.categoryMode === "pick"
+          ? copy.tokens.categoryPickHint
+          : copy.tokens.categoryFreetextHint
+      ));
     } else if (a.step === "value") {
       const hint = copy.tokens.valueHint(a.category);
       if (hint) {
@@ -353,7 +452,11 @@ export function render(
       L.push(theme.err(`${glyph.err} ${a.error}`));
     }
     L.push("");
-    L.push(theme.hint(copy.tokens.addLegend));
+    // Legend swaps the active-keys hint based on the category mode.
+    const legend = a.step === "category" && a.categoryMode === "pick"
+      ? copy.tokens.addLegendCategoryPick
+      : copy.tokens.addLegend;
+    L.push(theme.hint(legend));
     return L.join("\n");
   }
 

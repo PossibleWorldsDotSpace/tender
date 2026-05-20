@@ -123,13 +123,25 @@ export const copy = {
   page: {
     title: "Page setup",
     /** Top-level template list. Each template is one summary row; ↵ drills
-     * into it. `a` adds a new template. `default` is immutable (no delete,
-     * no rename) for safety — every project relies on it existing. */
-    listLegend: "↑↓ move    ↵ edit template    a add template    s review    esc cancel",
+     * into it. The trailing add-template-row is also navigable via ↵; `a`
+     * is the matching shortcut. `default` is immutable (no delete, no
+     * rename) for safety — every project relies on it existing. */
+    listLegend: "↑↓ move    ↵ open / add    s review    esc cancel",
+    /** Shown when the project already has more than the default template
+     * — orient the user, get out of the way. */
     listIntro:
-      "Your project can have several page templates — front-matter, body, " +
-      "chapter openers — each with its own size, margins, and headers/footers. " +
-      "Pick one to edit, or add a new one.",
+      "Your project's page templates. Each has its own size, margins, " +
+      "and headers/footers. Pick one to edit, or add another.",
+    /** Shown when the project has only `default` — teaches that multiple
+     * templates are possible *and* optional. A first-time user should be
+     * able to decide "I just need one" or "I'll add another" right here. */
+    listIntroSingle:
+      "Each page template has its own size, margins, and headers/footers. " +
+      "Most projects need just `default`; books, journals, or pieces with " +
+      "covers / chapter openers can add more. Edit `default`, or add another.",
+    /** The synthetic add-row's label + secondary hint. */
+    addRowLabel: "add a page template",
+    addRowHint: "front-matter, body, cover, appendix — name it whatever you like",
     /** One-line summary shown in the template list. Compact, scannable. */
     listRowSummary: (size: string, margin: string): string =>
       `${size} · margin ${margin}`,
@@ -224,14 +236,21 @@ export const copy = {
     ].join("\n"),
     /** Add-token sub-flow. */
     addTitle: "Add a token",
+    /** Legend used in `name` and `value` steps, and in `category` while in
+     * free-text mode. */
     addLegend: "↵ next    esc cancel",
+    /** Legend used in `category` step while in pick mode — surfaces the
+     * arrow-key affordance plus the "type to invent a category" shortcut. */
+    addLegendCategoryPick: "←→ pick category    ↵ next    type your own    esc cancel",
     addFieldCategory: "category",
     addFieldName: "name",
     addFieldValue: "value",
-    /** Hint under the category field while it's being typed. Open-ended —
-     * users can invent categories. */
-    categoryHint:
-      "Common categories: color · size · font · space. Or use whatever you wish.",
+    /** Hint while picking from the conventional categories. */
+    categoryPickHint:
+      "Pick a common category, or start typing to use your own.",
+    /** Hint after the user chose `other` or started typing a custom name. */
+    categoryFreetextHint:
+      "Use whatever category name you like.",
     /** Per-category value-format hint shown under the value field while
      * typing. `null` means "no hint" (the user's custom category). */
     valueHint: (category: string): string | null => {

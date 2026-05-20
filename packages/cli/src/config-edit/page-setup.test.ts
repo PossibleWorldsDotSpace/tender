@@ -48,13 +48,15 @@ function enterTemplate(state: PageSetupState, name: string): PageSetupState {
 /* ============================ init ============================ */
 
 describe("initPageSetup", () => {
-  it("starts on the list view with one row per template", () => {
+  it("starts on the list view with one row per template, plus an add-template row", () => {
     const s = initPageSetup(CONFIG);
     expect(s.view).toBe("list");
     expect(s.templates).toEqual(["default", "cover"]);
-    expect(s.fields).toHaveLength(2);
+    // 2 templates + 1 synthetic add row
+    expect(s.fields).toHaveLength(3);
     expect(s.fields[0]).toEqual({ kind: "template-row", template: "default" });
     expect(s.fields[1]).toEqual({ kind: "template-row", template: "cover" });
+    expect(s.fields[2]).toEqual({ kind: "add-template-row" });
   });
 
   it("prefills size + margin + headers drafts from the config", () => {
@@ -71,22 +73,26 @@ describe("initPageSetup", () => {
     expect(s.headers.cover).toMatchObject({ mode: "none", originated: false });
   });
 
-  it("yields an empty list when there are no templates", () => {
+  it("yields only the add-template row when there are no templates", () => {
     const s = initPageSetup({ "page-templates": {} } as unknown as ProjectConfig);
     expect(s.templates).toEqual([]);
-    expect(s.fields).toHaveLength(0);
+    // Even with no templates, the add row is present so the user has somewhere
+    // to act. (Edge-case: schema actually requires `default`, but the state
+    // machine doesn't depend on that — be robust to an empty map.)
+    expect(s.fields).toEqual([{ kind: "add-template-row" }]);
   });
 });
 
 /* ===================== list view navigation ===================== */
 
 describe("reduce — list view", () => {
-  it("↓/↑ move the cursor between templates, clamping at the ends", () => {
-    const s0 = initPageSetup(CONFIG);
+  it("↓/↑ move the cursor between rows (including the add row), clamping at the ends", () => {
+    const s0 = initPageSetup(CONFIG); // default, cover, +add
     expect(s0.cursor).toBe(0);
-    expect(drive(s0, [down]).cursor).toBe(1);
-    expect(drive(s0, [down, down, down]).cursor).toBe(1); // clamp
-    expect(drive(s0, [up]).cursor).toBe(0); // clamp
+    expect(drive(s0, [down]).cursor).toBe(1); // → cover
+    expect(drive(s0, [down, down]).cursor).toBe(2); // → +add
+    expect(drive(s0, [down, down, down]).cursor).toBe(2); // clamp at last
+    expect(drive(s0, [up]).cursor).toBe(0); // clamp at first
   });
 
   it("Esc on the list cancels the whole flow", () => {
@@ -109,6 +115,14 @@ describe("reduce — list view", () => {
     expect(s.fields).toHaveLength(13);
     expect(s.fields[0]).toEqual({ kind: "size", template: "cover" });
     expect(s.cursor).toBe(0);
+  });
+
+  it("↵ on the add-template row opens the add sub-flow (same as pressing `a`)", () => {
+    const s0 = initPageSetup(CONFIG); // cursor at 0
+    // Navigate down to the add row (last field), then enter.
+    const s = drive(s0, [down, down, enter]);
+    expect(s.add).toBeDefined();
+    expect(s.add!.buffer).toBe("");
   });
 
   it("Esc from the template view returns to the list (NOT cancel)", () => {
@@ -333,9 +347,20 @@ describe("render — list view", () => {
     expect(out).not.toMatch(/\x1b\[/);
   });
 
-  it("shows the intro paragraph", () => {
+  it("shows the multi-template intro paragraph when the project has more than just default", () => {
+    const out = render(initPageSetup(CONFIG)); // CONFIG has default + cover
+    expect(out).toMatch(/Your project's page templates/);
+  });
+
+  it("shows the single-template orientation when only default exists", () => {
+    const single = { "page-templates": { default: { size: "A5", margin: 0 } } } as unknown as ProjectConfig;
+    const out = render(initPageSetup(single));
+    expect(out).toMatch(/Most projects need just `default`/);
+  });
+
+  it("renders the synthetic add-template row at the end of the list", () => {
     const out = render(initPageSetup(CONFIG));
-    expect(out).toMatch(/several page templates/);
+    expect(out).toMatch(/add a page template/);
   });
 });
 
