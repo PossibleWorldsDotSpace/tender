@@ -12,7 +12,7 @@ on:
       - "v*"
 
 permissions:
-  contents: read
+  contents: write    # for softprops/action-gh-release to create the GitHub release
   id-token: write    # for `npm publish --provenance`
 
 jobs:
@@ -65,9 +65,23 @@ jobs:
         working-directory: packages/cli
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-        run: npm publish --provenance --access public
+        # SemVer prereleases (anything with a `-`, e.g. 0.1.0-rc.1) publish
+        # under the `next` dist-tag so a bare `npm install @possibleworlds/tender`
+        # doesn't pull them. Stable versions publish under `latest`, npm's default.
+        run: |
+          PKG_VERSION=$(node -p "require('./package.json').version")
+          if [[ "$PKG_VERSION" == *-* ]]; then
+            echo "Publishing prerelease ${PKG_VERSION} under dist-tag 'next'."
+            npm publish --provenance --access public --tag next
+          else
+            echo "Publishing stable ${PKG_VERSION} under dist-tag 'latest'."
+            npm publish --provenance --access public
+          fi
 
       - name: Create GitHub release
         uses: softprops/action-gh-release@v2
         with:
           generate_release_notes: true
+          # Mark the release as prerelease if the tag has a hyphen
+          # (e.g. v0.1.0-rc.1). Otherwise it's a stable release.
+          prerelease: ${{ contains(github.ref_name, '-') }}
