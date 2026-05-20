@@ -1189,6 +1189,8 @@ This is acceptable for the typical Tender use case — rendering local source fi
 
 The `/assets/*` route serves your project's `assets/` directory and is hardened against path traversal: requests are realpath-resolved and rejected if they escape the assets root, including via symlinks inside `assets/` that point outside the project. `/_api/out/<file>.pdf` is constrained to `.pdf` basenames inside the build output directory. The `/_preview` query parameter is treated as an in-memory key only; it never touches the filesystem.
 
+**Build-time asset inlining.** When rendering, Tender inlines `<img>` files and `@font-face` files referenced by relative paths into the HTML as `data:` URIs. Both code paths apply a lexical containment check (the resolved path must sit under the project root) and a realpath check (the resolved-through-symlinks path must also sit under the project root), so a symlink inside the project tree that points outside is not followed. `http://`, `https://`, and `data:` URLs are passed through to the renderer unchanged; Chromium fetches them when the page is rendered.
+
 ## What's not in v1
 
 - **No cross-document references.** A project can carry multiple documents (any `*.md` at the project root) that share components, styles, and tokens, but Tender doesn't link them: no shared page numbering, no cross-references, no continuous flow between documents.
