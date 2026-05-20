@@ -93,6 +93,19 @@ npm install -g @possibleworlds/tender
 
 Then `tender` is on your `$PATH`.
 
+### Linux system requirements
+
+Tender renders through headless Chromium (downloaded automatically by puppeteer on install). On minimal Debian/Ubuntu containers — including the official `node:20` Docker image — you'll need to install Chromium's shared-library dependencies before `tender build` will work. On Debian/Ubuntu:
+
+```
+apt-get update && apt-get install -y \
+  libnss3 libnspr4 libatk1.0-0 libatk-bridge2.0-0 \
+  libcups2 libdrm2 libxkbcommon0 libxcomposite1 libxdamage1 \
+  libxfixes3 libxrandr2 libgbm1 libpango-1.0-0 libcairo2 libasound2
+```
+
+Most desktop Linux distros include these by default; the list matters mainly for CI containers, Docker, and freshly-provisioned VMs. macOS and Windows don't need an equivalent step.
+
 ### From source
 
 For contributors, or to track `trunk`:
