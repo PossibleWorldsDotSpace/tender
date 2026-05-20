@@ -2,7 +2,7 @@ import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { inlineAssets, inlineFonts } from "./inline-assets.js";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
-import { mkdtemp, mkdir, writeFile, rm } from "node:fs/promises";
+import { mkdtemp, mkdir, symlink, writeFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -162,5 +162,52 @@ describe("inlineFonts", () => {
   it("returns the input unchanged when there is nothing to inline", async () => {
     const css = `body { color: red; }`;
     expect(await inlineFonts(css, dir)).toBe(css);
+  });
+});
+
+describe("inline-assets symlink-escape guard", () => {
+  it("does not inline an <img> via a symlink that escapes the project", async () => {
+    const projectDir = await mkdtemp(join(tmpdir(), "tender-img-symlink-"));
+    const outside = await mkdtemp(join(tmpdir(), "tender-outside-"));
+    try {
+      await mkdir(join(projectDir, "assets", "images"), { recursive: true });
+      // A real PNG byte we don't want exfiltrated. Content doesn't have to
+      // be a valid image — the guard runs before any decoding.
+      const secretPath = join(outside, "secret.png");
+      await writeFile(secretPath, "top secret bytes");
+      // Symlink inside the project that points at the outside file.
+      await symlink(secretPath, join(projectDir, "assets", "images", "leak.png"));
+
+      const html = `<img src="assets/images/leak.png">`;
+      const inlined = await inlineAssets(html, projectDir);
+      // No data URI emitted; the src is left as-is so the rendering
+      // browser produces a normal missing-image instead.
+      expect(inlined).toBe(html);
+      expect(inlined).not.toContain("data:image");
+      expect(inlined).not.toContain("top secret");
+    } finally {
+      await rm(projectDir, { recursive: true, force: true });
+      await rm(outside, { recursive: true, force: true });
+    }
+  });
+
+  it("does not inline a font via a symlink that escapes the project", async () => {
+    const projectDir = await mkdtemp(join(tmpdir(), "tender-font-symlink-"));
+    const outside = await mkdtemp(join(tmpdir(), "tender-outside-"));
+    try {
+      await mkdir(join(projectDir, "assets", "fonts"), { recursive: true });
+      const secretPath = join(outside, "secret.woff2");
+      await writeFile(secretPath, "top secret bytes");
+      await symlink(secretPath, join(projectDir, "assets", "fonts", "leak.woff2"));
+
+      const css = `@font-face { src: url('assets/fonts/leak.woff2'); }`;
+      const out = await inlineFonts(css, projectDir);
+      expect(out).toBe(css);
+      expect(out).not.toContain("data:font");
+      expect(out).not.toContain("top secret");
+    } finally {
+      await rm(projectDir, { recursive: true, force: true });
+      await rm(outside, { recursive: true, force: true });
+    }
   });
 });

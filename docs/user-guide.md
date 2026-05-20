@@ -1084,8 +1084,10 @@ Live-reloading HTML preview. Edits to `project.yaml`, `styles.css`, any document
 tender preview my-doc
 tender preview my-doc --doc resume            # preselect a document in the dropdown
 tender preview my-doc --port 3993
-tender preview my-doc --host 0.0.0.0          # expose on LAN/Tailscale
+tender preview my-doc --host 0.0.0.0          # expose on LAN/Tailscale (see Security)
 ```
+
+> **Security:** `--host` accepts any bind address, but the preview server has no authentication. Binding to anything other than `127.0.0.1` makes your project source, assets, and rendered PDFs readable by anyone on the network. The CLI prints a prominent warning when the bind is non-loopback. See "Security considerations" below.
 
 The preview shows pages as printed sheets — white sheets with a soft drop shadow, page numbers, and margin guides, floating on the preview UI's dark workspace background. In a multi-document project the UI carries a dropdown to switch between documents. Build errors surface in the terminal and as a browser overlay; the server stays up and recovers when you fix the error. Stop with Ctrl-C.
 
@@ -1179,9 +1181,15 @@ Once `.claude/skills/tender-author/` is in the project, any Claude Code session 
 
 ## Security considerations
 
-Tender renders via headless Chromium, launched with `--no-sandbox`. The flag is required on Linux hosts that disable unprivileged user namespaces (most CI environments fall into this category). The tradeoff: the rendering process runs without Chromium's normal sandbox isolation.
+**Headless Chromium.** Tender renders via headless Chromium. The renderer tries to launch with Chromium's sandbox enabled first; if the host disallows it (Ubuntu 23.10+ with its default AppArmor profile, hardened CI containers, hosts without unprivileged user namespaces or the SUID helper), the renderer falls back to launching with `--no-sandbox` and prints a one-line stderr note the first time it happens in a process. On the sandboxed path the rendering process is confined as Chromium normally confines a renderer; on the fallback path it isn't.
 
-This is acceptable for the typical Tender use case — rendering local source files you author yourself. The risk surface only matters if you pipe **untrusted** content (Markdown, YAML, raw HTML, or images) into the build, in which case a malicious document could include script content that runs in the headless browser without sandboxing. Hosted-service deployments should consider running Tender in a separate container or VM and reviewing input sanitization.
+This is acceptable for the typical Tender use case — rendering local source files you author yourself. The risk surface only matters when the build pulls **remote** content (web fonts via `@font-face`, images loaded by URL) or when you pipe **untrusted** content (Markdown, YAML, raw HTML, fonts, images) into the build. On those paths, on a fallback host, a malicious asset that exploits a Chromium parser bug would run with the privileges of the `tender` process. Hosted-service deployments and pipelines that ingest external content should run Tender in a separate container or VM and prefer hosts where the sandbox launches.
+
+**Preview server network exposure.** `tender preview` binds to `127.0.0.1` by default. When `--host` is set to anything else — `0.0.0.0`, a LAN IP, a Tailscale IP — the server is reachable from the network, and the server has no authentication: anyone who can connect to the port can read your project source under `/assets`, any rendered PDF under `/_api/out/<file>.pdf`, and the full HTML preview. The CLI prints a prominent stderr warning on every non-loopback bind. Use `127.0.0.1` unless you understand the exposure and trust the network.
+
+The `/assets/*` route serves your project's `assets/` directory and is hardened against path traversal: requests are realpath-resolved and rejected if they escape the assets root, including via symlinks inside `assets/` that point outside the project. `/_api/out/<file>.pdf` is constrained to `.pdf` basenames inside the build output directory. The `/_preview` query parameter is treated as an in-memory key only; it never touches the filesystem.
+
+**Build-time asset inlining.** When rendering, Tender inlines `<img>` files and `@font-face` files referenced by relative paths into the HTML as `data:` URIs. Both code paths apply a lexical containment check (the resolved path must sit under the project root) and a realpath check (the resolved-through-symlinks path must also sit under the project root), so a symlink inside the project tree that points outside is not followed. `http://`, `https://`, and `data:` URLs are passed through to the renderer unchanged; Chromium fetches them when the page is rendered.
 
 ## What's not in v1
 

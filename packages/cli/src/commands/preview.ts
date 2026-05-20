@@ -3,8 +3,8 @@ import { WebSocketServer } from "ws";
 import chokidar from "chokidar";
 import type { FSWatcher } from "chokidar";
 import type { Server } from "node:http";
-import { dirname, join, sep, basename } from "node:path";
-import { readFile, mkdir, writeFile } from "node:fs/promises";
+import { dirname, join, resolve as resolvePath, sep, basename } from "node:path";
+import { readFile, mkdir, realpath, writeFile } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import { createRequire } from "node:module";
 import { fileURLToPath } from "node:url";
@@ -252,7 +252,40 @@ export async function startPreviewServer(opts: PreviewOptions): Promise<RunningS
     return buildProject(opts.projectDir);
   }
 
-  app.use("/assets", express.static(join(opts.projectDir, "assets")));
+  // /assets/* serves the project's assets/ directory. express.static follows
+  // symlinks by default, so a symlink inside assets/ pointing outside the
+  // project root would otherwise be readable over HTTP. Resolve the request
+  // path with realpath and refuse anything that escapes the assets root.
+  // The check runs only when the file exists; otherwise we let serve-static
+  // produce its normal 404.
+  const assetsRoot = resolvePath(opts.projectDir, "assets");
+  app.use("/assets", async (req, res, next) => {
+    try {
+      const requested = resolvePath(assetsRoot, "." + decodeURIComponent(req.path));
+      // Quick reject: anything that doesn't lexically sit under assetsRoot
+      // (path-segment '..' that survives express's normalisation, etc.).
+      if (requested !== assetsRoot && !requested.startsWith(assetsRoot + sep)) {
+        res.status(403).send("forbidden");
+        return;
+      }
+      // Symlink check: resolve the real path and confirm it stays inside
+      // assetsRoot. realpath throws ENOENT for non-existent files; in that
+      // case fall through to serve-static so it emits a normal 404.
+      try {
+        const real = await realpath(requested);
+        const realRoot = await realpath(assetsRoot);
+        if (real !== realRoot && !real.startsWith(realRoot + sep)) {
+          res.status(403).send("forbidden");
+          return;
+        }
+      } catch (err) {
+        if ((err as NodeJS.ErrnoException).code !== "ENOENT") throw err;
+      }
+      next();
+    } catch (err) {
+      next(err);
+    }
+  }, express.static(assetsRoot));
 
   app.get("/_api/palette", async (_req, res, next) => {
     try {

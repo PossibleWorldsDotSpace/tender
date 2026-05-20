@@ -2,7 +2,7 @@ import { describe, it, expect } from "vitest";
 import { startPreviewServer } from "./preview.js";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
-import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, rm, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import WebSocket from "ws";
 
@@ -444,6 +444,108 @@ describe("preview server", () => {
         expect((await fetch(`http://127.0.0.1:${server.port}/_api/out/${encodeURIComponent("../project.yaml")}`)).status).toBe(400);
         // A .pdf that was never built — well-formed name, but 404.
         expect((await fetch(`http://127.0.0.1:${server.port}/_api/out/nope.pdf`)).status).toBe(404);
+      } finally {
+        await server.close();
+      }
+    } finally {
+      await rm(tmp, { recursive: true, force: true });
+    }
+  }, 60_000);
+
+  it("GET /assets/<traversal> doesn't escape the project root", async () => {
+    const tmp = await mkdtemp(join(tmpdir(), "tender-assets-traversal-"));
+    try {
+      await writeFile(join(tmp, "project.yaml"), `page-templates:\n  default: { size: A5, margin: 0 }\n`);
+      await writeFile(join(tmp, "styles.css"), ``);
+      await writeFile(join(tmp, "content.md"), `# Hi`);
+      // A file outside the project root that an attacker would want to read.
+      const outside = await mkdtemp(join(tmpdir(), "tender-outside-"));
+      await writeFile(join(outside, "secret.txt"), `top secret`);
+      const server = await startPreviewServer({ projectDir: tmp, port: 0 });
+      try {
+        // serve-static normalises path segments and rejects '..' that
+        // escapes the configured root. Plain, URL-encoded, and double-encoded
+        // forms all 4xx — they do not read the outside file.
+        const base = `http://127.0.0.1:${server.port}/assets/`;
+        for (const url of [
+          base + "../secret.txt",
+          base + encodeURIComponent("../") + "secret.txt",
+          base + "%252e%252e/secret.txt"
+        ]) {
+          const r = await fetch(url);
+          // Either 4xx (rejected outright) or a body that doesn't
+          // contain the outside file's contents — what matters is
+          // that the secret didn't escape, not the exact status code.
+          // fetch follows redirects, so a 301 from express's static
+          // canonicalisation can resolve into 404 by the time we see it.
+          const body = await r.text();
+          expect(body).not.toContain("top secret");
+        }
+      } finally {
+        await server.close();
+        await rm(outside, { recursive: true, force: true });
+      }
+    } finally {
+      await rm(tmp, { recursive: true, force: true });
+    }
+  }, 60_000);
+
+  it("GET /assets/<symlink-outside> is rejected", async () => {
+    // A symlink inside assets/ that points outside the project root must
+    // not be served. The middleware in front of express.static resolves
+    // realpath and refuses anything that escapes assetsRoot.
+    const tmp = await mkdtemp(join(tmpdir(), "tender-assets-symlink-"));
+    try {
+      await writeFile(join(tmp, "project.yaml"), `page-templates:\n  default: { size: A5, margin: 0 }\n`);
+      await writeFile(join(tmp, "styles.css"), ``);
+      await writeFile(join(tmp, "content.md"), `# Hi`);
+      await mkdir(join(tmp, "assets"), { recursive: true });
+      const outside = await mkdtemp(join(tmpdir(), "tender-outside-"));
+      const secretPath = join(outside, "secret.txt");
+      await writeFile(secretPath, `top secret`);
+      await symlink(secretPath, join(tmp, "assets", "leak"));
+      // Also place a legitimate file alongside the symlink to confirm the
+      // guard doesn't break normal asset serving.
+      await writeFile(join(tmp, "assets", "ok.txt"), `legit`);
+      const server = await startPreviewServer({ projectDir: tmp, port: 0 });
+      try {
+        const leaked = await fetch(`http://127.0.0.1:${server.port}/assets/leak`);
+        expect(leaked.status).toBe(403);
+        const body = await leaked.text();
+        expect(body).not.toContain("top secret");
+
+        const legit = await fetch(`http://127.0.0.1:${server.port}/assets/ok.txt`);
+        expect(legit.status).toBe(200);
+        expect(await legit.text()).toBe("legit");
+      } finally {
+        await server.close();
+        await rm(outside, { recursive: true, force: true });
+      }
+    } finally {
+      await rm(tmp, { recursive: true, force: true });
+    }
+  }, 60_000);
+
+  it("GET /_preview?doc=<traversal> returns the safe 'No document' page", async () => {
+    const tmp = await mkdtemp(join(tmpdir(), "tender-preview-doc-traversal-"));
+    try {
+      await writeFile(join(tmp, "project.yaml"), `page-templates:\n  default: { size: A5, margin: 0 }\n`);
+      await writeFile(join(tmp, "styles.css"), ``);
+      await writeFile(join(tmp, "content.md"), `# Hi`);
+      const server = await startPreviewServer({ projectDir: tmp, port: 0 });
+      try {
+        // The query param is only used as a key into the in-memory doc
+        // cache, so traversal-shaped values can't touch the filesystem.
+        // The response is the escaped "No document" HTML.
+        for (const doc of ["../project.yaml", "../../etc/passwd", "..\\..\\windows\\win.ini"]) {
+          const r = await fetch(`http://127.0.0.1:${server.port}/_preview?doc=${encodeURIComponent(doc)}`);
+          expect(r.status).toBe(200);
+          const body = await r.text();
+          expect(body).toContain(`No document`);
+          // The escaped name should appear, but no file contents leaked.
+          expect(body).not.toContain("page-templates:");
+          expect(body).not.toContain("root:");
+        }
       } finally {
         await server.close();
       }

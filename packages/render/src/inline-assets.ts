@@ -1,4 +1,4 @@
-import { readFile } from "node:fs/promises";
+import { readFile, realpath } from "node:fs/promises";
 import { extname, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 import { Parser } from "htmlparser2";
@@ -84,6 +84,21 @@ function isInsideProjectDir(targetPath: string, projectRoot: string): boolean {
 }
 
 /**
+ * Confirm a target path stays inside `projectRoot` *after* symlink
+ * resolution. Returns false if the target (or projectRoot itself) doesn't
+ * exist; callers must already have done the lexical check, since this
+ * function exists only to catch the symlink-escape case.
+ */
+async function isRealpathInsideProjectDir(targetPath: string, projectRoot: string): Promise<boolean> {
+  try {
+    const [realTarget, realRoot] = await Promise.all([realpath(targetPath), realpath(projectRoot)]);
+    return realTarget === realRoot || realTarget.startsWith(realRoot + sep);
+  } catch {
+    return false;
+  }
+}
+
+/**
  * Replaces a single attribute value within a tag's source range. We rewrite
  * only the `src=` attribute, leaving the rest of the tag (and the document
  * around it) byte-identical to the input.
@@ -122,6 +137,7 @@ export async function inlineAssets(html: string, projectDir: string): Promise<st
     if (!mime) continue;
     const targetPath = resolve(projectRoot, src);
     if (!isInsideProjectDir(targetPath, projectRoot)) continue;
+    if (!(await isRealpathInsideProjectDir(targetPath, projectRoot))) continue;
     let buf: Buffer;
     try {
       buf = await readFile(targetPath);
@@ -182,6 +198,14 @@ function resolveCssUrlTarget(rawValue: string, projectRoot: string): string | nu
 }
 
 /**
+ * Same lexical-plus-realpath check used for <img>, surfaced so the font
+ * path can apply it after the lexical guard in `resolveCssUrlTarget`.
+ */
+async function isFontTargetSafe(target: string, projectRoot: string): Promise<boolean> {
+  return isRealpathInsideProjectDir(target, projectRoot);
+}
+
+/**
  * Embed font files referenced by `@font-face { src: url(...) }` (and any other
  * `url()` pointing at a font file) as `data:` URIs.
  *
@@ -215,6 +239,8 @@ export async function inlineFonts(css: string, cssDir: string): Promise<string> 
     if (dataUri === undefined) {
       const target = resolveCssUrlTarget(value, projectRoot);
       if (target === null) {
+        dataUri = null;
+      } else if (!(await isFontTargetSafe(target, projectRoot))) {
         dataUri = null;
       } else {
         try {
