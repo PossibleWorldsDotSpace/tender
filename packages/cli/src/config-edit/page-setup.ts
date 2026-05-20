@@ -30,7 +30,7 @@ import {
   type PageSizeValue, type MarginValue
 } from "./values.js";
 import type { Edit, HeaderFooterValue } from "./document.js";
-import { glyph, copy, plainTheme, type Theme } from "./theme.js";
+import { glyph, copy, plainTheme, renderLegend, type Theme } from "./theme.js";
 
 /** The minimal subset of node's readline.Key the reducer needs; the driver
  * maps keypress events onto this. */
@@ -761,6 +761,8 @@ export function render(
 function renderConfirm(L: string[], theme: Theme, diff: string): string {
   if (!diff) {
     L.push(theme.hint(copy.review.noChanges));
+    L.push("");
+    L.push(renderLegend(copy.review.noChangesActions, theme));
     return L.join("\n");
   }
   for (const line of diff.split("\n")) {
@@ -770,7 +772,7 @@ function renderConfirm(L: string[], theme: Theme, diff: string): string {
   }
   L.push("");
   L.push(copy.review.prompt);
-  L.push(theme.hint(copy.review.actions));
+  L.push(renderLegend(copy.review.actions, theme));
   return L.join("\n");
 }
 
@@ -786,12 +788,12 @@ function renderAddTemplate(L: string[], add: AddTemplateDraft, theme: Theme): st
     L.push(theme.err(`${glyph.err} ${add.error}`));
   }
   L.push("");
-  L.push(theme.hint(copy.page.addLegend));
+  L.push(renderLegend(copy.page.addLegend, theme));
   return L.join("\n");
 }
 
 function renderList(L: string[], state: PageSetupState, theme: Theme): string {
-  L.push(theme.hint(copy.page.listLegend));
+  L.push(renderLegend(copy.page.listLegend, theme));
   L.push("");
   // Intro reads differently depending on whether the project already has
   // more than just the default template — first-time users need to learn
@@ -859,7 +861,9 @@ function summarizeMargin(m: Record<MarginKey, MarginDraft>): string {
 
 function renderTemplate(L: string[], state: PageSetupState, theme: Theme): string {
   const t = state.currentTemplate!;
-  L.push(theme.hint(`${copy.page.templateLegend}    template: ${t}`));
+  // Legend gets coloured keys; the `template: <name>` trailer stays dim
+  // (it's contextual, not an action).
+  L.push(`${renderLegend(copy.page.templateLegend, theme)}    ${theme.hint(`template: ${t}`)}`);
   L.push("");
 
   // Render sections with dividers. Track absolute row indices so the cursor
@@ -883,7 +887,12 @@ function renderTemplate(L: string[], state: PageSetupState, theme: Theme): strin
     const sub = subLegendFor(cf, state);
     if (sub) {
       L.push("");
-      L.push(theme.hint(sub));
+      // The size-on-non-default field hangs a second descriptive line off
+      // the legend (see `subLegendFor`); colour only the first line as a
+      // legend, dim the trailer (it's a note, not an action list).
+      const [firstLine, ...rest] = sub.split("\n");
+      L.push(renderLegend(firstLine!, theme));
+      for (const line of rest) L.push(theme.hint(line));
     }
   }
 

@@ -75,6 +75,42 @@ export interface Theme {
 
 const identity = (s: string): string => s;
 
+/**
+ * Render a legend string with the action keys coloured separately from
+ * their verbs. Legends across the configurator follow a uniform grammar:
+ *
+ *   <key>{whitespace}<verb>{4+ spaces}<key>{whitespace}<verb>{4+ spaces}…
+ *
+ * e.g. `↑↓ move    ↵ open / add    s review    esc cancel`.
+ *
+ * This splits on runs of two-or-more spaces (the pair separator), then
+ * peels the first whitespace-separated token off each pair as the key.
+ * Verbs themselves may contain single spaces ("open / add", "change size"),
+ * but never four-space runs — that's the contract.
+ *
+ * Keys render through `theme.cursor` (cyan in ANSI) so they read as
+ * actionable; verbs render through `theme.hint` (dim) as secondary text.
+ * Falls back gracefully under `plainTheme` (both roles pass-through).
+ *
+ * Caveat: a few legend strings carry inline parentheticals or punctuation
+ * that don't follow the strict grammar (e.g. `↵ edit (type to replace,
+ * ↵ on empty keeps)    esc cancel`). The parser still produces a sensible
+ * split — everything up to the first space is the "key", the rest the
+ * "verb" — but the visual emphasis lands on the leading mark, which is
+ * the cue users actually scan for.
+ */
+export function renderLegend(legend: string, theme: Theme): string {
+  const pairs = legend.split(/\s{2,}/);
+  return pairs
+    .map(pair => {
+      const m = /^(\S+)\s+(.+)$/s.exec(pair);
+      if (!m) return theme.hint(pair);
+      const [, key, verb] = m;
+      return `${theme.cursor(key!)} ${theme.hint(verb!)}`;
+    })
+    .join("    ");
+}
+
 /** No colour — pure passthrough. Default for renderers, tests, non-TTY. */
 export const plainTheme: Theme = {
   title: identity,
@@ -219,7 +255,8 @@ export const copy = {
      * yet. Opens with the same voice as the populated screen's orientation,
      * then teaches the conventional categories with concrete examples so a
      * first-time user has somewhere to start. Rendered as a paragraph block
-     * (the renderer wraps it). */
+     * (the renderer wraps it). The closing CTA is in `emptyCallToAction`
+     * so the renderer can theme it distinctly. */
     emptyIntro: [
       "Set basic design tokens here, reference them in your components,",
       "and they will be parsed by Tender in the build stage. They live",
@@ -230,10 +267,12 @@ export const copy = {
       "  color   — hex like #1a1a1a (becomes var(--color-ink) etc.)",
       "  size    — lengths like 12pt, 1.2em, 16px",
       "  font    — family names from your fonts: list",
-      "  space   — lengths like 8mm for margins, gaps, indents",
-      "",
-      "Press a to add your first token."
+      "  space   — lengths like 8mm for margins, gaps, indents"
     ].join("\n"),
+    /** The empty-state's actionable closing line — themed separately
+     * (theme.ok / green) so it pops out of the surrounding descriptive
+     * copy. The key (`a`) is what the user actually presses. */
+    emptyCallToAction: "Press a to add your first token.",
     /** Add-token sub-flow. */
     addTitle: "Add a token",
     /** Legend used in `name` and `value` steps, and in `category` while in
@@ -277,6 +316,11 @@ export const copy = {
   review: {
     heading: (screen: string) => `Review changes to ${screen}`,
     noChanges: "Nothing changed — there's nothing to write.",
+    /** Action line for the no-changes branch. Without this the screen looks
+     * frozen — the user has nothing to do AND no signal that they can leave.
+     * `e` returns to editing (mirrors the with-changes branch); `esc` cancels
+     * the whole flow. */
+    noChangesActions: "e keep editing    esc cancel",
     /** The action line under the diff. */
     prompt: "Apply these changes?",
     actions: "y apply    n discard    e keep editing"

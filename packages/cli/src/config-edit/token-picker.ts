@@ -12,7 +12,7 @@
 import type { ProjectConfig } from "@tender/core";
 import { normalizeHex } from "./values.js";
 import type { Edit } from "./document.js";
-import { glyph, copy, plainTheme, type Theme } from "./theme.js";
+import { glyph, copy, plainTheme, renderLegend, type Theme } from "./theme.js";
 
 /** Minimal key event the driver maps node keypress onto (shared shape). */
 export interface KeyEvent {
@@ -381,6 +381,8 @@ export function render(
   if (state.phase === "confirm") {
     if (!diff) {
       L.push(theme.hint(copy.review.noChanges));
+      L.push("");
+      L.push(renderLegend(copy.review.noChangesActions, theme));
       return L.join("\n");
     }
     for (const line of diff.split("\n")) {
@@ -390,7 +392,7 @@ export function render(
     }
     L.push("");
     L.push(copy.review.prompt);
-    L.push(theme.hint(copy.review.actions));
+    L.push(renderLegend(copy.review.actions, theme));
     return L.join("\n");
   }
 
@@ -456,19 +458,22 @@ export function render(
     const legend = a.step === "category" && a.categoryMode === "pick"
       ? copy.tokens.addLegendCategoryPick
       : copy.tokens.addLegend;
-    L.push(theme.hint(legend));
+    L.push(renderLegend(legend, theme));
     return L.join("\n");
   }
 
-  L.push(theme.hint(copy.tokens.legend));
+  L.push(renderLegend(copy.tokens.legend, theme));
   L.push("");
 
   if (state.rows.length === 0) {
-    // Empty state: full intro paragraph + examples. Renders as multiple
-    // lines via the joined `\n` in copy.tokens.emptyIntro.
+    // Empty state: full intro paragraph + examples (rendered dim), then a
+    // blank line and the explicit call-to-action themed `ok` so it reads
+    // as the next thing to do rather than more explanatory body text.
     for (const line of copy.tokens.emptyIntro.split("\n")) {
       L.push(theme.hint(line));
     }
+    L.push("");
+    L.push(theme.ok(copy.tokens.emptyCallToAction));
   } else {
     // Populated: short orientation block above the list — names what
     // tokens *do* (build-time substitution), so a returning user gets
