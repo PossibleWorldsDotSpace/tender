@@ -23,3 +23,7 @@ packages/cli/package.json.prepack.bak
 
 # Local scratch / test files (not part of the project)
 PlanetScript.md
+
+# Per-developer Claude Code project notes. Local-only; the project's
+# contributor guidance lives in CONTRIBUTING.md.
+CLAUDE.md

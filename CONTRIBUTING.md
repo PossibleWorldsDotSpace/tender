@@ -67,7 +67,25 @@ When you change anything user-facing, three places must update **in the same PR 
 2. **`docs/user-guide.md`** — for source-file conventions, the `project.yaml` schema, the cascade order or token resolution, lint codes, CLI command behaviour.
 3. **`claude/skills/tender-author/SKILL.md`** — for authoring scopes, syntax authors use, lint codes, file-structure conventions, what the skill should NOT do.
 
-`CLAUDE.md` has the full checklist. Treat docs as part of the change, not a follow-up.
+### Checklist before committing a user-facing change
+
+Ask, in order:
+
+- Did I add/remove/rename a CLI command or flag? → README.md commands list, user-guide.md CLI section, SKILL.md if the skill mentions it.
+- Did I add/remove/rename a `project.yaml` key? → README.md project-structure comment, user-guide.md project.yaml reference, SKILL.md project-shape recap.
+- Did I add/change a lint code? → user-guide.md validation table, SKILL.md common-diagnoses list.
+- Did I change source-file conventions (page markers, slot markers, component frontmatter)? → user-guide.md source-conventions section, SKILL.md critical-rules table.
+- Did I change the cascade order, token resolution, or any other build-pipeline behaviour authors observe? → user-guide.md "What you can do with CSS" / "Design tokens" / "styles.css conventions" sections, SKILL.md if relevant.
+
+If a change is purely internal (refactors, test-only changes, dependency bumps that don't change behaviour, perf work), the docs stay as they are.
+
+### Why this matters
+
+Past changes have shipped where the code worked but `docs/user-guide.md` still described the old behaviour, or `SKILL.md` still taught the old syntax. Authors then write code that lints clean but doesn't match what the docs claim. The cost is silent drift — caught only when a new user hits the mismatch. Treat docs as part of the change, not a follow-up.
+
+### Skill source vs. bundled copy
+
+`claude/skills/tender-author/` in this repo is the **canonical source** of the Claude skill. It ships to users via the CLI: `packages/cli/scripts/copy-skill.mjs` copies `SKILL.md` + `examples/` into `packages/cli/skill/` at build and pretest (also invoked from `tsup.config.ts` `onSuccess`); `tender init` / `tender add-skill` then scaffold that payload **project-local** into a user's `.claude/skills/tender-author/`. Edit the canonical copy here — the bundled `packages/cli/skill/` is generated and gitignored.
 
 ## Commit messages
 
