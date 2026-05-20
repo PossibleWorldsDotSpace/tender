@@ -100,10 +100,23 @@ describe("reduce — list view", () => {
     expect(s.phase).toBe("cancelled");
   });
 
-  it("n on the list goes to confirm (next → review-all)", () => {
+  it("n on the list with no edits resolves as done (no-op, no detour through confirm)", () => {
+    // Dead-end "Nothing changed" confirm screen is the wrong UX here —
+    // the user wants to move on to the next stage of init, not be told
+    // there's nothing to write. The driver maps this `done` + empty
+    // edits to outcome: "no-op".
     const s = drive(initPageSetup(CONFIG), [ch("n")]);
+    expect(s.phase).toBe("done");
+    expect(collectEdits(s)).toEqual([]);
+  });
+
+  it("n on the list with pending edits goes to confirm (so user sees the diff)", () => {
+    let s = enterTemplate(initPageSetup(CONFIG), "default");
+    s = drive(s, [right]); // make an edit (cycle size)
+    s = reduce(s, esc); // back to list
+    s = reduce(s, ch("n"));
     expect(s.phase).toBe("confirm");
-    expect(collectEdits(s)).toEqual([]); // Enter-through ⇒ no edits
+    expect(collectEdits(s).length).toBeGreaterThan(0);
   });
 
   it("↵ on a template-row drills into that template", () => {
@@ -323,9 +336,13 @@ describe("reduce — confirm phase", () => {
   });
 
   it("d discards from confirm; e returns to editing", () => {
-    // Use `enterTemplate` + back-to-list + `n` to reach confirm without
-    // worrying about the list-view `n` shortcut consuming the wrong key.
-    let s = drive(initPageSetup(CONFIG), [ch("n")]);
+    // Need a pending edit to reach the confirm phase via `n` — with no
+    // edits `n` short-circuits to `done` (the no-op exit path).
+    let s = enterTemplate(initPageSetup(CONFIG), "default");
+    s = drive(s, [right]); // cycle size → pending edit
+    s = reduce(s, esc); // back to list
+    s = reduce(s, ch("n")); // → confirm
+    expect(s.phase).toBe("confirm");
     expect(reduce(s, ch("d")).phase).toBe("cancelled");
     expect(reduce(s, ch("e")).phase).toBe("edit");
   });
@@ -382,7 +399,12 @@ describe("render — template view", () => {
 
 describe("render — confirm + add", () => {
   it("confirm with a diff renders prompt + diff lines", () => {
-    const s = drive(initPageSetup(CONFIG), [ch("n")]); // straight to confirm
+    // Make an edit first — `n` on an empty session short-circuits to
+    // `done`, so we need pending changes to actually reach confirm.
+    let s = enterTemplate(initPageSetup(CONFIG), "default");
+    s = drive(s, [right]); // cycle size
+    s = reduce(s, esc); // back to list
+    s = reduce(s, ch("n"));
     const out = render(s, undefined, "- size: A5\n+ size: A4");
     expect(out).toContain("Write these changes to project.yaml?");
     expect(out).toContain("write & continue");
@@ -390,8 +412,12 @@ describe("render — confirm + add", () => {
     expect(out).toContain("+ size: A4");
   });
 
-  it("confirm with no diff says nothing changed", () => {
-    const s = drive(initPageSetup(CONFIG), [ch("n")]);
+  it("confirm with no diff renders the 'nothing changed' fallback (defensive — not user-reachable from `n`)", () => {
+    // The reducer short-circuits `n` with no edits to `done`, so this
+    // branch isn't reachable through normal user input. Force the phase
+    // to exercise the render path defensively in case any future code
+    // path lands here.
+    const s = { ...initPageSetup(CONFIG), phase: "confirm" as const };
     expect(render(s)).toMatch(/Nothing changed/);
   });
 

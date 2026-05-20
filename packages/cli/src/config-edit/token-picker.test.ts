@@ -203,10 +203,13 @@ describe("reduce — add a new token", () => {
 });
 
 describe("idempotence (slice-1 contract at the screen level)", () => {
-  it("browsing without edits yields an empty Edit[]", () => {
+  it("browsing without edits and pressing n resolves as done (no-op)", () => {
+    // `n` on an empty session short-circuits past the confirm screen so
+    // the surrounding init flow advances to the next prompt rather than
+    // showing the dead-end "Nothing changed" view.
     const s0 = initTokenPicker(CONFIG);
-    const s = drive(s0, [down, down, up, ch("n")]); // n = next → confirm
-    expect(s.phase).toBe("confirm");
+    const s = drive(s0, [down, down, up, ch("n")]);
+    expect(s.phase).toBe("done");
     expect(collectEdits(s)).toEqual([]);
   });
 

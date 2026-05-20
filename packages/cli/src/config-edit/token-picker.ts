@@ -222,9 +222,15 @@ export function reduce(
     };
   }
   // `n` = "next" — finish this screen and return to the surrounding init
-  // flow. Routes through the confirm phase so the user sees a diff (or the
-  // no-changes screen) before anything is written.
+  // flow. If the user made any edits, route through the confirm phase so
+  // they see a diff before anything is written. With no pending edits,
+  // jump straight to `done` — the driver maps that to a no-op outcome and
+  // the surrounding init flow advances to the next prompt (the dead-end
+  // "Nothing changed" confirm screen was misleading users).
   if (key.str === "n") {
+    if (collectEdits(state).length === 0) {
+      return { ...state, phase: "done" };
+    }
     return { ...state, phase: "confirm", status: "" };
   }
   return state;
