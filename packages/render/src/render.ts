@@ -180,10 +180,37 @@ export interface RenderSession {
   close(): Promise<void>;
 }
 
+// Sentinel substring Chromium prints when its zygote can't establish a
+// sandbox (no unprivileged user namespaces, no SUID helper, AppArmor
+// restriction on Ubuntu 23.10+, etc.). Match is loose on purpose — the
+// surrounding text changes between Chromium versions; "No usable sandbox"
+// has been stable for years.
+const NO_SANDBOX_NEEDED = "No usable sandbox";
+
+let fallbackNoticeShown = false;
+
 async function launchBrowser(): Promise<Browser> {
-  // --no-sandbox: required on Ubuntu hosts that disable unprivileged user
-  // namespaces. See README "Security considerations".
-  return puppeteer.launch({ headless: true, args: ["--no-sandbox"] });
+  // Try with Chromium's sandbox enabled. On hosts that support it (most
+  // dev machines outside of Ubuntu's AppArmor-restricted default), this
+  // gives us defence-in-depth against a compromised renderer — relevant
+  // if a build pulls a malicious remote font/image that hits a Chromium
+  // parser bug.
+  try {
+    return await puppeteer.launch({ headless: true });
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    if (!msg.includes(NO_SANDBOX_NEEDED)) {
+      throw err;
+    }
+    if (!fallbackNoticeShown) {
+      fallbackNoticeShown = true;
+      process.stderr.write(
+        "tender: Chromium sandbox unavailable on this host; retrying with --no-sandbox.\n" +
+        "        (Common on Ubuntu 23.10+ / hardened CI hosts. See user guide, Security considerations.)\n"
+      );
+    }
+    return await puppeteer.launch({ headless: true, args: ["--no-sandbox"] });
+  }
 }
 
 export async function createRenderSession(): Promise<RenderSession> {
