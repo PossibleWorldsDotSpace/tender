@@ -1,7 +1,30 @@
 {
   "name": "@possibleworlds/tender",
   "version": "0.1.0",
+  "description": "Layout-as-code for print PDFs. Markdown + components + design tokens, rendered through CSS Paged Media and headless Chromium.",
   "license": "MIT",
+  "author": "Possible Worlds",
+  "homepage": "https://github.com/joshajh/tender#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/joshajh/tender.git",
+    "directory": "packages/cli"
+  },
+  "bugs": {
+    "url": "https://github.com/joshajh/tender/issues"
+  },
+  "keywords": [
+    "pdf",
+    "print",
+    "layout",
+    "typography",
+    "markdown",
+    "paged-media",
+    "pagedjs"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
   "type": "module",
   "bin": {
     "tender": "./dist/cli.js"
@@ -10,7 +33,8 @@
     "dist",
     "templates",
     "assets",
-    "skill"
+    "skill",
+    "NOTICE.md"
   ],
   "scripts": {
     "build": "pnpm --filter @tender/core --filter @tender/render --filter @tender/preview-ui build && tsup && chmod +x dist/cli.js",
