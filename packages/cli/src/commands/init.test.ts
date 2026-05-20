@@ -357,9 +357,19 @@ describe("init command", () => {
       expect(text).toMatch(/Next: tender preview$/m);
     });
 
-    it("summarises the scaffold (created count)", () => {
-      const text = formatInitRoundup(baseResult);
-      expect(text).toContain("Scaffold: 1 file created.");
+    it("lists every scaffolded file by path", () => {
+      const text = formatInitRoundup({
+        ...baseResult,
+        files: [
+          { path: "project.yaml", action: "created" },
+          { path: "styles.css", action: "created" },
+          { path: "content.md", action: "created" }
+        ]
+      });
+      expect(text).toContain("Scaffold (3 files created):");
+      expect(text).toContain("  + project.yaml");
+      expect(text).toContain("  + styles.css");
+      expect(text).toContain("  + content.md");
     });
 
     it("includes git and skill status when both happened", () => {
@@ -368,19 +378,52 @@ describe("init command", () => {
       expect(text).toContain("Skill: tender-author installed.");
     });
 
-    it("rolls up applied page-setup edits and the new-template hint", () => {
+    it("lists every added page template by name with its summary", () => {
       const text = formatInitRoundup(baseResult, {
-        page: { outcome: "applied", editCount: 3, addedTemplates: ["cover"] }
+        page: {
+          outcome: "applied",
+          editCount: 1,
+          addedTemplates: [{ name: "cover", summary: "A5, margin 0" }]
+        }
       });
-      expect(text).toContain("Page templates: 3 changes, + 1 new template.");
+      expect(text).toContain("Page templates added (1):");
+      expect(text).toContain("  + cover  (A5, margin 0)");
       expect(text).toContain("=== page{template=cover}");
     });
 
-    it("rolls up applied token edits", () => {
+    it("notes 'other edits' when the page-setup session also tweaked existing templates", () => {
       const text = formatInitRoundup(baseResult, {
-        tokens: { outcome: "applied", editCount: 4 }
+        page: {
+          outcome: "applied",
+          editCount: 4,
+          addedTemplates: [{ name: "cover", summary: "A4, margin 20mm" }]
+        }
+      });
+      expect(text).toContain("Page templates added (1):");
+      expect(text).toContain("(3 other page-template changes)");
+    });
+
+    it("rolls up applied token edits without additions as a short line", () => {
+      const text = formatInitRoundup(baseResult, {
+        tokens: { outcome: "applied", editCount: 4, addedTokens: [] }
       });
       expect(text).toContain("Design tokens: 4 changes.");
+    });
+
+    it("lists every added token by name with its value, padded for alignment", () => {
+      const text = formatInitRoundup(baseResult, {
+        tokens: {
+          outcome: "applied",
+          editCount: 2,
+          addedTokens: [
+            { category: "color", name: "accent", value: "#FF6600" },
+            { category: "size", name: "body", value: "12pt" }
+          ]
+        }
+      });
+      expect(text).toContain("Design tokens added (2):");
+      expect(text).toContain("  + color.accent  #FF6600");
+      expect(text).toContain("  + size.body     12pt");
     });
 
     it("notes a recorded commit", () => {

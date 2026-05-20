@@ -205,7 +205,7 @@ describe("reduce — add a new token", () => {
 describe("idempotence (slice-1 contract at the screen level)", () => {
   it("browsing without edits yields an empty Edit[]", () => {
     const s0 = initTokenPicker(CONFIG);
-    const s = drive(s0, [down, down, up, ch("s")]);
+    const s = drive(s0, [down, down, up, ch("n")]); // n = next → confirm
     expect(s.phase).toBe("confirm");
     expect(collectEdits(s)).toEqual([]);
   });
@@ -218,17 +218,17 @@ describe("idempotence (slice-1 contract at the screen level)", () => {
 });
 
 describe("reduce — confirm phase", () => {
-  it("s → confirm; y → done; e → back to browse; n → cancelled", () => {
+  it("n → confirm; w → done; e → back to browse; d → cancelled", () => {
     const s0 = initTokenPicker(CONFIG);
-    const atConfirm = drive(s0, [enter, ...Array(7).fill(bs), ...type("#000000"), enter, ch("s")]);
+    const atConfirm = drive(s0, [enter, ...Array(7).fill(bs), ...type("#000000"), enter, ch("n")]);
     expect(atConfirm.phase).toBe("confirm");
-    expect(reduce(atConfirm, ch("y")).phase).toBe("done");
+    expect(reduce(atConfirm, ch("w")).phase).toBe("done");
     expect(reduce(atConfirm, ch("e")).phase).toBe("browse");
-    expect(reduce(atConfirm, ch("n")).phase).toBe("cancelled");
+    expect(reduce(atConfirm, ch("d")).phase).toBe("cancelled");
   });
 
   it("terminal phases are inert", () => {
-    const done = drive(initTokenPicker(CONFIG), [ch("s"), ch("y")]);
+    const done = drive(initTokenPicker(CONFIG), [ch("n"), ch("w")]);
     expect(reduce(done, down)).toBe(done);
   });
 });

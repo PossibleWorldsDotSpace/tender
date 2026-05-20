@@ -100,8 +100,8 @@ describe("reduce — list view", () => {
     expect(s.phase).toBe("cancelled");
   });
 
-  it("s on the list goes to confirm (review-all)", () => {
-    const s = drive(initPageSetup(CONFIG), [ch("s")]);
+  it("n on the list goes to confirm (next → review-all)", () => {
+    const s = drive(initPageSetup(CONFIG), [ch("n")]);
     expect(s.phase).toBe("confirm");
     expect(collectEdits(s)).toEqual([]); // Enter-through ⇒ no edits
   });
@@ -310,26 +310,28 @@ describe("reduce — add a template", () => {
 /* ===================== confirm phase ===================== */
 
 describe("reduce — confirm phase", () => {
-  it("s on list → confirm; y → done; collectEdits stable", () => {
+  it("n on list → confirm; w → done; collectEdits stable", () => {
     let s = enterTemplate(initPageSetup(CONFIG), "default");
     s = drive(s, [right]); // change size
     s = reduce(s, esc); // back to list
-    s = reduce(s, ch("s"));
+    s = reduce(s, ch("n"));
     expect(s.phase).toBe("confirm");
     const before = collectEdits(s);
-    s = reduce(s, ch("y"));
+    s = reduce(s, ch("w"));
     expect(s.phase).toBe("done");
     expect(collectEdits(s)).toEqual(before);
   });
 
-  it("n cancels from confirm; e returns to editing", () => {
-    let s = drive(initPageSetup(CONFIG), [ch("s")]);
-    expect(reduce(s, ch("n")).phase).toBe("cancelled");
+  it("d discards from confirm; e returns to editing", () => {
+    // Use `enterTemplate` + back-to-list + `n` to reach confirm without
+    // worrying about the list-view `n` shortcut consuming the wrong key.
+    let s = drive(initPageSetup(CONFIG), [ch("n")]);
+    expect(reduce(s, ch("d")).phase).toBe("cancelled");
     expect(reduce(s, ch("e")).phase).toBe("edit");
   });
 
   it("done/cancelled are terminal — further keys inert", () => {
-    let s = drive(initPageSetup(CONFIG), [ch("s"), ch("y")]);
+    let s = drive(initPageSetup(CONFIG), [ch("n"), ch("w")]);
     expect(reduce(s, down)).toBe(s);
   });
 });
@@ -380,7 +382,7 @@ describe("render — template view", () => {
 
 describe("render — confirm + add", () => {
   it("confirm with a diff renders prompt + diff lines", () => {
-    const s = drive(initPageSetup(CONFIG), [ch("s")]); // straight to confirm
+    const s = drive(initPageSetup(CONFIG), [ch("n")]); // straight to confirm
     const out = render(s, undefined, "- size: A5\n+ size: A4");
     expect(out).toContain("Write these changes to project.yaml?");
     expect(out).toContain("write & continue");
@@ -389,7 +391,7 @@ describe("render — confirm + add", () => {
   });
 
   it("confirm with no diff says nothing changed", () => {
-    const s = drive(initPageSetup(CONFIG), [ch("s")]);
+    const s = drive(initPageSetup(CONFIG), [ch("n")]);
     expect(render(s)).toMatch(/Nothing changed/);
   });
 

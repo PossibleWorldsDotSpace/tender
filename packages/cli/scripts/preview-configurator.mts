@@ -183,7 +183,7 @@ async function main(): Promise<void> {
     );
 
     /* ===================== Confirm ===================== */
-    const reviewEmpty = drive<PageSetupState>(list0, pageReduce, [ch("s")]);
+    const reviewEmpty = drive<PageSetupState>(list0, pageReduce, [ch("n")]);
     frame("page setup — review (no changes)", renderPage(reviewEmpty, ansiTheme));
 
     const reviewDiff = { ...reviewEmpty } as PageSetupState;

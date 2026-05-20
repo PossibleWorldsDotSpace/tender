@@ -278,10 +278,12 @@ const IDENT_RE = /^[a-z][a-z0-9-]*$/;
 export function reduce(state: PageSetupState, key: KeyEvent): PageSetupState {
   if (state.phase === "done" || state.phase === "cancelled") return state;
 
-  // Confirm phase: y applies, n/esc cancels, e returns to editing.
+  // Confirm phase: w writes & continues, d discards, e/esc returns to editing.
+  // Avoiding y/n keeps the keys distinct from the surrounding init flow's
+  // yes/no prompts — see theme.ts copy.review.actions for the rationale.
   if (state.phase === "confirm") {
-    if (key.str === "y" || key.str === "Y") return { ...state, phase: "done" };
-    if (key.str === "n" || key.str === "N") return { ...state, phase: "cancelled" };
+    if (key.str === "w" || key.str === "W") return { ...state, phase: "done" };
+    if (key.str === "d" || key.str === "D") return { ...state, phase: "cancelled" };
     if (key.str === "e" || key.name === "escape") {
       return { ...state, phase: "edit", status: "" };
     }
@@ -323,7 +325,10 @@ function reduceList(state: PageSetupState, key: KeyEvent): PageSetupState {
   if (key.str === "a") {
     return { ...state, add: { buffer: "", error: "" }, status: "" };
   }
-  if (key.str === "s") {
+  // `n` = "next" — finish this screen and return to the surrounding init
+  // flow. Routes through the confirm phase so the user sees a diff (or the
+  // no-changes screen) before anything is written.
+  if (key.str === "n") {
     return { ...state, phase: "confirm", status: "" };
   }
   return state;
@@ -841,6 +846,15 @@ function renderList(L: string[], state: PageSetupState, theme: Theme): string {
     L.push(theme.hint(state.status));
   }
   return L.join("\n");
+}
+
+/** Public for the driver: one-line summary string for a named template,
+ * suitable for the end-of-init roundup. Uses the same internal helpers
+ * the list view uses, so there's no separate truth to drift. */
+export function summarizeTemplate(state: PageSetupState, name: string): string {
+  const sz = summarizeSize(state.size[name]!);
+  const mg = summarizeMargin(state.margin[name]!);
+  return `${sz}, margin ${mg}`;
 }
 
 function summarizeSize(s: SizeDraft): string {

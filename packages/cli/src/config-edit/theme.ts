@@ -160,9 +160,12 @@ export const copy = {
     title: "Page setup",
     /** Top-level template list. Each template is one summary row; ↵ drills
      * into it. The trailing add-template-row is also navigable via ↵; `a`
-     * is the matching shortcut. `default` is immutable (no delete, no
-     * rename) for safety — every project relies on it existing. */
-    listLegend: "↑↓ move    ↵ open / add    s review    esc cancel",
+     * is the matching shortcut. `n` is "next" — finish this screen and
+     * continue the surrounding init flow (with a diff confirm if there
+     * are pending edits). `esc go back` returns to the prior step
+     * unchanged. `default` is immutable (no delete, no rename) for safety
+     * — every project relies on it existing. */
+    listLegend: "↑↓ move    ↵ open / add    n next    esc go back",
     /** Shown when the project already has more than the default template
      * — orient the user, get out of the way. */
     listIntro:
@@ -250,7 +253,10 @@ export const copy = {
       "under `design-tokens:` in project.yaml and your CSS reaches them",
       "as `var(--category-name)`."
     ].join("\n"),
-    legend: "↑↓ move    ↵ edit    a add    s review    esc cancel",
+    /** Tokens browse legend. `n` is "next" (same semantics as the page-
+     * setup list — review-and-finish), `esc go back` returns to the init
+     * flow. */
+    legend: "↑↓ move    ↵ edit    a add    n next    esc go back",
     /** Multi-line empty-state intro — only shown when there are no tokens
      * yet. Opens with the same voice as the populated screen's orientation,
      * then teaches the conventional categories with concrete examples so a
@@ -316,19 +322,21 @@ export const copy = {
   review: {
     heading: (screen: string) => `Review changes to ${screen}`,
     noChanges: "Nothing changed — there's nothing to write.",
-    /** Action line for the no-changes branch. Without this the screen looks
-     * frozen — the user has nothing to do AND no signal that they can leave.
-     * Both keys return the user to the previous screen (the editing view);
-     * neither quits the whole CLI flow. "go back" is deliberate copy — the
-     * older "esc cancel" wording read as "abort the CLI". */
+    /** Action line for the no-changes branch. Both keys return the user to
+     * the previous screen (the editing view); neither quits the whole CLI
+     * flow. "go back" is deliberate copy — the older "esc cancel" wording
+     * read as "abort the CLI". */
     noChangesActions: "e keep editing    esc go back",
-    /** The action line under the diff. Phrased to make clear that y writes
-     * the YAML AND completes this screen (returning to the surrounding init
-     * flow); n discards just this screen's edits and does the same; e
-     * returns to the editor. The previous "y apply" reading was ambiguous
-     * about whether the whole CLI was about to finish. */
+    /** The action line under the diff.
+     *
+     * Key choice rationale: y/n are avoided here even though the prompt is
+     * yes/no-shaped, because the surrounding init flow also uses y/n
+     * (`y` to "Set up page templates now?") and the user can't tell whether
+     * `y` at the diff means "finish this screen" or "finish the whole init
+     * flow". `w` (write) and `d` (discard) are mnemonic and unambiguous;
+     * `e` returns to the editor for one more pass. */
     prompt: "Write these changes to project.yaml?",
-    actions: "y write & continue    n discard    e keep editing"
+    actions: "w write & continue    d discard    e keep editing"
   },
 
   /** Result summaries — used by configure.ts AND the init prompts, so they

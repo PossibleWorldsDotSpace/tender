@@ -465,12 +465,18 @@ export interface InitRoundup {
   page?: {
     outcome: "applied" | "no-op" | "cancelled";
     editCount: number;
-    addedTemplates: string[];
+    /** New templates added in this session, with their human summary
+     * (e.g. "A5, margin 0"). Pure edits to existing templates don't
+     * show up here — they're counted in `editCount`. */
+    addedTemplates: { name: string; summary: string }[];
   };
   /** Design-tokens screen outcome — present only if the user opted in. */
   tokens?: {
     outcome: "applied" | "no-op" | "cancelled";
     editCount: number;
+    /** New tokens added in this session. Pure edits to existing tokens
+     * don't show up here — they're counted in `editCount`. */
+    addedTokens: { category: string; name: string; value: string }[];
   };
   /** Outcome of the optional final commit step. `"none"` means no prompt was
    * offered (e.g. --no-commit, non-interactive, or git wasn't created). */
@@ -499,7 +505,7 @@ export function formatInitRoundup(
     // Nothing happened at the scaffold level. Re-running tender init is a
     // no-op; the configurator may still have applied edits, so surface
     // those if present.
-    const cfg = formatConfigureSummaryLines(extras);
+    const cfg = formatConfigureSection(extras);
     if (cfg.length === 0) return "";
     return ["Configuration applied:", ...cfg.map(s => `  ${s}`)].join("\n");
   }
@@ -508,59 +514,104 @@ export function formatInitRoundup(
   lines.push(`Your project is ready at ${result.targetDir}.`);
   lines.push("");
 
-  // Scaffolded files header — already printed in detail by formatInitResult,
-  // so this is the headline only.
-  const scaffoldParts: string[] = [];
+  // Scaffolded files — list every path so the user has a definitive
+  // record of what landed in their directory. (Mid-flow output also
+  // listed them, but the end-of-init view is the durable summary the
+  // user is most likely to scroll back to.)
   if (created.length > 0) {
-    scaffoldParts.push(`${created.length} file${created.length === 1 ? "" : "s"} created`);
+    lines.push(`Scaffold (${created.length} file${created.length === 1 ? "" : "s"} created):`);
+    for (const f of created) lines.push(`  + ${f.path}`);
   }
   if (overwritten.length > 0) {
-    scaffoldParts.push(`${overwritten.length} overwritten`);
-  }
-  if (scaffoldParts.length > 0) {
-    lines.push(`Scaffold: ${scaffoldParts.join(", ")}.`);
+    lines.push(`Overwritten (${overwritten.length}):`);
+    for (const f of overwritten) lines.push(`  ! ${f.path}`);
   }
 
-  // Setup-stage status (git, skill).
-  if (result.git.action === "created") lines.push("Git: initialized.");
-  if (result.skill === "installed") lines.push("Skill: tender-author installed.");
+  // Setup-stage status (git, skill). Tight, one-liner each.
+  const setupLines: string[] = [];
+  if (result.git.action === "created") setupLines.push("Git: initialized.");
+  if (result.skill === "installed") setupLines.push("Skill: tender-author installed.");
+  if (setupLines.length > 0) {
+    lines.push("");
+    for (const l of setupLines) lines.push(l);
+  }
 
-  // Configure-stage changes, if the user ran them.
-  const cfg = formatConfigureSummaryLines(extras);
-  for (const l of cfg) lines.push(l);
+  // Configure-stage changes, if the user ran them. The detail (per
+  // template, per token) lives here — not in the headline.
+  const cfg = formatConfigureSection(extras);
+  if (cfg.length > 0) {
+    lines.push("");
+    for (const l of cfg) lines.push(l);
+  }
 
   // Finish-stage status.
-  if (extras.commit === "made") lines.push("Commit: initial commit recorded.");
-  else if (extras.commit === "failed") lines.push("Commit: failed (see error above).");
+  const finishLines: string[] = [];
+  if (extras.commit === "made") finishLines.push("Commit: initial commit recorded.");
+  else if (extras.commit === "failed") finishLines.push("Commit: failed (see error above).");
+  if (finishLines.length > 0) {
+    lines.push("");
+    for (const l of finishLines) lines.push(l);
+  }
 
   lines.push("");
   lines.push("Next: tender preview");
   return lines.join("\n");
 }
 
-/** Configure-stage outcome lines. Empty array when nothing ran or both
- * screens were no-ops/cancelled — keeps the roundup tight. */
-function formatConfigureSummaryLines(extras: InitRoundup): string[] {
+/** Configure-stage roundup lines (multiple per stage when there's per-item
+ * detail to surface). Empty array when nothing ran or both screens were
+ * no-ops/cancelled — keeps the roundup tight. */
+function formatConfigureSection(extras: InitRoundup): string[] {
   const out: string[] = [];
+
   if (extras.page?.outcome === "applied") {
-    const parts: string[] = [`${extras.page.editCount} change${extras.page.editCount === 1 ? "" : "s"}`];
-    if (extras.page.addedTemplates.length > 0) {
-      parts.push(`+ ${extras.page.addedTemplates.length} new template${extras.page.addedTemplates.length === 1 ? "" : "s"}`);
-    }
-    out.push(`Page templates: ${parts.join(", ")}.`);
-    if (extras.page.addedTemplates.length > 0) {
+    const addedCount = extras.page.addedTemplates.length;
+    const editCount = extras.page.editCount;
+    if (addedCount > 0) {
+      // Detail block: list every added template with its summary.
+      out.push(`Page templates added (${addedCount}):`);
+      for (const t of extras.page.addedTemplates) {
+        out.push(`  + ${t.name}  (${t.summary})`);
+      }
+      // Source-side reminder: a new template is dead config until source
+      // references it. The first added template's name goes into the
+      // example so the user can copy-paste.
       out.push(
-        `  Use \`=== page{template=${extras.page.addedTemplates[0]}}\` in source to mark pages with ${
-          extras.page.addedTemplates.length === 1 ? "it" : "one"
-        }.`
+        `  Use \`=== page{template=${extras.page.addedTemplates[0]!.name}}\` ` +
+        `in source to mark pages with ${addedCount === 1 ? "it" : "one"}.`
       );
+      // If there were other edits beyond the adds, note them on a trailing line.
+      const otherEdits = editCount - addedCount;
+      if (otherEdits > 0) {
+        out.push(`  (${otherEdits} other page-template change${otherEdits === 1 ? "" : "s"})`);
+      }
+    } else {
+      // No additions, just edits.
+      out.push(`Page templates: ${editCount} change${editCount === 1 ? "" : "s"}.`);
     }
   }
+
   if (extras.tokens?.outcome === "applied") {
-    out.push(
-      `Design tokens: ${extras.tokens.editCount} change${extras.tokens.editCount === 1 ? "" : "s"}.`
-    );
+    const addedCount = extras.tokens.addedTokens.length;
+    const editCount = extras.tokens.editCount;
+    if (addedCount > 0) {
+      // Detail block: list every added token, padded so the values align.
+      out.push(`Design tokens added (${addedCount}):`);
+      const w = Math.max(
+        ...extras.tokens.addedTokens.map(t => `${t.category}.${t.name}`.length)
+      );
+      for (const t of extras.tokens.addedTokens) {
+        out.push(`  + ${`${t.category}.${t.name}`.padEnd(w)}  ${t.value}`);
+      }
+      const otherEdits = editCount - addedCount;
+      if (otherEdits > 0) {
+        out.push(`  (${otherEdits} other token change${otherEdits === 1 ? "" : "s"})`);
+      }
+    } else {
+      out.push(`Design tokens: ${editCount} change${editCount === 1 ? "" : "s"}.`);
+    }
   }
+
   return out;
 }
 

@@ -144,9 +144,11 @@ export function reduce(
 ): TokenPickerState {
   if (state.phase === "done" || state.phase === "cancelled") return state;
 
+  // Confirm phase: w writes & continues, d discards, e/esc returns to browse.
+  // Same keys as page-setup (see theme.ts copy.review.actions rationale).
   if (state.phase === "confirm") {
-    if (key.str === "y" || key.str === "Y") return { ...state, phase: "done" };
-    if (key.str === "n" || key.str === "N") return { ...state, phase: "cancelled" };
+    if (key.str === "w" || key.str === "W") return { ...state, phase: "done" };
+    if (key.str === "d" || key.str === "D") return { ...state, phase: "cancelled" };
     if (key.str === "e" || key.name === "escape") {
       return { ...state, phase: "browse", status: "" };
     }
@@ -219,7 +221,10 @@ export function reduce(
       }
     };
   }
-  if (key.str === "s") {
+  // `n` = "next" — finish this screen and return to the surrounding init
+  // flow. Routes through the confirm phase so the user sees a diff (or the
+  // no-changes screen) before anything is written.
+  if (key.str === "n") {
     return { ...state, phase: "confirm", status: "" };
   }
   return state;

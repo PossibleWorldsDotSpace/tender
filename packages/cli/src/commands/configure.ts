@@ -80,7 +80,7 @@ export async function configure(
     result.page = page;
     result.lines.push(summarize(copy.page.title, page));
     if (page.outcome === "applied" && page.addedTemplates.length > 0) {
-      result.lines.push(copy.outcome.addedTemplatesNextStep(page.addedTemplates));
+      result.lines.push(copy.outcome.addedTemplatesNextStep(page.addedTemplates.map(t => t.name)));
     }
   }
 

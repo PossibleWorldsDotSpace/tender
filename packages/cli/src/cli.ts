@@ -290,7 +290,7 @@ program
         };
         console.log(dim(`  ${summarizeOutcome(copy.page.title, r)}`));
         if (r.outcome === "applied" && r.addedTemplates.length > 0) {
-          console.log(dim(`  ${copy.outcome.addedTemplatesNextStep(r.addedTemplates)}`));
+          console.log(dim(`  ${copy.outcome.addedTemplatesNextStep(r.addedTemplates.map(t => t.name))}`));
         }
       } catch (err) {
         console.error(`${red(`${copy.page.title} failed`)}: ${err instanceof Error ? err.message : String(err)}`);
@@ -303,7 +303,9 @@ program
     if (wantTokens) {
       try {
         const r = await runTokenPicker(target);
-        roundup.tokens = { outcome: r.outcome, editCount: r.editCount };
+        roundup.tokens = {
+          outcome: r.outcome, editCount: r.editCount, addedTokens: r.addedTokens
+        };
         console.log(dim(`  ${summarizeOutcome(copy.tokens.title, r)}`));
       } catch (err) {
         console.error(`${red(`${copy.tokens.title} failed`)}: ${err instanceof Error ? err.message : String(err)}`);
