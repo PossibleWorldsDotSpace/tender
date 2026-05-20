@@ -43,9 +43,12 @@ jobs:
 
       - run: pnpm install --frozen-lockfile
 
-      - run: pnpm -r typecheck
-
+      # build before typecheck: language-server's `tsc` resolves
+      # @tender/core via its dist/index.d.ts, which only exists after
+      # the core build runs.
       - run: pnpm -r build
+
+      - run: pnpm -r typecheck
 
       - run: pnpm -r test
 
