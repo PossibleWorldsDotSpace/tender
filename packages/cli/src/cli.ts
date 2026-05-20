@@ -312,6 +312,24 @@ program
       }
     }
 
+    // ─── Apply gate ───────────────────────────────────────────────────────
+    // Final confirmation before we move on to the commit and the Done
+    // roundup. Scaffolded files + any configurator edits are already on
+    // disk by this point — declining just skips the commit step and the
+    // roundup, leaving the project in a "ready but not committed" state
+    // the user can pick up later. TTY-only; non-interactive runs sail
+    // straight through to the commit step as before.
+    if (interactive) {
+      console.log("");
+      console.log(dim(`  ${copy.initPrompt.applyFinishNote}`));
+      const proceed = await confirm(copy.initPrompt.applyFinish, true);
+      if (!proceed) {
+        console.log("");
+        console.log(copy.setupPaused(target));
+        return;
+      }
+    }
+
     // ─── Finish ──────────────────────────────────────────────────────────
     // Offer an initial commit only when we just created the repo, the user
     // didn't pass --no-commit, and we're on an interactive terminal (no point

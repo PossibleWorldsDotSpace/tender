@@ -365,8 +365,22 @@ export const copy = {
    * section heading. */
   initPrompt: {
     page: "Set up page templates now? (size, margins, headers)",
-    tokens: "Set up design tokens now? (colours, lengths, fonts)"
+    tokens: "Set up design tokens now? (colours, lengths, fonts)",
+    /** Final gate after Configure, before the commit + roundup. Default
+     * yes — the user just walked the whole wizard, the expected path is
+     * to apply. The companion `applyFinishNote` is printed *above* the
+     * prompt so the user knows they can bail and pick this up later. */
+    applyFinish: "Apply your setup and finish?",
+    applyFinishNote:
+      "You can re-run this wizard any time with `tender init` " +
+      "or `tender configure`."
   },
+  /** Printed when the user declines the final apply-and-finish gate. The
+   * scaffolded files and any configurator edits are already on disk —
+   * declining just skips the commit step and the Done roundup. */
+  setupPaused: (dir: string): string =>
+    `Setup paused — your files are at ${dir}.\n` +
+    `Re-run \`tender init\` or commit manually when ready.`,
 
   /** One canonical non-TTY message. Was three different sentences across
    * page-setup-driver / token-picker-driver / configure.ts. */
