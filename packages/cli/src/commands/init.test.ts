@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { init, formatInitResult, installSkill, formatSkillInstall, SKILL_PROJECT_PATH } from "./init.js";
+import { init, formatInitResult, formatInitRoundup, installSkill, formatSkillInstall, SKILL_PROJECT_PATH } from "./init.js";
 import type { InitGitResult, InitResult } from "./init.js";
 import { mkdtemp, readFile, readdir, rm, writeFile, stat } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -225,7 +225,6 @@ describe("init command", () => {
       expect(text).toContain("Created 3 files");
       expect(text).toContain("project.yaml");
       expect(text).toContain("Initialized a git repository.");
-      expect(text).toContain("Project ready at /path/to/proj");
     });
 
     it("describes a re-run with all files preserved", () => {
@@ -260,7 +259,6 @@ describe("init command", () => {
       });
       expect(text).toContain("Created 1 file");
       expect(text).toContain("Preserved 1 existing file");
-      expect(text).toContain("Project ready");
     });
 
     it("notes when git is missing", () => {
@@ -285,7 +283,6 @@ describe("init command", () => {
         ...base
       });
       expect(text).not.toContain("git");
-      expect(text).toContain("Project ready");
     });
 
     it("reports an installed skill and omits the recoverability tip", () => {
@@ -340,7 +337,73 @@ describe("init command", () => {
         ...base
       });
       expect(text).toContain("Loaded example: open-circle.");
-      expect(text).toContain("Project ready");
+    });
+  });
+
+  describe("formatInitRoundup", () => {
+    const baseResult: Omit<Parameters<typeof formatInitRoundup>[0], never> = {
+      targetDir: "/p",
+      files: [{ path: "project.yaml", action: "created" }],
+      git: { action: "created" },
+      skill: "installed",
+      template: "default",
+      conflicts: [],
+      trackOut: false
+    };
+
+    it("opens with a one-line 'project ready' headline and the next-step pointer", () => {
+      const text = formatInitRoundup(baseResult);
+      expect(text).toMatch(/^Your project is ready at \/p\.$/m);
+      expect(text).toMatch(/Next: tender preview$/m);
+    });
+
+    it("summarises the scaffold (created count)", () => {
+      const text = formatInitRoundup(baseResult);
+      expect(text).toContain("Scaffold: 1 file created.");
+    });
+
+    it("includes git and skill status when both happened", () => {
+      const text = formatInitRoundup(baseResult);
+      expect(text).toContain("Git: initialized.");
+      expect(text).toContain("Skill: tender-author installed.");
+    });
+
+    it("rolls up applied page-setup edits and the new-template hint", () => {
+      const text = formatInitRoundup(baseResult, {
+        page: { outcome: "applied", editCount: 3, addedTemplates: ["cover"] }
+      });
+      expect(text).toContain("Page templates: 3 changes, + 1 new template.");
+      expect(text).toContain("=== page{template=cover}");
+    });
+
+    it("rolls up applied token edits", () => {
+      const text = formatInitRoundup(baseResult, {
+        tokens: { outcome: "applied", editCount: 4 }
+      });
+      expect(text).toContain("Design tokens: 4 changes.");
+    });
+
+    it("notes a recorded commit", () => {
+      const text = formatInitRoundup(baseResult, { commit: "made" });
+      expect(text).toContain("Commit: initial commit recorded.");
+    });
+
+    it("returns '' on the refused-conflict path", () => {
+      const text = formatInitRoundup({
+        ...baseResult,
+        files: [],
+        conflicts: ["styles.css"]
+      });
+      expect(text).toBe("");
+    });
+
+    it("returns a configure-only summary when scaffold was a no-op but the configurator ran", () => {
+      const text = formatInitRoundup(
+        { ...baseResult, files: [{ path: "project.yaml", action: "preserved" }] },
+        { page: { outcome: "applied", editCount: 1, addedTemplates: [] } }
+      );
+      expect(text).toContain("Configuration applied:");
+      expect(text).toContain("Page templates: 1 change.");
     });
   });
 

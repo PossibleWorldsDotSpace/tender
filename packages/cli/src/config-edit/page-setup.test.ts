@@ -382,7 +382,8 @@ describe("render — confirm + add", () => {
   it("confirm with a diff renders prompt + diff lines", () => {
     const s = drive(initPageSetup(CONFIG), [ch("s")]); // straight to confirm
     const out = render(s, undefined, "- size: A5\n+ size: A4");
-    expect(out).toContain("Apply these changes?");
+    expect(out).toContain("Write these changes to project.yaml?");
+    expect(out).toContain("write & continue");
     expect(out).toContain("- size: A5");
     expect(out).toContain("+ size: A4");
   });

@@ -318,12 +318,17 @@ export const copy = {
     noChanges: "Nothing changed — there's nothing to write.",
     /** Action line for the no-changes branch. Without this the screen looks
      * frozen — the user has nothing to do AND no signal that they can leave.
-     * `e` returns to editing (mirrors the with-changes branch); `esc` cancels
-     * the whole flow. */
-    noChangesActions: "e keep editing    esc cancel",
-    /** The action line under the diff. */
-    prompt: "Apply these changes?",
-    actions: "y apply    n discard    e keep editing"
+     * Both keys return the user to the previous screen (the editing view);
+     * neither quits the whole CLI flow. "go back" is deliberate copy — the
+     * older "esc cancel" wording read as "abort the CLI". */
+    noChangesActions: "e keep editing    esc go back",
+    /** The action line under the diff. Phrased to make clear that y writes
+     * the YAML AND completes this screen (returning to the surrounding init
+     * flow); n discards just this screen's edits and does the same; e
+     * returns to the editor. The previous "y apply" reading was ambiguous
+     * about whether the whole CLI was about to finish. */
+    prompt: "Write these changes to project.yaml?",
+    actions: "y write & continue    n discard    e keep editing"
   },
 
   /** Result summaries — used by configure.ts AND the init prompts, so they

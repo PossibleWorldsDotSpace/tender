@@ -7,7 +7,7 @@ import { listDocuments } from "@tender/core";
 import { lint, formatReport } from "./commands/lint.js";
 import { clean } from "./commands/clean.js";
 import { startPreviewServer } from "./commands/preview.js";
-import { init, formatInitResult, gitInitialCommit, installSkill, formatSkillInstall, SKILL_PROJECT_PATH, KNOWN_EXAMPLES, DEFAULT_EXAMPLE } from "./commands/init.js";
+import { init, formatInitResult, formatInitRoundup, gitInitialCommit, installSkill, formatSkillInstall, SKILL_PROJECT_PATH, KNOWN_EXAMPLES, DEFAULT_EXAMPLE, type InitRoundup } from "./commands/init.js";
 import type { ExampleName } from "./commands/init.js";
 import { listTokens, formatTokensList, setToken } from "./commands/tokens.js";
 import { configure } from "./commands/configure.js";
@@ -276,6 +276,8 @@ program
         : r.outcome === "no-op" ? copy.outcome.noop(screen)
         : copy.outcome.cancelled(screen);
 
+    const roundup: InitRoundup = {};
+
     const wantPage = await resolveDecision(
       opts.configurePage, interactive,
       copy.initPrompt.page, false, false
@@ -283,6 +285,9 @@ program
     if (wantPage) {
       try {
         const r = await runPageSetup(target);
+        roundup.page = {
+          outcome: r.outcome, editCount: r.editCount, addedTemplates: r.addedTemplates
+        };
         console.log(dim(`  ${summarizeOutcome(copy.page.title, r)}`));
         if (r.outcome === "applied" && r.addedTemplates.length > 0) {
           console.log(dim(`  ${copy.outcome.addedTemplatesNextStep(r.addedTemplates)}`));
@@ -298,6 +303,7 @@ program
     if (wantTokens) {
       try {
         const r = await runTokenPicker(target);
+        roundup.tokens = { outcome: r.outcome, editCount: r.editCount };
         console.log(dim(`  ${summarizeOutcome(copy.tokens.title, r)}`));
       } catch (err) {
         console.error(`${red(`${copy.tokens.title} failed`)}: ${err instanceof Error ? err.message : String(err)}`);
@@ -314,12 +320,30 @@ program
       if (await confirm("Make an initial commit?", false)) {
         try {
           await gitInitialCommit(target);
+          roundup.commit = "made";
           console.log(dim("  Committed."));
         } catch (err) {
+          roundup.commit = "failed";
           console.error(`${red("git commit failed")}: ${err instanceof Error ? err.message : String(err)}`);
           console.error(dim("  Configure git (git config user.name / user.email) and commit when ready."));
         }
+      } else {
+        roundup.commit = "declined";
       }
+    } else {
+      roundup.commit = "none";
+    }
+
+    // ─── Done ────────────────────────────────────────────────────────────
+    // Final roundup: one consolidated view of what changed across all three
+    // stages, so a user finishing the flow sees one clear "you did this"
+    // panel rather than scattered status lines. Skipped silently on the
+    // refused-conflict path (formatInitResult already explained why nothing
+    // happened).
+    const roundupText = formatInitRoundup(result, roundup);
+    if (roundupText) {
+      if (interactive) process.stdout.write(section("Done"));
+      console.log(roundupText);
     }
   });
 

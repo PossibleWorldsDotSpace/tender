@@ -443,10 +443,6 @@ export function formatInitResult(result: InitResult): string {
   if (created.length === 0 && overwritten.length === 0) {
     lines.push("");
     lines.push("All template files already exist. Re-running `tender init` was a no-op.");
-  } else {
-    lines.push("");
-    lines.push(`Project ready at ${result.targetDir}.`);
-    lines.push("Try: tender preview");
   }
 
   // Recoverability: if the skill isn't in the project, say how to add it
@@ -456,6 +452,116 @@ export function formatInitResult(result: InitResult): string {
   }
 
   return lines.join("\n");
+}
+
+/**
+ * Optional inputs to the end-of-init roundup. None are required — the
+ * roundup degrades gracefully when the configurator didn't run, or when
+ * git wasn't created. Kept as a flat options bag so `cli.ts` can build it
+ * up as the flow progresses without coupling to internal driver types.
+ */
+export interface InitRoundup {
+  /** Page-setup screen outcome — present only if the user opted in. */
+  page?: {
+    outcome: "applied" | "no-op" | "cancelled";
+    editCount: number;
+    addedTemplates: string[];
+  };
+  /** Design-tokens screen outcome — present only if the user opted in. */
+  tokens?: {
+    outcome: "applied" | "no-op" | "cancelled";
+    editCount: number;
+  };
+  /** Outcome of the optional final commit step. `"none"` means no prompt was
+   * offered (e.g. --no-commit, non-interactive, or git wasn't created). */
+  commit?: "made" | "declined" | "failed" | "none";
+}
+
+/**
+ * The consolidated "Done" view printed at the very end of `tender init`.
+ * Pulls together what the user did in each stage — Setup (skill/git/files),
+ * Configure (any project.yaml edits), Finish (the commit) — and ends with
+ * the "Try: tender preview" pointer. Pure formatting; no I/O.
+ *
+ * Returns "" when the run was a refused-conflict short-circuit (we already
+ * printed the diagnostic in formatInitResult and the user hasn't created
+ * anything to round up).
+ */
+export function formatInitRoundup(
+  result: InitResult,
+  extras: InitRoundup = {}
+): string {
+  if (result.conflicts.length > 0) return "";
+
+  const created = result.files.filter(f => f.action === "created");
+  const overwritten = result.files.filter(f => f.action === "overwritten");
+  if (created.length === 0 && overwritten.length === 0) {
+    // Nothing happened at the scaffold level. Re-running tender init is a
+    // no-op; the configurator may still have applied edits, so surface
+    // those if present.
+    const cfg = formatConfigureSummaryLines(extras);
+    if (cfg.length === 0) return "";
+    return ["Configuration applied:", ...cfg.map(s => `  ${s}`)].join("\n");
+  }
+
+  const lines: string[] = [];
+  lines.push(`Your project is ready at ${result.targetDir}.`);
+  lines.push("");
+
+  // Scaffolded files header — already printed in detail by formatInitResult,
+  // so this is the headline only.
+  const scaffoldParts: string[] = [];
+  if (created.length > 0) {
+    scaffoldParts.push(`${created.length} file${created.length === 1 ? "" : "s"} created`);
+  }
+  if (overwritten.length > 0) {
+    scaffoldParts.push(`${overwritten.length} overwritten`);
+  }
+  if (scaffoldParts.length > 0) {
+    lines.push(`Scaffold: ${scaffoldParts.join(", ")}.`);
+  }
+
+  // Setup-stage status (git, skill).
+  if (result.git.action === "created") lines.push("Git: initialized.");
+  if (result.skill === "installed") lines.push("Skill: tender-author installed.");
+
+  // Configure-stage changes, if the user ran them.
+  const cfg = formatConfigureSummaryLines(extras);
+  for (const l of cfg) lines.push(l);
+
+  // Finish-stage status.
+  if (extras.commit === "made") lines.push("Commit: initial commit recorded.");
+  else if (extras.commit === "failed") lines.push("Commit: failed (see error above).");
+
+  lines.push("");
+  lines.push("Next: tender preview");
+  return lines.join("\n");
+}
+
+/** Configure-stage outcome lines. Empty array when nothing ran or both
+ * screens were no-ops/cancelled — keeps the roundup tight. */
+function formatConfigureSummaryLines(extras: InitRoundup): string[] {
+  const out: string[] = [];
+  if (extras.page?.outcome === "applied") {
+    const parts: string[] = [`${extras.page.editCount} change${extras.page.editCount === 1 ? "" : "s"}`];
+    if (extras.page.addedTemplates.length > 0) {
+      parts.push(`+ ${extras.page.addedTemplates.length} new template${extras.page.addedTemplates.length === 1 ? "" : "s"}`);
+    }
+    out.push(`Page templates: ${parts.join(", ")}.`);
+    if (extras.page.addedTemplates.length > 0) {
+      out.push(
+        `  Use \`=== page{template=${extras.page.addedTemplates[0]}}\` in source to mark pages with ${
+          extras.page.addedTemplates.length === 1 ? "it" : "one"
+        }.`
+      );
+    }
+  }
+  if (extras.tokens?.outcome === "applied") {
+    out.push(
+      `Design tokens: ${extras.tokens.editCount} change${extras.tokens.editCount === 1 ? "" : "s"}.`
+    );
+  }
+  return out;
 }
 
 function formatGitLine(git: InitGitResult): string | null {
