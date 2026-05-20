@@ -180,12 +180,21 @@ export interface RenderSession {
   close(): Promise<void>;
 }
 
-// Sentinel substring Chromium prints when its zygote can't establish a
-// sandbox (no unprivileged user namespaces, no SUID helper, AppArmor
-// restriction on Ubuntu 23.10+, etc.). Match is loose on purpose — the
-// surrounding text changes between Chromium versions; "No usable sandbox"
-// has been stable for years.
-const NO_SANDBOX_NEEDED = "No usable sandbox";
+// Sentinel substrings Chromium prints when it refuses to run with its
+// sandbox engaged. Two distinct cases we want to fall back on:
+//
+//   - "No usable sandbox": namespaces blocked / SUID helper missing /
+//     Ubuntu's AppArmor profile restricts the namespace path.
+//     Stable across Chromium versions for years.
+//   - "Running as root": Chromium refuses to start as root unless
+//     --no-sandbox is passed. Common in Docker containers where the
+//     default user is root.
+//
+// Any other launch failure is rethrown as-is.
+const SANDBOX_FALLBACK_SENTINELS = [
+  "No usable sandbox",
+  "Running as root"
+];
 
 let fallbackNoticeShown = false;
 
@@ -199,14 +208,15 @@ async function launchBrowser(): Promise<Browser> {
     return await puppeteer.launch({ headless: true });
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
-    if (!msg.includes(NO_SANDBOX_NEEDED)) {
+    if (!SANDBOX_FALLBACK_SENTINELS.some(s => msg.includes(s))) {
       throw err;
     }
     if (!fallbackNoticeShown) {
       fallbackNoticeShown = true;
       process.stderr.write(
         "tender: Chromium sandbox unavailable on this host; retrying with --no-sandbox.\n" +
-        "        (Common on Ubuntu 23.10+ / hardened CI hosts. See user guide, Security considerations.)\n"
+        "        (Common on Ubuntu 23.10+, Docker-as-root, and hardened CI hosts. See user guide,\n" +
+        "        Security considerations.)\n"
       );
     }
     return await puppeteer.launch({ headless: true, args: ["--no-sandbox"] });
