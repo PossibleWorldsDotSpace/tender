@@ -4,14 +4,14 @@
   "description": "Layout-as-code for print PDFs. Markdown + components + design tokens, rendered through CSS Paged Media and headless Chromium.",
   "license": "MIT",
   "author": "Possible Worlds",
-  "homepage": "https://github.com/possibleworldsdotspace/tender#readme",
+  "homepage": "https://github.com/PossibleWorldsDotSpace/tender#readme",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/possibleworldsdotspace/tender.git",
+    "url": "git+https://github.com/PossibleWorldsDotSpace/tender.git",
     "directory": "packages/cli"
   },
   "bugs": {
-    "url": "https://github.com/possibleworldsdotspace/tender/issues"
+    "url": "https://github.com/PossibleWorldsDotSpace/tender/issues"
   },
   "keywords": [
     "pdf",

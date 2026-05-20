@@ -13,7 +13,7 @@ For an overview of what Tender is and what it does, see [`README.md`](README.md)
 ## First-time setup
 
 ```bash
-git clone https://github.com/possibleworldsdotspace/tender.git
+git clone https://github.com/PossibleWorldsDotSpace/tender.git
 cd tender
 pnpm install        # also downloads the puppeteer Chromium
 pnpm -r build       # build every package once
@@ -57,7 +57,7 @@ Or `pnpm --filter @possibleworlds/tender exec tender preview my-project` after `
 
 ## Running the VS Code extension from a clone
 
-The extension isn't on the marketplace yet ([#2](https://github.com/possibleworldsdotspace/tender/issues/2)). Open `packages/vscode-extension/` in VS Code and press F5 to launch a development host with the extension loaded.
+The extension isn't on the marketplace yet ([#2](https://github.com/PossibleWorldsDotSpace/tender/issues/2)). Open `packages/vscode-extension/` in VS Code and press F5 to launch a development host with the extension loaded.
 
 ## Docs-parity rule
 
@@ -83,7 +83,7 @@ Common scopes: `cli`, `core`, `render`, `preview`, `preview-ui`, `lsp`, `vscode`
 
 ## Reporting issues
 
-Use [GitHub Issues](https://github.com/possibleworldsdotspace/tender/issues). For a bug, include: Tender version (`tender --version`), Node version, OS, the smallest project layout that reproduces. For a feature request, describe the document you're trying to typeset and what's awkward today — that's usually more useful than the specific API you have in mind.
+Use [GitHub Issues](https://github.com/PossibleWorldsDotSpace/tender/issues). For a bug, include: Tender version (`tender --version`), Node version, OS, the smallest project layout that reproduces. For a feature request, describe the document you're trying to typeset and what's awkward today — that's usually more useful than the specific API you have in mind.
 
 ## Security
 

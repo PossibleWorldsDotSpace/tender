@@ -1,6 +1,6 @@
 # Tender for VS Code
 
-Authoring support for [Tender](https://github.com/possibleworldsdotspace/tender) — layout-as-code for print PDFs.
+Authoring support for [Tender](https://github.com/PossibleWorldsDotSpace/tender) — layout-as-code for print PDFs.
 
 The extension is a thin shell over `@tender/language-server`:
 

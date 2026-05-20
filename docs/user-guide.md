@@ -1137,7 +1137,7 @@ When you add a new template, the post-apply summary reminds you to mark pages wi
 
 Each screen prefills from the current `project.yaml` and ends with a **diff you confirm before anything is written** — walking through and pressing Enter changes nothing. Writes round-trip through a YAML AST, so comments, key ordering, and unrelated keys survive. TTY required: a wizard has no non-interactive meaning, so on a pipe/CI it errors and points you at `tender tokens set` or editing `project.yaml` directly. `tender init` offers the same two screens as optional post-scaffold prompts under the **Configure** stage.
 
-<a id="tender-configure-notes"></a>**Notes on safety:** `default` is currently immutable (no rename, no remove) — every project relies on it existing. Adding new templates is unrestricted. Per-template verso/recto headers, `bleed`, and template rename/remove are deferred to a later release ([#18](https://github.com/possibleworldsdotspace/tender/issues/18)); the configurator detects existing verso/recto configs and refuses to clobber them.
+<a id="tender-configure-notes"></a>**Notes on safety:** `default` is currently immutable (no rename, no remove) — every project relies on it existing. Adding new templates is unrestricted. Per-template verso/recto headers, `bleed`, and template rename/remove are deferred to a later release ([#18](https://github.com/PossibleWorldsDotSpace/tender/issues/18)); the configurator detects existing verso/recto configs and refuses to clobber them.
 
 > The interactive picker that was `tender tokens edit` now lives here, alongside page setup, with the mandatory diff-before-write.
 
