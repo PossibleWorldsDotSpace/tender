@@ -977,15 +977,24 @@ CLI behaviour:
 
 Scaffolds a Tender project. Idempotent: every scaffolded file (`project.yaml`, `styles.css`, `content.md`, `components/README.md`, `.gitignore`) is *created* if absent, *preserved* if present. Default `dir` is the current directory.
 
-After scaffolding files, on an **interactive terminal** it asks:
+After scaffolding files, on an **interactive terminal** the flow is staged as three sections — **Setup**, **Configure**, **Finish** — with visible headings so you can see where you are in the journey.
+
+**Setup** (the three baseline choices):
 
 1. **Install the tender-author Claude skill?** (default **yes**) — copies the skill into the project at `.claude/skills/tender-author/`. It's project-local: it lives in your repo, travels with it, and Claude Code picks it up automatically when the project is open. See [Authoring with Claude Code](#authoring-with-claude-code). Declining is cheap — add it later with `tender add-skill`.
 2. **Initialize a git repository?** (default **yes**) — runs `git init` unless the directory is already inside a repo. If git isn't installed it says so and carries on; scaffolding still succeeds.
 3. **Keep build output (`out/`) under version control?** (default **no**) — controls whether the scaffolded `.gitignore` ignores `out/`. Say yes if you want the built PDF/HTML diffed or distributed via git.
-4. **Configure page setup now?** (default **no**) — opens the interactive page-setup screen (size, margins) against the just-scaffolded `project.yaml`. Same screen as [`tender configure`](#tender-configure-dir); skip it and run that any time later.
-5. **Configure design tokens now?** (default **no**) — opens the design-token picker. Also part of `tender configure`.
 
-If git was initialized it then also asks whether to make an initial commit (`y` → `git add -A && git commit`); `--no-commit` skips that one prompt. The commit (if made) captures any page-setup/token changes, since the configurator runs first.
+The scaffold runs at this point — `Project ready at …` lands as the visible payoff of Setup.
+
+**Configure** (optional, two independent steps; both default **no**):
+
+4. **Set up page templates now? (size, margins, headers)** — opens the interactive page-setup screen against the just-scaffolded `project.yaml`. Two-level: a template list (one row per `page-templates.<name>` entry, plus a navigable "+ add a page template" row at the bottom for adding more) → a template view (size, four margin boxes, headers mode + three slots, footers mode + three slots). Same screen as [`tender configure`](#tender-configure-dir); skip it and run that any time later.
+5. **Set up design tokens now? (colours, lengths, fonts)** — opens the design-token picker. Category step is a pick-list of `color · size · font · space · other`; "other" or typing in any printable key drops to free-text. Per-category value hints (hex for colours, length for sizes/spaces, family name for fonts). Also part of `tender configure`.
+
+**Finish**:
+
+If git was initialized it then asks whether to make an initial commit (`y` → `git add -A && git commit`); `--no-commit` skips that one prompt. The commit (if made) captures any page-setup/token changes, since the configurator runs first.
 
 Every question has a flag that **skips the prompt** (useful for scripts and for power users): `--skill` / `--no-skill`, `--git` / `--no-git`, `--track-out` / `--ignore-out`, `--configure-page` / `--no-configure-page`, `--configure-tokens` / `--no-configure-tokens`. When stdin **isn't a TTY** (piped, CI) no prompts are shown and these documented defaults apply: **git init yes, skill no, `out/` ignored, no configurator** — flags override them.
 
@@ -1005,6 +1014,10 @@ The most common flow is "user has a directory with their content.md already in i
 
 ```
 $ tender init
+[ANSI banner]
+
+Setup
+─────
 Install the tender-author Claude skill? [Y/n] y
 Initialize a git repository? [Y/n] y
 Keep build output (out/) under version control? [y/N] n
@@ -1020,6 +1033,14 @@ Installed the tender-author skill at .claude/skills/tender-author/.
 
 Project ready at /home/me/manuscripts/script.
 Try: tender preview
+
+Configure
+─────────
+Set up page templates now? (size, margins, headers) [y/N] n
+Set up design tokens now? (colours, lengths, fonts) [y/N] n
+
+Finish
+──────
 Make an initial commit? [y/N]
 ```
 
@@ -1097,16 +1118,24 @@ Set `clean.typography: smart` in `project.yaml` to make `--typography` the defau
 
 ### `tender configure [dir]`
 
-Interactively adjust the foundational `project.yaml` config — page setup (size, margins per template) and design tokens — against an existing project. Re-runnable any time; it does not scaffold, `git init`, or touch the skill (that's `tender init`'s job).
+Interactively adjust the foundational `project.yaml` config — page templates and design tokens — against an existing project. Re-runnable any time; it does not scaffold, `git init`, or touch the skill (that's `tender init`'s job).
 
 ```
-tender configure              # page setup, then the design-token picker
+tender configure              # page templates, then the design-token picker
 tender configure my-doc       # against ./my-doc
-tender configure --page-only  # just size/margins
+tender configure --page-only  # just page templates
 tender configure --tokens-only
 ```
 
-Each screen prefills from the current `project.yaml` and ends with a **diff you confirm before anything is written** — walking through and pressing Enter changes nothing. Writes round-trip through a YAML AST, so comments, key ordering, and unrelated keys survive. TTY required: a wizard has no non-interactive meaning, so on a pipe/CI it errors and points you at `tender tokens set` or editing `project.yaml` directly. `tender init` offers the same two screens as optional post-scaffold prompts.
+**Page setup** opens as a list of your page templates. Each row summarises the template's size and margins; `default` is marked immutable (you can edit it but not remove or rename — see [Notes on safety](#tender-configure-notes)). The last row is `+ add a page template`, navigable like any other — press `↵` (or the `a` shortcut from anywhere on the list) to add one with a fresh `cover` / `body` / `appendix` style name. Drilling into a template gives you size (named A4/A5/A6/Letter/Legal or custom width × height), four margin boxes (top/bottom/inner/outer with unit cycling and an explicit "0" toggle), headers (none, or three slots — left/center/right), and footers (same). Slot text accepts plain strings or one of the five interpolation tokens: `{page}`, `{pages}`, `{title}`, `{chapter}`, `{section}`. Editing a slot is **replace-on-type**: pressing `↵` opens an empty editor with the current value shown beside it as a `current: …` hint; typing replaces, `↵` on empty preserves. Editing a non-default template's size shows a note that the PDF sheet dimensions follow `default` — non-default templates change the content area, not the physical sheet.
+
+When you add a new template, the post-apply summary reminds you to mark pages with it in source via `=== page{template=<name>}` — the YAML on its own is dead until something references it.
+
+**Design tokens** opens as a list of your existing tokens, grouped by category. `↵` edits a value (same replace-on-type editor as slots; for hex values, contrast against `color.page` is computed and shown). `a` (or the legend's "add" path) opens the add-token sub-flow: the category step is a **pick-list** of `color · size · font · space · other` — use ←/→ to cycle, `↵` to commit; `↵` on `other` (or typing any printable key in pick mode) drops to free-text so you can invent your own category. Per-category value hints surface while you type (`color` → hex like `#1a1a1a`; `size`/`space` → length like `12pt`/`8mm`; `font` → family name from your `fonts:` list).
+
+Each screen prefills from the current `project.yaml` and ends with a **diff you confirm before anything is written** — walking through and pressing Enter changes nothing. Writes round-trip through a YAML AST, so comments, key ordering, and unrelated keys survive. TTY required: a wizard has no non-interactive meaning, so on a pipe/CI it errors and points you at `tender tokens set` or editing `project.yaml` directly. `tender init` offers the same two screens as optional post-scaffold prompts under the **Configure** stage.
+
+<a id="tender-configure-notes"></a>**Notes on safety:** `default` is currently immutable (no rename, no remove) — every project relies on it existing. Adding new templates is unrestricted. Per-template verso/recto headers, `bleed`, and template rename/remove are deferred to a later release ([#18](https://github.com/joshajh/tender/issues/18)); the configurator detects existing verso/recto configs and refuses to clobber them.
 
 > The interactive picker that was `tender tokens edit` now lives here, alongside page setup, with the mandatory diff-before-write.
 
