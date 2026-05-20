@@ -12,6 +12,11 @@ jobs:
       - uses: actions/setup-node@v4
         with: { node-version: 20, cache: pnpm }
       - run: pnpm install --frozen-lockfile
+      # pnpm with --frozen-lockfile sometimes skips puppeteer's
+      # postinstall, leaving ~/.cache/puppeteer/ empty. Install the
+      # bundled Chromium explicitly so the render-package tests can
+      # actually launch a browser.
+      - run: pnpm --filter @possibleworlds/tender exec puppeteer browsers install chrome
       # build before typecheck: language-server's `tsc` resolves
       # @tender/core via its dist/index.d.ts, which only exists after
       # the core build runs.
