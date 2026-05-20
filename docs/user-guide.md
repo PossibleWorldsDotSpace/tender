@@ -1187,6 +1187,8 @@ This is acceptable for the typical Tender use case — rendering local source fi
 
 **Preview server network exposure.** `tender preview` binds to `127.0.0.1` by default. When `--host` is set to anything else — `0.0.0.0`, a LAN IP, a Tailscale IP — the server is reachable from the network, and the server has no authentication: anyone who can connect to the port can read your project source under `/assets`, any rendered PDF under `/_api/out/<file>.pdf`, and the full HTML preview. The CLI prints a prominent stderr warning on every non-loopback bind. Use `127.0.0.1` unless you understand the exposure and trust the network.
 
+The `/assets/*` route serves your project's `assets/` directory and is hardened against path traversal: requests are realpath-resolved and rejected if they escape the assets root, including via symlinks inside `assets/` that point outside the project. `/_api/out/<file>.pdf` is constrained to `.pdf` basenames inside the build output directory. The `/_preview` query parameter is treated as an in-memory key only; it never touches the filesystem.
+
 ## What's not in v1
 
 - **No cross-document references.** A project can carry multiple documents (any `*.md` at the project root) that share components, styles, and tokens, but Tender doesn't link them: no shared page numbering, no cross-references, no continuous flow between documents.
