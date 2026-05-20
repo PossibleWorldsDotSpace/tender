@@ -8,7 +8,7 @@
 
 # Layout-as-code for print.
 
-Scaffold in YAML, build components in CSS, compose in Markdown, export to PDF.
+This is a tool we've made internally that takes a component-driven, code-first approach to print layout. Scaffold in YAML, build components in CSS, compose in Markdown, export to PDF. The broad idea is 'Astro for PDF'.
 
 *Built by [possibleworlds.space](https://possibleworlds.space).*
 
@@ -16,9 +16,13 @@ Scaffold in YAML, build components in CSS, compose in Markdown, export to PDF.
 
 ## What is Tender?
 
-Tender is a print-layout tool for people who'd rather express a document as code than wrestle a WYSIWYG editor. You declare your design vocabulary (page templates, design tokens, fonts) in `project.yaml`, write reusable components as single `.tender` files (frontmatter + Handlebars + scoped CSS), and compose your prose in Markdown. A small CLI watches your sources, runs them through CSS Paged Media in headless Chromium, and produces a print-ready PDF — typeset to the standard you'd expect from InDesign, in a workflow that diffs cleanly in git.
+Tender is a layout-as-code tool for print. You initialize a project with `tender init`, define your design vocabulary (templates, tokens, fonts, other assets) in `project.yaml`, and write components as `.tender` files. Compose your prose in Markdown, and Tender will render it to a print-ready PDF.
 
-The opinions are deliberately narrow: a fixed cascade order, a `.page` wrapper around every page, project-local asset paths, no post-render JS. Beyond that, anything Chromium renders works — full Grid, Flexbox, modern selectors, container queries, custom properties, the lot — plus everything Paged.js polyfills of the print spec. The point isn't to invent a new layout engine; it's to make the existing one ergonomic for documents that need to ship as PDFs.
+Most projects start with the CLI, where you scaffold a new project, define your tokens, and write your first component. Then you can import and sanitise your prose, and write the rest of your layout.
+
+You can interact with Tender projects using the CLI, a comprehensive Claude Skill, or of course by writing code in your editor.
+
+A browser UI gives you a live preview of your layout as you work. A watcher watches your sources, runs them through CSS Paged Media in headless Chromium, and produces a print-ready PDF. Tender relies heavily on Paged.js; the idea is to create a modern, ergonomic way of designing print layouts from a code-first perspective.
 
 ## What you do
 
@@ -32,8 +36,6 @@ flowchart LR
     E --> F[Export to PDF]
 ```
 
-Most of the day is in that *compose ↔ preview* loop. Set things up once at the start; export when you're happy.
-
 ## How it flows
 
 ```mermaid
@@ -46,8 +48,6 @@ flowchart LR
     E --> F[tender build]
     F --> G[out/&lt;doc&gt;.pdf<br/>out/&lt;doc&gt;.html]
 ```
-
-The loop in the middle (edit → preview) is the day-to-day; `init` happens once, `build` happens when you ship.
 
 ## Architecture
 
@@ -81,8 +81,6 @@ flowchart TB
     RENDER --> HTML
 ```
 
-The CLI and the Claude skill are peer **control surfaces** — both speak directly to your source files and run the same engine underneath. The VS Code extension is an editing surface; it talks to the language server, not the build pipeline.
-
 ## Install
 
 Requires Node 20+.
@@ -95,16 +93,11 @@ Then `tender` is on your `$PATH`.
 
 ### Linux system requirements
 
-Tender renders through headless Chromium (downloaded automatically by puppeteer on install). On minimal Debian/Ubuntu containers — including the official `node:20` Docker image — you'll need to install Chromium's shared-library dependencies before `tender build` will work. On Debian/Ubuntu:
+Tender renders through headless Chromium, which puppeteer downloads automatically on install. On minimal Linux images — `node:20-slim`, distroless CI runners, freshly-provisioned containers — that Chromium needs a handful of shared libraries to launch. The exact set drifts as puppeteer's bundled Chromium updates, so rather than maintain a list here that goes stale, follow puppeteer's upstream guide:
 
-```
-apt-get update && apt-get install -y \
-  libnss3 libnspr4 libatk1.0-0 libatk-bridge2.0-0 \
-  libcups2 libdrm2 libxkbcommon0 libxcomposite1 libxdamage1 \
-  libxfixes3 libxrandr2 libgbm1 libpango-1.0-0 libcairo2 libasound2
-```
+> [pptr.dev/troubleshooting](https://pptr.dev/troubleshooting) — see "Chrome doesn't launch on Linux" for the current Debian/Ubuntu and CentOS package lists, plus an `ldd chrome | grep not` check for whichever distro you're on.
 
-Most desktop Linux distros include these by default; the list matters mainly for CI containers, Docker, and freshly-provisioned VMs. macOS and Windows don't need an equivalent step.
+Most desktop Linux distros ship these by default; the list matters mainly for CI containers, Docker, and freshly-provisioned VMs. macOS and Windows don't need an equivalent step.
 
 ### From source
 
@@ -245,9 +238,9 @@ VS Code opens with the extension live; the language server spawns from the works
 
 ## Built by Possible Worlds
 
-Tender is built by [Possible Worlds](https://possibleworlds.space) — a small studio working on tools and texts for thinking about better futures. We use Tender ourselves to ship workshop playbooks, research reports, and other documents that live more comfortably as PDFs than as web pages.
+Tender is built by [Possible Worlds](https://possibleworlds.space), a small studio working on tools and texts for other futures. We built Tender for our own use, and hope it will be useful to you too.
 
-If Tender is useful to you, we'd love to hear what you're using it for. File an issue, open a discussion, or get in touch via the website.
+If Tender is useful to you, we'd love to hear what you're using it for.
 
 ## License
 
